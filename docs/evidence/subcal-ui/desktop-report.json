@@ -1,5 +1,5 @@
 {
-  "at": "2026-10-21T11:44:36.261Z",
+  "at": "2026-10-21T11:59:34.667Z",
   "platform": "win32",
   "electron": "44.7.0",
   "checks": [
@@ -27,6 +27,7 @@
     "06-calendar.png",
     "07-expenses-cny-budget.png",
     "08-settings.png",
+    "09b-subscription-cards.png",
     "09-search-state.png",
     "10-dashboard-dark.png",
     "11-仪表盘-960.png",
@@ -40,7 +41,7 @@
     "13-accounts.png"
   ],
   "pageErrors": [],
-  "profile": "C:\\Users\\niilo\\AppData\\Local\\Temp\\opencode\\subcal-ui-check-zg5sUX",
+  "profile": "C:\\Users\\niilo\\AppData\\Local\\Temp\\opencode\\subcal-ui-check-BDngHx",
   "userAcceptance": "pending",
   "limitations": [
     "未使用真实供应商账号验证本轮页面（仅检查账号流程入口）",

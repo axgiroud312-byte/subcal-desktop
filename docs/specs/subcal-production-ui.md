@@ -61,7 +61,7 @@ React 页面组合共享组件和 selector/ViewModel；ViewModel 保留原 Subsc
 - **代码**：新外壳/首页/仪表盘/消费/日历标题/账号标题/设置页已接入；旧订阅卡片、表格与详情保持在 `.subcal-magpie` 作用域，未改为原型价格卡。
 - **数据**：SQLite v4 `payments` 表；JSON v3 备份；付款 CRUD、撤销、幂等、revision、付款＋手动顺延同事务；预算/分类/统计币种/工作区名/提前天数持久化。
 - **统计**：`src/shared/spending.ts` 统一月均、计划、实付、分类、预算与日历付款标记；按币种分开，金额用 BigInt 定点。
-- **检查**：`npm run typecheck`、`npm test`（305 项，1 项既有跳过）、`node scripts/backend-desktop-check.mjs`（6 项）与 `node scripts/subcal-ui-check.mjs`（14 项）通过；后者覆盖添加/编辑/归档外的手动订阅、付款顺延、补付、幂等、删除撤销、跨页一致、日历标记、分币种、预算、搜索/状态/滚动、浅深主题、960×640、备份 v3/v2、重启恢复与账号入口。
+- **检查**：`npm run typecheck`、`npm test`（305 项，1 项既有跳过）、`node scripts/backend-desktop-check.mjs`（6 项）与 `node scripts/subcal-ui-check.mjs`（14 项）通过；后者覆盖手动订阅、付款顺延/补付/幂等、删除撤销、跨页一致、日历标记、分币种、预算、搜索/状态/滚动、卡片/表格视图与排序、浅深主题、960×640、备份 v3/v2、重启恢复与账号入口。
 - **未完成**：真实供应商账号逐一验收仍受凭据限制；Google OAuth 未配置；Google/iCloud/EventKit 外部日历未接通；system 主题随 Windows 变化的实机切换未人工复核。用户验收 pending。
 
 ## 完成证据

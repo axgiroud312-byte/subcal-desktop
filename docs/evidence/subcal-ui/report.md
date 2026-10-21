@@ -81,6 +81,7 @@ npm run dev
 
 - 新页面在 1280×820、960×640 与当前 Windows DPI 下截图；浅色/深色均有记录。
 - 旧订阅展示没有修改前的同内容截图可直接引用；本轮以源码角色值与运行时计算的样式断言作为基线：卡片内边距 12px、内容间距 8px、圆角 10px、网格最小列宽 260px、非 Nunito 字体、深色卡片 `#222226`。新侧栏使可用列数自然减少，未放大卡片。
+- 订阅页新增“卡片 / 表格”切换；卡片视图重新接入原 `SubscriptionCard` 与 dnd-kit 排序，Alt+方向键排序已实测并写回 `preferences.order`；表格仍为默认视图。
 - 已知差异：订阅页工具栏沿用旧 Magpie 样式（在 `.subcal-magpie` 内），与绿色外壳并置会看到按钮颜色不同；这是“保留旧订阅展示”的直接结果。订阅表格在 1280 宽度下需要内部横向滚动。
 - 日历页的细部仍沿用既有业务网格样式，只套用了新外壳与绿色语义 Token。
 
@@ -91,7 +92,7 @@ npm run dev
 - `01-dashboard-empty.png`、`02-detail-magpie.png`、`03-dashboard-payment.png`
 - `04-expenses.png`、`05-expenses-after-undo.png`
 - `06-calendar.png`、`07-expenses-cny-budget.png`
-- `08-settings.png`、`09-search-state.png`、`10-dashboard-dark.png`
+- `08-settings.png`、`09-search-state.png`、`09b-subscription-cards.png`、`10-dashboard-dark.png`
 - `11-仪表盘-960.png`、`11-订阅管理-960.png`、`11-消费管理-960.png`、`11-订阅日历-960.png`、`11-账号管理-960.png`、`11-偏好设置-960.png`、`11-产品首页-960.png`
 - `12-restart.png`、`13-accounts.png`
 - `backend/`：既有桌面回归截图（1280/960 四页、账号流程、设置）与 `desktop-report.json`

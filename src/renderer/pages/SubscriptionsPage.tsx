@@ -1,8 +1,24 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  rectSortingStrategy,
+  SortableContext,
+  sortableKeyboardCoordinates,
+} from '@dnd-kit/sortable';
 import type { PageProps } from '../contracts';
 import type { Subscription } from '../../shared/types';
 import { fieldText, freshness, money, renewalText } from '../../shared/rules';
 import { PRODUCT_CATALOG, SubscriptionForm } from '../components/SubscriptionForm';
+import { SubscriptionCard } from '../components/SubscriptionCard';
 import {
   BrandIcon,
   connectionStateMeta,
@@ -47,6 +63,8 @@ import {
   Archive,
   ArchiveRestore,
   ChevronDown,
+  LayoutGrid,
+  List,
   LockKeyhole,
   MoreHorizontal,
   Pencil,
@@ -66,6 +84,31 @@ export interface SubscriptionsPageProps extends PageProps {
 type ArchiveFilter = 'active' | 'archived' | 'all';
 type KindFilter = 'all' | 'window' | 'wallet' | 'manual';
 type TableSort = 'default' | 'product' | 'renewal' | 'price' | 'status';
+type ViewMode = 'table' | 'cards';
+
+type CardGroup = { groupKey: string; primary: Subscription; accounts: Subscription[] };
+
+function buildCardGroups(subscriptions: Subscription[]): CardGroup[] {
+  const groups: CardGroup[] = [];
+  const byKey = new Map<string, CardGroup>();
+  for (const sub of subscriptions) {
+    const groupKey = `${sub.brand}::${sub.product}::${sub.kind}`;
+    const existing = byKey.get(groupKey);
+    if (existing) existing.accounts.push(sub);
+    else {
+      const entry: CardGroup = { groupKey, primary: sub, accounts: [sub] };
+      byKey.set(groupKey, entry);
+      groups.push(entry);
+    }
+  }
+  for (const group of groups) {
+    group.accounts.sort(
+      (a, b) => (a.connectionId ?? a.id).localeCompare(b.connectionId ?? b.id) || a.id.localeCompare(b.id),
+    );
+    group.primary = group.accounts[0];
+  }
+  return groups;
+}
 
 export function SubscriptionsPage({
   snapshot,
@@ -81,6 +124,7 @@ export function SubscriptionsPage({
   const [archiveFilter, setArchiveFilter] = useState<ArchiveFilter>('active');
   const [kindFilter, setKindFilter] = useState<KindFilter>('all');
   const [sortBy, setSortBy] = useState<TableSort>('default');
+  const [view, setView] = useState<ViewMode>('table');
   const [showCatalogBar, setShowCatalogBar] = useState(false);
 
   // Fallback local modal state if parent doesn't supply onEdit / onCreateWithPreset
@@ -155,6 +199,67 @@ export function SubscriptionsPage({
 
     return list;
   }, [snapshot.subscriptions, snapshot.preferences.order, archiveFilter, kindFilter, query, sortBy]);
+
+  const groupedCards = useMemo(() => buildCardGroups(filteredRows), [filteredRows]);
+  const cardRefs = useRef<Record<string, HTMLElement | null>>({});
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  /**
+   * Persists whole product-card groups (all accounts) while keeping filtered-out
+   * and archived IDs in their prior relative order.
+   */
+  const persistGroupOrder = (fromPrimaryId: string, toPrimaryId: string) => {
+    if (fromPrimaryId === toPrimaryId) return;
+    const orderMap = new Map<string, number>();
+    snapshot.preferences.order.forEach((id, index) => orderMap.set(id, index));
+    const active = snapshot.subscriptions
+      .filter((s) => s.lifecycle !== 'archived')
+      .sort((a, b) => {
+        const ai = orderMap.get(a.id);
+        const bi = orderMap.get(b.id);
+        if (ai !== undefined && bi !== undefined) return ai - bi;
+        if (ai !== undefined) return -1;
+        if (bi !== undefined) return 1;
+        return 0;
+      });
+    const allGroups = buildCardGroups(active);
+    const fromIndex = allGroups.findIndex((g) => g.accounts.some((a) => a.id === fromPrimaryId));
+    const toIndex = allGroups.findIndex((g) => g.accounts.some((a) => a.id === toPrimaryId));
+    if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return;
+    const nextGroups = arrayMove(allGroups, fromIndex, toIndex);
+    const activeIds = nextGroups.flatMap((g) => g.accounts.map((a) => a.id));
+    const activeSet = new Set(activeIds);
+    const rest = snapshot.subscriptions.filter((s) => !activeSet.has(s.id)).map((s) => s.id);
+    void client.reorder([...activeIds, ...rest])
+      .then(() => setSortBy('default'))
+      .catch((error) => notify((error as Error).message));
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    if (!event.over || event.active.id === event.over.id) return;
+    persistGroupOrder(String(event.active.id), String(event.over.id));
+  };
+
+  const moveOrder = (id: string, direction: -1 | 1) => {
+    const ids = groupedCards.map((g) => g.primary.id);
+    const index = ids.indexOf(id);
+    const target = index + direction;
+    if (index < 0 || target < 0 || target >= ids.length) return;
+    persistGroupOrder(id, ids[target]);
+  };
+
+  const handleCardKeyNav = (currentId: string, key: string) => {
+    const ids = groupedCards.map((g) => g.primary.id);
+    const index = ids.indexOf(currentId);
+    if (index < 0) return;
+    let next = index;
+    if (key === 'ArrowRight' || key === 'ArrowDown') next = Math.min(ids.length - 1, index + 1);
+    else if (key === 'ArrowLeft' || key === 'ArrowUp') next = Math.max(0, index - 1);
+    if (next !== index) requestAnimationFrame(() => cardRefs.current[ids[next]]?.focus());
+  };
 
   const handleTriggerEdit = (sub: Subscription) => {
     if (onEdit) {
@@ -348,6 +453,26 @@ export function SubscriptionsPage({
           </div>
 
           <div className="subscriptions-toolbar-actions">
+            <div className="segmented-group" role="group" aria-label="订阅显示方式">
+              <Button
+                type="button"
+                variant={view === 'cards' ? 'secondary' : 'ghost'}
+                size="sm"
+                aria-pressed={view === 'cards'}
+                onClick={() => setView('cards')}
+              >
+                <LayoutGrid /> 卡片
+              </Button>
+              <Button
+                type="button"
+                variant={view === 'table' ? 'secondary' : 'ghost'}
+                size="sm"
+                aria-pressed={view === 'table'}
+                onClick={() => setView('table')}
+              >
+                <List /> 表格
+              </Button>
+            </div>
             <CollapsibleTrigger
               render={
                 <Button
@@ -482,6 +607,50 @@ export function SubscriptionsPage({
             </Button>
           </div>
         </div>
+      ) : view === 'cards' ? (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={groupedCards.map((g) => g.primary.id)}
+            strategy={rectSortingStrategy}
+          >
+            <section
+              className={`cards-grid ${
+                snapshot.preferences.density === 'compact' ? 'density-compact' : 'density-comfortable'
+              }`}
+              aria-label="订阅卡片列表"
+            >
+              {groupedCards.map(({ primary, accounts }) => (
+                <SubscriptionCard
+                  key={primary.id}
+                  subscription={primary}
+                  accounts={accounts}
+                  allSubscriptions={snapshot.subscriptions}
+                  connections={snapshot.connections}
+                  now={snapshot.now}
+                  preferences={snapshot.preferences}
+                  onOpen={onOpen}
+                  onRefresh={(id) => {
+                    void client
+                      .refresh(id)
+                      .then((msg) => notify(msg))
+                      .catch((error) => notify((error as Error).message));
+                  }}
+                  onConnection={onConnection}
+                  onMoveOrder={moveOrder}
+                  onCardKeyNav={handleCardKeyNav}
+                  cardRef={(el) => {
+                    cardRefs.current[primary.id] = el;
+                  }}
+                  draggable
+                />
+              ))}
+            </section>
+          </SortableContext>
+        </DndContext>
       ) : (
         <div className="panel subscriptions-table-panel">
           <Table className="sub-table">

@@ -250,6 +250,51 @@ try {
     assert.equal(await dashboard.evaluate((el) => el.scrollTop), dashboardScroll);
     await nav('订阅管理');
     assert.equal(await subSearch.inputValue(), 'Claude');
+    await subSearch.fill('');
+    await page.getByRole('button', { name: '卡片', exact: true }).click();
+    assert.ok(await page.locator('.sc-page:not([hidden]) .sub-card').first().isVisible(), '卡片视图仍可到达');
+    await nav('仪表盘');
+    await nav('订阅管理');
+    assert.ok(await page.locator('.sc-page:not([hidden]) .sub-card').first().isVisible(), '视图选择在切页后保留');
+    const cardMetrics = await page.locator('.sc-page:not([hidden]) .sub-card').first().evaluate((el) => {
+      const style = getComputedStyle(el);
+      return { padding: style.paddingTop, radius: style.borderRadius, font: style.fontFamily };
+    });
+    assert.equal(cardMetrics.padding, '12px');
+    assert.equal(cardMetrics.radius, '10px');
+    assert.doesNotMatch(cardMetrics.font, /Nunito/);
+    await shot('09b-subscription-cards.png');
+    const secondId = await page.evaluate(async ({ renewalDate }) => {
+      const { client } = await import('/src/renderer/service/client.ts');
+      const source = (await client.snapshot()).subscriptions[0];
+      const { id, revision, history, ...rest } = source;
+      return client.create({
+        ...rest,
+        product: 'Kimi Code',
+        brand: 'Kimi',
+        price: { ...source.price, value: '49.00' },
+        currency: 'CNY',
+        category: '其他',
+        renewalDate: { ...source.renewalDate, value: renewalDate },
+        anchorDate: renewalDate,
+      }, crypto.randomUUID());
+    }, { renewalDate: day(10) });
+    await page.waitForTimeout(600);
+    const visibleCards = page.locator('.sc-page:not([hidden]) .sub-card');
+    assert.equal(await visibleCards.count(), 2, '加入第二项后卡片视图完整');
+    await page.locator('.sc-page:not([hidden]) .sub-card-title-btn').first().focus();
+    await page.keyboard.press('Alt+ArrowRight');
+    await page.waitForTimeout(600);
+    const order = (await state()).preferences.order;
+    const rendered = await visibleCards.evaluateAll((els) => els.map((el) => el.getAttribute('data-card-id')));
+    assert.equal(rendered[0], order[0], 'Alt+方向键排序写入 preferences.order 并立即反映');
+    await page.evaluate(async (id) => {
+      const { client } = await import('/src/renderer/service/client.ts');
+      await client.remove(id, false);
+    }, secondId);
+    await page.waitForTimeout(500);
+    assert.equal(await page.locator('.sc-page:not([hidden]) .sub-card').count(), 1);
+    await page.getByRole('button', { name: '表格', exact: true }).click();
     await shot('09-search-state.png');
   });
 
