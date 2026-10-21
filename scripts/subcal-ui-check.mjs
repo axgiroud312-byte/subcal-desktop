@@ -457,5 +457,8 @@ try {
       ],
     }, null, 2),
   );
-  if (errors.length === 0 && process.exitCode !== 1) await fs.rm(profile, { recursive: true, force: true });
+  if (errors.length === 0 && process.exitCode !== 1) {
+    await fs.rm(path.join(evidence, '99-failure.png'), { force: true });
+    await fs.rm(profile, { recursive: true, force: true });
+  }
 }
