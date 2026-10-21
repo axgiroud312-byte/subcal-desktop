@@ -49,3 +49,7 @@ npm run test:desktop
 - 第一轮历史检查见 [FE-010](docs/issues/FE-010.md)，不与本轮结果混记。
 
 资源来源及文字后备说明见 [docs/assets.md](docs/assets.md)。
+
+## 代码仓库
+
+2026-10-21 建立 [axgiroud312-byte/subcal-desktop](https://github.com/axgiroud312-byte/subcal-desktop) 私有 GitHub 仓库，默认分支为 `main`。需要仓库访问权限才能查看；FE 编号仍由项目中的本地 Issue 文件管理，不代表已创建远端 GitHub Issue。

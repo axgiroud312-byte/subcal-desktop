@@ -1,6 +1,6 @@
 # SubCal 前端开发 Issue 索引
 
-这批任务交付可交互的 Electron 桌面前端预览。当前项目没有 GitHub 仓库，因此采用本地 Issue 文件；下列 FE 编号不是 GitHub Issue 编号，也没有发布到远端。
+这批任务交付可交互的 Electron 桌面前端预览，采用本地 Issue 文件；下列 FE 编号不是 GitHub Issue 编号，也没有发布为远端 Issue。2026-10-21 已建立 [私有代码仓库 axgiroud312-byte/subcal-desktop](https://github.com/axgiroud312-byte/subcal-desktop)，本地 Issue 管理方式保持不变。
 
 当前开发依据：[视觉基础与组件约定](../design/visual-foundation.md)、[前端执行规格](../specs/frontend-first.md)、[完整 PRD](../../SubCal-Desktop-V1-PRD.md)。第一版设计来源：[Gemini 原始方案](../design/gemini-frontend-proposal.md)及[调用回执](../design/gemini-call-receipt.json)。启动整批工作的指令见[前端开发指令](../../前端开发指令.md)。
 
