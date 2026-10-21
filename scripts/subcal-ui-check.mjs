@@ -114,6 +114,14 @@ try {
     assert.equal(s.subscriptions[0].renewalDate.value, nextRenewal);
     assert.equal(s.subscriptions[0].anchorDate, renewal);
     assert.match(await page.locator('.sc-page:not([hidden])').innerText(), /18\.00/);
+    await page.getByRole('button', { name: /^提醒中心/ }).click();
+    const reminders = page.getByRole('dialog', { name: '提醒中心' });
+    await reminders.waitFor();
+    assert.match(await reminders.innerText(), /Claude Pro/);
+    assert.match(await reminders.innerText(), /本机系统通知/);
+    await shot('03b-reminder-center.png');
+    await page.keyboard.press('Escape');
+    await reminders.waitFor({ state: 'detached' });
     await shot('03-dashboard-payment.png');
   });
 

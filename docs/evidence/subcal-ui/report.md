@@ -22,7 +22,7 @@ npm run dev
 - `src/renderer/pages/DashboardPage.tsx`：月均成本、本月实付、活跃订阅、7 天事项、6 个月实付曲线、近期计划、迷你日历；订阅区域直接复用 `SubscriptionCard`。
 - `src/renderer/pages/ExpensesPage.tsx`：月份切换、三口径统计、预算双口径进度、分类流向、付款明细筛选/分页/编辑/删除/撤销。
 - `src/renderer/pages/SettingsPage.tsx`：分区设置、主题即时保存、密度/额度显示/时区/托盘/勿扰、工作区名、统计币种、月度预算、分类、提前天数、备份导出/预览/恢复。
-- `src/renderer/components/PaymentForm.tsx`、`SearchDialog.tsx`、`MiniCalendar.tsx`：付款表单、全局搜索、迷你月历。
+- `src/renderer/components/PaymentForm.tsx`、`SearchDialog.tsx`、`MiniCalendar.tsx`：付款表单、全局搜索、迷你月历；顶栏提醒中心列出 45 天内已知事项并标注通道，系统“已提交”与送达分开说明。
 - `src/renderer/components/DetailDrawer.tsx`：新增“本地分类与最近付款”分区和记录付款入口，原权益/额度/账号分区保持。
 - `src/renderer/components/SubscriptionForm.tsx`：新增本地分类、订阅级提前天数、季度周期选项。
 - `src/renderer/pages/CalendarPage.tsx`：付款标记、已付计划追溯（顺延后仍显示原计划付款）、季度按三个日历月。
@@ -64,7 +64,7 @@ npm run dev
 
 1. 空库默认仪表盘，七入口可达且无演示账单
 2. 手动添加订阅并保留 Magpie 表格展示
-3. 记录付款并顺延一期：金额、计划关联与下一期正确
+3. 记录付款并顺延一期：金额、计划关联与下一期正确；提醒中心显示该事项
 4. 补付、幂等键与版本冲突：一笔请求只落一笔
 5. 消费页与仪表盘同一账本，编辑/删除/撤销同步
 6. 日历标记付款、季度周期与月末锚点
@@ -89,7 +89,7 @@ npm run dev
 
 `docs/evidence/subcal-ui/`：
 
-- `01-dashboard-empty.png`、`02-detail-magpie.png`、`03-dashboard-payment.png`
+- `01-dashboard-empty.png`、`02-detail-magpie.png`、`03-dashboard-payment.png`、`03b-reminder-center.png`
 - `04-expenses.png`、`05-expenses-after-undo.png`
 - `06-calendar.png`、`07-expenses-cny-budget.png`
 - `08-settings.png`、`09-search-state.png`、`09b-subscription-cards.png`、`10-dashboard-dark.png`

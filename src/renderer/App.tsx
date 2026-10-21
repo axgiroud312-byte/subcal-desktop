@@ -95,6 +95,7 @@ export function App() {
   const [addProvider, setAddProvider] = useState<string | null>(null);
   const [connectionFocusId, setConnectionFocusId] = useState<string | undefined>(undefined);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [remindersOpen, setRemindersOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [paymentContext, setPaymentContext] = useState<PaymentDraftContext | null>(null);
   const [paymentSeq, setPaymentSeq] = useState(0);
@@ -192,6 +193,13 @@ export function App() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [mobileOpen]);
+
+  useEffect(() => {
+    if (!remindersOpen) return;
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setRemindersOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [remindersOpen]);
 
   useEffect(() => {
     if (!snapshot || !window.subcal?.updateTray) return;
@@ -299,6 +307,12 @@ export function App() {
   };
 
   const dueCount = upcomingEvents(snapshot.subscriptions, snapshot.now, 7).length;
+  const reminderItems = upcomingEvents(snapshot.subscriptions, snapshot.now, 45);
+  const reminderChannel = snapshot.preferences.reminder === 'local'
+    ? `本机系统通知 · 提前 ${snapshot.preferences.reminderLeadDays} 天`
+    : snapshot.preferences.reminder === 'external'
+      ? '外部日历通道尚未接入'
+      : '提醒通道已关闭';
 
   const navList = (mobile = false) => (
     <>
@@ -415,15 +429,63 @@ export function App() {
               >
                 {resolvedTheme === 'dark' ? <Sun /> : <Moon />}
               </button>
-              <button
-                type="button"
-                className="sc-icon-btn"
-                data-alert={dueCount > 0}
-                aria-label={`提醒中心${dueCount > 0 ? `，${dueCount} 项近期事项` : ''}`}
-                onClick={() => navigate('calendar')}
-              >
-                <CalendarDays />
-              </button>
+              <div className="relative">
+                <button
+                  type="button"
+                  className="sc-icon-btn"
+                  data-alert={dueCount > 0}
+                  aria-label={`提醒中心${dueCount > 0 ? `，${dueCount} 项近期事项` : ''}`}
+                  aria-expanded={remindersOpen}
+                  onClick={() => setRemindersOpen((open) => !open)}
+                >
+                  <CalendarDays />
+                </button>
+                {remindersOpen ? (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setRemindersOpen(false)} />
+                    <div
+                      role="dialog"
+                      aria-label="提醒中心"
+                      className="absolute right-0 top-[46px] z-50 flex w-[340px] max-w-[calc(100vw-2rem)] flex-col gap-2 rounded-(--sc-radius-panel) border border-(--sc-border) bg-(--sc-surface) p-4 shadow-xl"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <strong className="text-base font-black">提醒中心</strong>
+                        <span className="sc-badge" data-tone="accent">{reminderItems.length} 项 · 45 天</span>
+                      </div>
+                      <p className="m-0 text-[11px] font-bold text-(--sc-muted)">{reminderChannel}</p>
+                      {reminderItems.length ? (
+                        <div className="sc-list max-h-72 overflow-y-auto">
+                          {reminderItems.slice(0, 8).map(({ event, sub, days }) => (
+                            <button
+                              key={event.id}
+                              type="button"
+                              className="sc-row border-0 bg-transparent p-0 text-left"
+                              onClick={() => { setRemindersOpen(false); setDetailId(sub.id); }}
+                            >
+                              <span className="sc-brand-icon" aria-hidden="true">{sub.brand.slice(0, 1).toUpperCase()}</span>
+                              <span className="sc-row-main">
+                                <strong>{sub.product}</strong>
+                                <small>{event.date} · {event.kind === 'renewal' ? '计划续费' : event.kind === 'expiry' ? '会员到期' : event.kind === 'trial' ? '试用结束' : '额度重置'}</small>
+                              </span>
+                              <span className="sc-row-end"><b>{days === 0 ? '今天' : `${days} 天后`}</b></span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="m-0 rounded-(--sc-radius-sm) bg-(--sc-canvas) px-3 py-4 text-center text-xs text-(--sc-muted)">
+                          未来 45 天没有已知的续费或到期事项。日期未知的订阅不会编造日期。
+                        </p>
+                      )}
+                      <div className="flex items-center justify-between border-t border-(--sc-border-soft) pt-2">
+                        <button type="button" className="sc-link" onClick={() => { setRemindersOpen(false); navigate('calendar'); }}>
+                          打开订阅日历 <ChevronRight className="size-4" />
+                        </button>
+                        <span className="text-[10px] text-(--sc-muted)">系统“已提交”不等于已送达</span>
+                      </div>
+                    </div>
+                  </>
+                ) : null}
+              </div>
               <span className="sc-workspace-avatar" aria-label="个人工作区">{snapshot.preferences.workspaceName.slice(0, 1) || '我'}</span>
             </div>
           </header>
