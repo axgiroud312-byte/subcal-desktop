@@ -94,6 +94,10 @@ function createLazyPreviewClient(): AppClient {
     remove: async (id, removeFuture) => (await loadPreviewClient()).remove(id, removeFuture),
     undo: async (token) => (await loadPreviewClient()).undo(token),
     reorder: async (ids) => (await loadPreviewClient()).reorder(ids),
+    createPayment: async (input, key, advancePlan) => (await loadPreviewClient()).createPayment(input, key, advancePlan),
+    updatePayment: async (id, revision, patch) => (await loadPreviewClient()).updatePayment(id, revision, patch),
+    removePayment: async (id) => (await loadPreviewClient()).removePayment(id),
+    undoPayment: async (token) => (await loadPreviewClient()).undoPayment(token),
     setPreferences: async (patch) => (await loadPreviewClient()).setPreferences(patch),
     resolveField: async (id, field, accept) =>
       (await loadPreviewClient()).resolveField(id, field, accept),

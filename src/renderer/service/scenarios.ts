@@ -4,7 +4,7 @@ export const DEMO_NOW = '2026-10-20T01:00:00.000Z';
 export const scenarioNames: Record<ScenarioId,string> = {
   empty_first_run:'首次空白',normal_mixed:'标准混合',multi_account_shared:'多账号与独立共享关系',unknown_and_na:'未知与不适用',zero_vs_unfetched:'明确零值与尚未获取',stale_and_past_reset:'过时与已过重置点',partial_success:'部分成功',auth_and_locked_fields:'认证失效与人工锁定',rate_limited:'限流与合并',offline_recovery:'离线与恢复',date_boundaries:'月末、闰年与时区',calendar_conflicts:'日历冲突与阶段',
 };
-export const defaultPreferences: Preferences = {theme:'light',density:'comfortable',quotaView:'remaining',timezone:'Asia/Shanghai',reducedMotion:false,closeToTray:true,reminder:'local',walletThresholds:{CNY:'10.00',USD:'5.00'},order:[]};
+export const defaultPreferences: Preferences = {theme:'light',density:'comfortable',quotaView:'remaining',timezone:'Asia/Shanghai',reducedMotion:false,closeToTray:true,reminder:'local',walletThresholds:{CNY:'10.00',USD:'5.00'},order:[],workspaceName:'示例工作区',statisticsCurrency:'CNY',monthlyBudgets:{},reminderLeadDays:3,categories:['AI 工具','生产力','影音娱乐','云存储','其他']};
 export function demoField(value: string|null, source='手动记录（示例）', availability:Field<string>['availability']=value===null?'unfetched':'known'): Field<string> {
   return {value,availability,source,observedAt:value===null?null:'2026-10-19T01:00:00.000Z',dataOrigin:'demo'};
 }
@@ -12,7 +12,7 @@ function metric(id:string,label:string,value:string|null,unit='%',resetAt:string
   return {id,label,unit,remaining:{...demoField(value,'模拟官方读取',availability),observedAt:value===null?null:'2026-10-20T00:55:00.000Z'},total:unit==='%'?'100':null,resetAt,staleAfterMinutes:unit==='%'?30:120};
 }
 export function emptySubscription(product=''): Omit<Subscription,'id'|'revision'|'history'> {
-  return {product,brand:product,kind:'manual',account:'个人示例账号',region:'未指定',organization:'个人',plan:demoField(null),price:demoField(null),currency:'USD',cycle:'monthly',intervalDays:30,anchorDate:null,timezone:'Asia/Shanghai',startDate:demoField(null),renewalDate:demoField(null),paidThrough:demoField(null),trialEnd:demoField(null),lifecycle:'active',autoRenew:'unknown',billingGroupId:null,quotaPoolId:null,possibleSharedWallet:false,metrics:[],connectionId:null,website:'',reminder:'local',pinned:false,notes:''};
+  return {product,brand:product,kind:'manual',account:'个人示例账号',region:'未指定',organization:'个人',plan:demoField(null),price:demoField(null),currency:'USD',cycle:'monthly',intervalDays:30,anchorDate:null,timezone:'Asia/Shanghai',startDate:demoField(null),renewalDate:demoField(null),paidThrough:demoField(null),trialEnd:demoField(null),lifecycle:'active',autoRenew:'unknown',billingGroupId:null,quotaPoolId:null,possibleSharedWallet:false,metrics:[],connectionId:null,website:'',reminder:'local',category:'其他',pinned:false,notes:''};
 }
 function baseSubscription(id:string,product:string,patch:Partial<Subscription>): Subscription { return {...emptySubscription(product),id,revision:1,history:[],...patch}; }
 function connection(id:string,provider:string,fields:string[],unsupported:string[]):Connection { return {id,provider,account:'个人示例账号',region:provider==='Kimi API'?'中国大陆':'全球示例',state:'ready',generation:1,fields,unsupported,version:'preview-1.0（模拟）',lastAttempt:'2026-10-20T00:55:00.000Z',lastSuccess:'2026-10-20T00:55:00.000Z',nextAllowed:null,error:null,runs:0}; }

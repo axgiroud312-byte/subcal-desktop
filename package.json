@@ -14,6 +14,7 @@
     "test:backend": "tsx --test tests/backend.test.ts tests/account-access.test.ts tests/account-lifecycle.test.ts",
     "test:adapters": "tsx --test tests/adapters.test.ts tests/credential-adapters.test.ts",
     "test:account-desktop": "node scripts/account-desktop-check.mjs",
+    "test:subcal-ui": "node scripts/subcal-ui-check.mjs",
     "test:backend-desktop": "node scripts/backend-desktop-check.mjs",
     "test:desktop": "node scripts/backend-desktop-check.mjs"
   },

@@ -9,6 +9,10 @@ const buttonVariants = cva(
       variant: {
         default:
           "bg-primary text-primary-foreground hover:bg-primary/90",
+        tactile:
+          "rounded-(--sc-radius) border-2 border-(--sc-accent-edge) bg-primary font-extrabold text-primary-foreground shadow-[0_4px_0_var(--sc-accent-edge)] hover:bg-(--sc-accent-hover) active:translate-y-[3px] active:shadow-[0_1px_0_var(--sc-accent-edge)]",
+        "tactile-soft":
+          "rounded-(--sc-radius) border-2 border-(--sc-border) bg-card font-extrabold text-(--sc-fg-2) shadow-[0_3px_0_var(--sc-border-soft)] hover:bg-(--sc-neutral-soft) active:translate-y-[2px] active:shadow-none",
         outline:
           "border-border bg-card text-foreground hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground aria-pressed:border-primary aria-pressed:bg-primary/10 aria-pressed:text-primary",
         secondary:
@@ -29,6 +33,8 @@ const buttonVariants = cva(
         "icon-xs": "size-(--control-height) rounded-sm p-0 [&_svg:not([class*='size-'])]:size-4",
         "icon-sm": "size-(--control-height) p-0 [&_svg:not([class*='size-'])]:size-4",
         "icon-lg": "size-(--control-height-lg) p-0 [&_svg:not([class*='size-'])]:size-5",
+        tactile: "h-12 gap-2 px-5 text-base font-extrabold",
+        "tactile-sm": "h-9 gap-1.5 px-3.5 text-sm font-extrabold",
       },
     },
     defaultVariants: {

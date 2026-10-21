@@ -4,6 +4,7 @@ import type {
   CalendarEvent,
   CalendarTarget,
   ImportPreview,
+  PaymentInput,
   Preferences,
   Probe,
   Snapshot,
@@ -171,6 +172,30 @@ export class IpcSubCalClient implements SubCalClient {
 
   setPreferences(patch: Partial<Preferences>): Promise<void> {
     return this.call<void>('preferences.set', { patch }, { mutate: true });
+  }
+
+  createPayment(input: PaymentInput, key: string, advancePlan = false): Promise<string> {
+    return this.call<string>(
+      'payments.create',
+      { input, advancePlan },
+      { idempotencyKey: key, mutate: true },
+    );
+  }
+
+  updatePayment(id: string, revision: number, patch: Partial<PaymentInput>): Promise<void> {
+    return this.call<void>(
+      'payments.update',
+      { id, patch },
+      { expectedRevision: revision, mutate: true },
+    );
+  }
+
+  removePayment(id: string): Promise<string> {
+    return this.call<string>('payments.remove', { id }, { mutate: true });
+  }
+
+  undoPayment(token: string): Promise<void> {
+    return this.call<void>('payments.undo', { token }, { mutate: true });
   }
 
   resolveField(

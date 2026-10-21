@@ -27,15 +27,12 @@ export function ConnectionsPage({ snapshot, client, notify, onOpen, focusId }: P
   };
 
   return <div className="conn-page">
-    <div className="conn-header-bar">
-      <h2 className="conn-page-title">连接</h2>
-      <div className="row">
-        {snapshot.connections.length > 0 && <>
-          <Button variant="outline" onClick={() => void run(async () => notify(await client.refresh()))}><RefreshCw />刷新全部</Button>
-          <Button variant="outline" onClick={() => void run(() => client.pause(), '已更新自动更新状态')}>{allPaused ? <Play /> : <Pause />}{allPaused ? '恢复更新' : '暂停更新'}</Button>
-        </>}
-        <Button onClick={() => setAdding({})}><Plus />添加账号</Button>
-      </div>
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      {snapshot.connections.length > 0 && <>
+        <Button variant="outline" onClick={() => void run(async () => notify(await client.refresh()))}><RefreshCw />刷新全部</Button>
+        <Button variant="outline" onClick={() => void run(() => client.pause(), '已更新自动更新状态')}>{allPaused ? <Play /> : <Pause />}{allPaused ? '恢复更新' : '暂停更新'}</Button>
+      </>}
+      <Button variant="tactile" size="tactile" onClick={() => setAdding({})}><Plus />添加账号</Button>
     </div>
     {snapshot.connections.length === 0 ? <section className="panel empty"><h3>尚未添加账号</h3><Button variant="outline" onClick={() => setAdding({})}>添加账号</Button></section> : <section className="conn-grid" aria-label="连接列表">
       {snapshot.connections.map(c => {

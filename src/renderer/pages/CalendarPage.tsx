@@ -102,7 +102,8 @@ export function CalendarPage({
   notify,
   onOpen,
   onCreate,
-}: PageProps) {
+  onRecordPayment,
+}: PageProps & { onRecordPayment?: (subscriptionId: string, planDate?: string) => void }) {
   const resetSwitchId = useId();
   const userTz = snapshot.preferences.timezone || 'Asia/Shanghai';
   const demoToday = useMemo(
@@ -121,6 +122,18 @@ export function CalendarPage({
   const [viewTab, setViewTab] = useState<'month' | 'agenda'>('month');
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState<boolean>(false);
+
+  const paymentCountFor = (event: CalendarEvent): number => {
+    if (event.kind !== 'renewal') return 0;
+    const sub = snapshot.subscriptions.find((s) => s.id === event.subscriptionId);
+    const group = sub?.billingGroupId ?? null;
+    return snapshot.payments.filter(
+      (payment) =>
+        (payment.planDate === event.date || (payment.planDate == null && payment.paidOn === event.date)) &&
+        (payment.subscriptionId === event.subscriptionId ||
+          (group !== null && payment.billingGroupId === group)),
+    ).length;
+  };
 
   const lastScenarioRef = useRef<string>(snapshot.scenario);
 
@@ -176,16 +189,57 @@ export function CalendarPage({
     return map;
   }, [snapshot.subscriptions]);
 
+  /**
+   * A payment keeps pointing at the plan it paid, even after the plan advances.
+   * Those paid occurrences stay visible so history is traceable in the calendar.
+   */
+  const visibleEvents = useMemo(() => {
+    const result = [...events];
+    const seen = new Set(
+      events
+        .filter((event) => event.kind === 'renewal')
+        .map((event) => {
+          const sub = subscriptionMap.get(event.subscriptionId);
+          return `${sub?.billingGroupId ?? event.subscriptionId}:${event.date}`;
+        }),
+    );
+    for (const payment of snapshot.payments) {
+      if (!payment.planDate) continue;
+      const sub = payment.subscriptionId ? subscriptionMap.get(payment.subscriptionId) : undefined;
+      if (!sub) continue;
+      const subject = sub.billingGroupId ?? sub.id;
+      const key = `${payment.billingGroupId ?? subject}:${payment.planDate}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      result.push({
+        id: `paid:${payment.id}`,
+        subscriptionId: sub.id,
+        product: sub.product,
+        account: sub.account,
+        kind: 'renewal',
+        date: payment.planDate,
+        precision: 'day',
+        dateSemantic: 'billing_renewal',
+        timezone: sub.timezone,
+        expected: false,
+        source: '已记录付款',
+        revision: sub.revision,
+        dataOrigin: 'manual',
+      });
+    }
+    return result.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+  }, [events, snapshot.payments, subscriptionMap]);
+
   const productOptions = useMemo(() => {
     const set = new Set<string>();
     for (const s of snapshot.subscriptions) {
       if (s.product) set.add(s.product);
     }
-    for (const e of events) {
+    for (const e of visibleEvents) {
       if (e.product) set.add(e.product);
     }
     return [...set];
-  }, [snapshot.subscriptions, events]);
+  }, [snapshot.subscriptions, visibleEvents]);
 
   useEffect(() => {
     if (productFilter !== 'all' && !productOptions.includes(productFilter)) {
@@ -194,13 +248,13 @@ export function CalendarPage({
   }, [productFilter, productOptions]);
 
   const filteredEvents = useMemo(() => {
-    return events.filter((e) => {
+    return visibleEvents.filter((e) => {
       if (!includeReset && e.kind === 'reset') return false;
       if (kindFilter !== 'all' && e.kind !== kindFilter) return false;
       if (productFilter !== 'all' && e.product !== productFilter) return false;
       return true;
     });
-  }, [events, includeReset, kindFilter, productFilter]);
+  }, [visibleEvents, includeReset, kindFilter, productFilter]);
 
   const eventsByDate = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
@@ -570,7 +624,7 @@ export function CalendarPage({
                             data-overdue={overdue}
                             title={`${ev.product}（${ev.account}）· ${kMeta.label}${
                               natureText ? ` · ${natureText}` : ''
-                            } · 点击查看订阅详情`}
+                            }${paymentCountFor(ev) > 0 ? ` · 已记录 ${paymentCountFor(ev)} 笔付款` : ''} · 点击查看订阅详情`}
                             onClick={(clickEv) => {
                               clickEv.stopPropagation();
                               setSelectedDate(cell.date);
@@ -694,6 +748,9 @@ export function CalendarPage({
                           <span className="muted">（{ev.account}）</span>
                         </div>
                         {renderEventNatureBadge(ev)}
+                        {ev.kind === 'renewal' && paymentCountFor(ev) > 0 ? (
+                          <Badge variant="secondary">已记录 {paymentCountFor(ev)} 笔付款</Badge>
+                        ) : null}
                       </div>
 
                       <div className="cal-agenda-meta">
@@ -744,6 +801,16 @@ export function CalendarPage({
 
 
                       <div className="cal-agenda-actions">
+                        {ev.kind === 'renewal' && paymentCountFor(ev) === 0 ? (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => onRecordPayment?.(ev.subscriptionId, ev.date)}
+                          >
+                            记录付款
+                          </Button>
+                        ) : null}
                         <Button
                           type="button"
                           variant="outline"

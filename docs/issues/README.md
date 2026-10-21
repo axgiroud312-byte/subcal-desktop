@@ -1,6 +1,14 @@
 # SubCal 开发 Issue 索引
 
-## 下一批：全服务自动权益与 Magpie 风格展示
+## 当前立项：绿色 SubCal 正式界面与消费闭环
+
+入口：[SC-000 总目标](subcal-ui/SC-000.md)、[九项实施任务](subcal-ui/README.md)、[正式界面规格](../specs/subcal-production-ui.md)、[绿色组件方案](../design/subcal-green.md)、[实施与验证记录](../evidence/subcal-ui/report.md)。2026-10-21 已完成实现与 Windows Electron 隔离检查；用户验收 pending。
+
+远端：[总目标 #43](https://github.com/axgiroud312-byte/subcal-desktop/issues/43)，九个子任务 #44—#52。
+
+用户最新纠正明确**保留旧 Magpie 订阅展示**；新原型用于外壳及消费等页面，订阅卡片/列表/详情继续当前呈现。已有账号、权益和 SQLite 能力复用。SC-001—SC-008 已实施，SC-009 完成 14 项新界面检查与 6 项既有桌面回归；真实账号/外部日历阻塞与用户验收见[验证记录](../evidence/subcal-ui/report.md)。
+
+## 前批：全服务自动权益与 Magpie 风格展示
 
 **总目标：[GitHub #5](https://github.com/axgiroud312-byte/subcal-desktop/issues/5) / [完整任务清单](full-service/overview.md)**。33 个子任务（#6—#38）已进入整合交付；逐项实现、验证与阻碍以 [当前交付记录](../evidence/full-service/acceptance.md) 为准。任务仍保留待验收状态。
 

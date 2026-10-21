@@ -24,8 +24,10 @@ export class NotificationService {
     for(const event of projectEvents(subs,now)) {
       if(!['renewal','expiry','trial'].includes(event.kind))continue;
       const delta=daysBetween(dateInZone(now,event.timezone),event.date);
-      if(delta<0||delta>3)continue;
-      notices.push({key:`event:${event.id}:${event.date}:3`,rule:'upcoming',entity:event.id,window:event.date,body:`${event.product} · ${event.date} ${event.kind==='renewal'?'计划续费':'即将到期'}`});
+      const owner=subs.find(s=>s.id===event.subscriptionId);
+      const lead=owner?.reminderLeadDays??prefs.reminderLeadDays??3;
+      if(delta<0||delta>lead)continue;
+      notices.push({key:`event:${event.id}:${event.date}:${lead}`,rule:'upcoming',entity:event.id,window:event.date,body:`${event.product} · ${event.date} ${event.kind==='renewal'?'计划续费':'即将到期'}`});
     }
     for(const sub of subs)for(const m of sub.kind==='wallet'?sub.metrics.slice(0,1):sub.metrics) {
       if(m.remaining.availability!=='known'||m.remaining.value===null||freshness(m,now)!=='fresh')continue;

@@ -56,6 +56,7 @@ import {
 } from 'lucide-react';
 import './subscription-details.css';
 import { isAutomatic, uniqueWindows } from '../lib/entitlements';
+import { exactMoney } from '../../shared/spending';
 import { BalanceDetails, EntitlementDates } from './EntitlementDetails';
 
 export interface DetailDrawerProps {
@@ -67,6 +68,7 @@ export interface DetailDrawerProps {
   onEdit: (subscription: Subscription) => void;
   onSelectAccount: (id: string) => void;
   onConnection: (connectionId: string) => void;
+  onRecordPayment?: (subscriptionId: string, planDate?: string) => void;
 }
 
 export function DetailDrawer({
@@ -78,6 +80,7 @@ export function DetailDrawer({
   onEdit,
   onSelectAccount,
   onConnection,
+  onRecordPayment,
 }: DetailDrawerProps) {
   const [busy, setBusy] = useState(false);
   const automatic = isAutomatic(subscription);
@@ -116,6 +119,11 @@ export function DetailDrawer({
         (s) => s.id !== subscription.id && s.quotaPoolId === subscription.quotaPoolId
       )
     : [];
+
+  const recentPayments = snapshot.payments
+    .filter((payment) => payment.subscriptionId === subscription.id)
+    .sort((a, b) => b.paidOn.localeCompare(a.paidOn))
+    .slice(0, 3);
 
   const connMeta = connection ? connectionStateMeta(connection.state) : null;
   const lifeMeta = lifecycleMeta(subscription.lifecycle, subscription.autoRenew);
@@ -314,6 +322,18 @@ export function DetailDrawer({
     try {
       await client.update(subscription.id, subscription.revision, { reminder });
       notify('已更新提醒策略');
+    } catch (err) {
+      notify((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleCategoryChange = async (category: string) => {
+    setBusy(true);
+    try {
+      await client.update(subscription.id, subscription.revision, { category });
+      notify('已更新本地分类；自动来源的套餐与日期不受影响');
     } catch (err) {
       notify((err as Error).message);
     } finally {
@@ -1038,6 +1058,51 @@ export function DetailDrawer({
             </div>
           </CollapsibleContent>
         </Collapsible>
+
+        <div className="drawer-section stack" data-testid="drawer-section-payments">
+          <div className="row spread">
+            <span className="drawer-section-summary" style={{ border: 0, padding: 0 }}>
+              5. 本地分类与最近付款
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={busy}
+              onClick={() => onRecordPayment?.(subscription.id, subscription.renewalDate.value ?? undefined)}
+            >
+              记录付款
+            </Button>
+          </div>
+          <Field>
+            <FieldLabel htmlFor="drawer-category-select">本地分类</FieldLabel>
+            <FormSelect
+              id="drawer-category-select"
+              value={subscription.category ?? '其他'}
+              disabled={busy}
+              onChange={(e) => void handleCategoryChange(e.target.value)}
+            >
+              {[...new Set([subscription.category ?? '其他', ...(snapshot.preferences.categories ?? [])])].filter(Boolean).map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
+            </FormSelect>
+            <FieldDescription>分类是本机整理属性，不改变供应商套餐；付款记录保留发生时分类快照。</FieldDescription>
+          </Field>
+          {recentPayments.length > 0 ? (
+            <ul className="mini-event-list">
+              {recentPayments.map((payment) => (
+                <li key={payment.id} className="mini-event-item">
+                  <span className="tabular">{payment.paidOn}</span>
+                  <span>{payment.category} · {payment.note || (payment.source === 'imported' ? '备份导入' : '手动记录')}</span>
+                  <strong className="tabular">{exactMoney(payment.amount, payment.currency)}</strong>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="muted">还没有记录真实付款。预测扣费不会自动变成已付金额。</p>
+          )}
+          <p className="muted">完整账本、筛选和预算在「消费管理」页查看；删除订阅后这些付款仍会保留。</p>
+        </div>
 
         {/* Scoped Archive & Delete Footer with Controlled AlertDialog */}
         <div className="drawer-danger-footer stack">

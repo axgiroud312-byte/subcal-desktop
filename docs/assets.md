@@ -16,6 +16,7 @@
 | SubCal 托盘与窗口图标（靛蓝圆角方块 + 日历图形） | 本仓库运行时代码生成：`src/main/tray-icon.ts`（16/32/48px PNG，仅依赖 Node 内置 zlib，无网络素材） | 项目自有，无第三方素材 | 系统托盘图标、窗口图标 |
 | 品牌文字后备 | 渲染层组件以品牌名文本渲染 | 项目自有 | 订阅卡片等品牌位置 |
 | `docs/references/magpie-usage-reference.png` | Magpie 应用界面截图，**仅作设计方向参考**，不作为应用资源、不进入构建产物 | 见 `docs/references/Magpie-LICENSE.txt` | 设计参考 |
+| `src/renderer/assets/fonts/Nunito-Variable.ttf` | 原型随附的 Nunito 可变字体，仅用于新工作台页面 | SIL Open Font License 1.1，许可见同目录 `Nunito-OFL.txt` | 新页面标题与正文（订阅展示仍用自己的字体栈） |
 
 ## 新增第三方素材的规则
 

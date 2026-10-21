@@ -23,8 +23,8 @@ export function addDays(date: string, days: number): string {
 export function anchoredDate(anchor: string, cycle: Subscription['cycle'], index: number, intervalDays = 30): string {
   const [y,m,d] = anchor.split('-').map(Number);
   if (cycle === 'days') return addDays(anchor,index*intervalDays);
-  if (cycle !== 'monthly' && cycle !== 'yearly') return anchor;
-  const offset = cycle === 'monthly' ? index : index*12;
+  if (cycle !== 'monthly' && cycle !== 'quarterly' && cycle !== 'yearly') return anchor;
+  const offset = cycle === 'monthly' ? index : cycle === 'quarterly' ? index*3 : index*12;
   const target = new Date(Date.UTC(y,m-1+offset,1));
   const day = Math.min(d,new Date(Date.UTC(target.getUTCFullYear(),target.getUTCMonth()+1,0)).getUTCDate());
   return `${target.getUTCFullYear()}-${String(target.getUTCMonth()+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
@@ -50,10 +50,10 @@ export function compareMetricDecimal(a:string,b:string):number {
 export function monthlySummary(subs: Subscription[]) {
   const seen=new Set<string>(); const sums:Record<string,bigint>={}; let unknown=0; let recurring=0;
   for (const s of subs) {
-    if (s.lifecycle==='archived' || s.lifecycle==='cancelled' || s.lifecycle==='expired' || !['monthly','yearly','days'].includes(s.cycle) || s.kind==='wallet') continue;
+    if (s.lifecycle==='archived' || s.lifecycle==='cancelled' || s.lifecycle==='expired' || !['monthly','quarterly','yearly','days'].includes(s.cycle) || s.kind==='wallet') continue;
     const key=s.billingGroupId||s.id; if(seen.has(key))continue; seen.add(key); recurring++;
     if(s.price.value===null || s.price.availability!=='known'){unknown++;continue;}
-    const value=decimal(s.price.value); const monthly=s.cycle==='yearly'?value/12n:s.cycle==='days'?value*365n/(12n*BigInt(s.intervalDays)):value;
+    const value=decimal(s.price.value); const monthly=s.cycle==='yearly'?value/12n:s.cycle==='quarterly'?value/3n:s.cycle==='days'?value*365n/(12n*BigInt(s.intervalDays)):value;
     sums[s.currency]=(sums[s.currency]||0n)+monthly;
   }
   return {totals:Object.entries(sums).map(([currency,n])=>({currency,amount:decimalText(n)})),unknown,recurring};
@@ -97,7 +97,7 @@ export function projectEvents(subs: Subscription[], now: string, includeReset=fa
     if(s.renewalDate.value && !explicitlyNotRenewing && !['ending','cancelled','expired'].includes(s.lifecycle)){
       const first=s.renewalDate.value; const anchor=s.anchorDate||first; const horizon=anchoredDate(dateInZone(now,s.timezone),'yearly',1);
       let offset=0;
-      if(['monthly','yearly','days'].includes(s.cycle))while(offset<1000 && anchoredDate(anchor,s.cycle,offset,s.intervalDays)<first)offset++;
+      if(['monthly','quarterly','yearly','days'].includes(s.cycle))while(offset<1000 && anchoredDate(anchor,s.cycle,offset,s.intervalDays)<first)offset++;
       for(let i=0;i<400;i++){
         const date=i===0?first:anchoredDate(anchor,s.cycle,offset+i,s.intervalDays);
         if(i>0 && (isAutomatic(s) || date>horizon || ['once','irregular','none'].includes(s.cycle)))break;
@@ -140,5 +140,7 @@ export function validateSubscription(s: Partial<Subscription>): Record<string,st
   for(const key of ['paidThrough','trialEnd','renewalDate'] as const){if(s.startDate?.value&&s[key]?.value&&s[key]!.value!<s.startDate.value)errors[key]='日期不能早于开始日';}
   if(s.timezone){try{new Intl.DateTimeFormat('zh-CN',{timeZone:s.timezone});}catch{errors.timezone='时区无效';}}
   if(s.website){try{const u=new URL(s.website);if(u.protocol!=='https:'||u.username||u.password)errors.website='官网地址仅接受不含凭据的 HTTPS 链接';}catch{errors.website='请填写完整 HTTPS 网址';}}
+  if(s.category!==undefined && s.category.length>80)errors.category='分类名称最多 80 个字符';
+  if(s.reminderLeadDays!==undefined && s.reminderLeadDays!==null && (!Number.isInteger(s.reminderLeadDays)||s.reminderLeadDays<1||s.reminderLeadDays>90))errors.reminderLeadDays='提前提醒天数请填写 1 至 90 的整数';
   return errors;
 }

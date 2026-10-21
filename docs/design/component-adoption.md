@@ -1,5 +1,7 @@
 # SubCal FE-012 组件接入与公共视觉基线说明
 
+**当前选型更新（2026-10-21）：** [原型接入组件方案](subcal-green.md) 复用本文件的 shadcn/Base UI、Recharts、Lucide、Motion、Sonner 和 dnd-kit。用户明确保留旧 Magpie 订阅展示；新原型 variants 用于外壳/消费等页面，订阅展示维持当前尺寸、字体、色彩和交互，同一 Token 源按角色映射。本文件的已验证记录仅对应旧实现，新接入待实施。
+
 状态：公共组件及四页已实际落地并完成真实 Electron 检查（verified），用户验收 pending。完整结果与截图见 [visual-v2/checks.md](../evidence/visual-v2/checks.md)。  
 日期：2026-10-20  
 关联任务：[FE-012](../issues/FE-012.md)、[视觉基础说明](visual-foundation.md)
@@ -142,3 +144,22 @@
 | Lucide 1.60.0 / 本地 Logo | App、页面及业务组件按需导入；ui.tsx 的 BrandIcon 内联固定本地 SVG | 导航/刷新/排序/设置图标；品牌与操作图标不混用，未收录品牌用文字后备 |
 
 业务月历保留事件投影与日期规则，未安装无必要的日期选择库。图表固定尺寸/业务网格断点属于各视图几何约束，不是第二套颜色/字号；shadcn Chart 中的 `#ccc` / `#fff` 是匹配 Recharts 默认 SVG 的兼容选择器，输出使用语义 Token。其余新界面颜色集中于 tokens.css，本地 SVG 是独立品牌素材例外。
+
+---
+
+## 6. 绿色工作台批次（2026-10-21）
+
+本批**没有引入新的运行时依赖**；在既有 `base-mira` 组件上增加显式变体和展示作用域：
+
+| 来源 | 新增/使用点 | 说明 |
+| --- | --- | --- |
+| `styles/tokens.css` | `--sc-*` 原型语义、`@font-face "SubCal Nunito"`、`.sc-ui`、`.subcal-magpie` | Token 唯一数值源；新页面通过 `.sc-ui` 映射 shadcn 语义，旧订阅区域通过 `.subcal-magpie` 恢复原角色；字体文件与 OFL 见 `assets.md` |
+| `styles/shell.css` | `.sc-shell`、`.sc-sidebar`、`.sc-topbar`、`.sc-page`、`.sc-panel`、`.sc-stat` 等 | 仅外壳与新页面几何；页面各自滚动，订阅卡片样式仍在 `overview.css` / `subscriptions.css` |
+| `components/ui/button.tsx` | `variant="tactile"`、`variant="tactile-soft"`、`size="tactile"`、`size="tactile-sm"` | 48px 主按钮 / 16px 圆角 / 2px 描边 / 4px 厚底；旧 variant 未改 |
+| `components/PaymentForm.tsx` | `Dialog` + `.sc-ui` | 新弹层显式携带展示作用域；日期用 `type=date` 字符串，金额保持十进制文本 |
+| `components/SearchDialog.tsx` | `Dialog` + `Input` + 可聚焦结果 | 支持 Ctrl/Cmd+K、↑↓/Enter；Portal 内同样带 `.sc-ui` |
+| `pages/DashboardPage.tsx` | `SubscriptionCard`、Recharts `AreaChart` | 复用旧卡片的唯一入口；图表只读真实账本，空态不画演示曲线 |
+| `pages/ExpensesPage.tsx` | 原生 table（`.sc-table`）+ 原生 select + `PaymentForm` | 未新增表格引擎或状态库；筛选/月份/分页由 React 管理 |
+| `pages/SettingsPage.tsx` | 原生表单控件 + 分区导航 | 普通草稿与主题即时保存分离；备份走既有 `saveFile` / `openFile` / `importPreview` / `importCommit` |
+
+旧订阅的 Sheet/Dialog Portal 不带 `.sc-ui`，继续使用根节点旧角色；新增弹层必须显式加 `.sc-ui`，否则会落回旧主题。旧订阅卡片/表格所在容器必须加 `.subcal-magpie`，避免绿色外壳重新映射其字号、颜色与控件高度。

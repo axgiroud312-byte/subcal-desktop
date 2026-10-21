@@ -238,3 +238,246 @@
   --duration-fast: 0ms;
   --duration-normal: 0ms;
 }
+
+/* ==========================================================================
+   SC prototype shell (green / Nunito). These values are the only source for
+   the new pages; the Magpie subscription cards keep the roles above.
+   ========================================================================== */
+
+@font-face {
+  font-family: "SubCal Nunito";
+  src: url("../assets/fonts/Nunito-Variable.ttf") format("truetype");
+  font-weight: 200 1000;
+  font-display: swap;
+  font-style: normal;
+}
+
+:root {
+  /* Prototype semantics are prefixed so they never collide with shadcn accent. */
+  --sc-canvas: #f7f9fa;
+  --sc-surface: #ffffff;
+  --sc-surface-warm: #edf8dc;
+  --sc-fg: #26343b;
+  --sc-fg-2: #4b606b;
+  --sc-muted: #62747e;
+  --sc-border: #dce4e8;
+  --sc-border-soft: #e7edf0;
+  --sc-neutral-soft: #f0f4f6;
+  --sc-accent: #58cc02;
+  --sc-accent-on: #173800;
+  --sc-accent-edge: #429b00;
+  --sc-accent-hover: #63da09;
+  --sc-accent-active: #4fba00;
+  --sc-accent-ink: #347900;
+  --sc-accent-soft: #edf8dc;
+  --sc-accent-line: #96cc62;
+  --sc-success: #328017;
+  --sc-success-soft: #eaf6e5;
+  --sc-amber-ink: #805500;
+  --sc-amber-soft: #fff5cf;
+  --sc-danger: #ed4951;
+  --sc-red-ink: #b12639;
+  --sc-red-soft: #fff0f1;
+  --sc-blue-ink: #006d9f;
+  --sc-blue-soft: #eaf7ff;
+  --sc-chart-primary: #3a8505;
+  --sc-chart-secondary: #1386b8;
+  --sc-chart-tertiary: #a76a00;
+  --sc-chart-fourth: #8056b1;
+  --sc-chart-area: #eff9e4;
+  --sc-chart-track: #edf1f4;
+  --sc-focus: #087fab;
+  --sc-font: "SubCal Nunito", "Microsoft YaHei UI", "PingFang SC", "Segoe UI", sans-serif;
+  --sc-text-xs: 12px;
+  --sc-text-sm: 14px;
+  --sc-text-base: 16px;
+  --sc-text-lg: 18px;
+  --sc-text-xl: 24px;
+  --sc-text-2xl: 34px;
+  --sc-radius-sm: 12px;
+  --sc-radius: 16px;
+  --sc-radius-panel: 20px;
+  --sc-radius-pill: 9999px;
+  --sc-sidebar: 232px;
+  --sc-sidebar-md: 208px;
+  --sc-sidebar-sm: 80px;
+  --sc-topbar: 80px;
+  --sc-gutter: 32px;
+  --sc-shadow: 0 5px 0 var(--sc-border);
+  --sc-shadow-lg: 0 6px 0 var(--sc-border), 0 20px 48px rgb(19 31 36 / 0.12);
+  --sc-motion-fast: 150ms;
+  --sc-motion-base: 230ms;
+  --sc-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:root.dark,
+:root[data-theme="dark"] {
+  --sc-canvas: #131f24;
+  --sc-surface: #1d2d35;
+  --sc-surface-warm: #263d28;
+  --sc-fg: #eef5f8;
+  --sc-fg-2: #c1d0d8;
+  --sc-muted: #a7b8c2;
+  --sc-border: #3d515d;
+  --sc-border-soft: #30444f;
+  --sc-neutral-soft: #233740;
+  --sc-accent: #79d926;
+  --sc-accent-on: #193000;
+  --sc-accent-edge: #4a9810;
+  --sc-accent-hover: #89e537;
+  --sc-accent-active: #70cc1e;
+  --sc-accent-ink: #a0e667;
+  --sc-accent-soft: #253f2b;
+  --sc-accent-line: #547d3f;
+  --sc-success: #99df70;
+  --sc-success-soft: #233c29;
+  --sc-amber-ink: #ffe38b;
+  --sc-amber-soft: #41391f;
+  --sc-danger: #ff7b83;
+  --sc-red-ink: #ffb9be;
+  --sc-red-soft: #422931;
+  --sc-blue-ink: #92d8ff;
+  --sc-blue-soft: #203e50;
+  --sc-chart-primary: #8ee149;
+  --sc-chart-secondary: #65c8ee;
+  --sc-chart-tertiary: #f2c75a;
+  --sc-chart-fourth: #c1a2ec;
+  --sc-chart-area: #263d2c;
+  --sc-chart-track: #2b414c;
+  --sc-focus: #8bd7ff;
+  --sc-shadow: 0 5px 0 var(--sc-border-soft);
+  --sc-shadow-lg: 0 6px 0 var(--sc-border-soft), 0 24px 64px rgb(0 0 0 / 0.3);
+}
+
+/* Only descendants of .sc-ui adopt the prototype look. The Magpie cards and
+   their portals stay outside this scope and keep the roles they already use. */
+.sc-ui {
+  --background: var(--sc-canvas);
+  --foreground: var(--sc-fg);
+  --card: var(--sc-surface);
+  --card-foreground: var(--sc-fg);
+  --popover: var(--sc-surface);
+  --popover-foreground: var(--sc-fg);
+  --secondary: var(--sc-neutral-soft);
+  --secondary-foreground: var(--sc-fg-2);
+  --muted: var(--sc-neutral-soft);
+  --muted-foreground: var(--sc-muted);
+  --faint: var(--sc-muted);
+  --accent: var(--sc-accent-soft);
+  --accent-foreground: var(--sc-accent-ink);
+  --border: var(--sc-border);
+  --input: var(--sc-muted);
+  --ring: var(--sc-focus);
+  --primary: var(--sc-accent);
+  --primary-foreground: var(--sc-accent-on);
+  --destructive: var(--sc-danger);
+  --destructive-soft: var(--sc-red-soft);
+  --success: var(--sc-success);
+  --success-soft: var(--sc-success-soft);
+  --warning: var(--sc-amber-ink);
+  --warning-soft: var(--sc-amber-soft);
+  --chart-1: var(--sc-chart-primary);
+  --chart-2: var(--sc-chart-secondary);
+  --chart-3: var(--sc-chart-tertiary);
+  --chart-4: var(--sc-chart-fourth);
+  --radius-sm: var(--sc-radius-sm);
+  --radius-md: var(--sc-radius-sm);
+  --radius-lg: var(--sc-radius);
+  --radius-xl: var(--sc-radius-panel);
+  --control-height: 2.75rem;
+  --control-height-sm: 2.25rem;
+  --control-height-lg: 3rem;
+  --font-sans: var(--sc-font);
+  --dialog-max-width: 34rem;
+  --sheet-max-width: 30rem;
+  font-family: var(--sc-font);
+  color: var(--sc-fg);
+}
+
+.sc-ui h1,
+.sc-ui h2,
+.sc-ui h3 {
+  font-family: var(--sc-font);
+  letter-spacing: -0.015em;
+  color: var(--sc-fg);
+}
+
+/* Subscription areas embedded in the new shell restore the Magpie roles so a
+   green page canvas never restyles cards, meters, or their typography. */
+.subcal-magpie {
+  --background: #f5f5f7;
+  --foreground: #202025;
+  --card: #ffffff;
+  --card-foreground: #202025;
+  --popover: #ffffff;
+  --popover-foreground: #202025;
+  --secondary: #f0f0f3;
+  --secondary-foreground: #52525b;
+  --muted: #f0f0f3;
+  --muted-foreground: #686873;
+  --faint: #8a8a94;
+  --accent: #f0f0f3;
+  --accent-foreground: #52525b;
+  --border: #e4e4e7;
+  --input: #8a8a94;
+  --ring: #4f46e5;
+  --primary: #4f46e5;
+  --primary-foreground: #ffffff;
+  --success-soft: #f0fdf4;
+  --success: #166534;
+  --warning-soft: #fff7ed;
+  --warning: #9a3412;
+  --destructive-soft: #fef2f2;
+  --destructive: #b91c1c;
+  --chart-1: #4f46e5;
+  --chart-2: #0d9488;
+  --chart-3: #d97706;
+  --chart-4: #2563eb;
+  --chart-5: #7c3aed;
+  --control-height: 2rem;
+  --control-height-sm: 2rem;
+  --control-height-lg: 2.25rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --font-sans: "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI",
+    -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+  font-family: var(--font-sans);
+  color: var(--foreground);
+}
+
+:root.dark .subcal-magpie,
+:root[data-theme="dark"] .subcal-magpie {
+  --background: #18181b;
+  --foreground: #f4f4f5;
+  --card: #222226;
+  --card-foreground: #f4f4f5;
+  --popover: #222226;
+  --popover-foreground: #f4f4f5;
+  --secondary: #2c2c31;
+  --secondary-foreground: #d4d4d8;
+  --muted: #2c2c31;
+  --muted-foreground: #a1a1aa;
+  --faint: #71717a;
+  --accent: #2c2c31;
+  --accent-foreground: #d4d4d8;
+  --border: #3f3f46;
+  --input: #71717a;
+  --ring: #a5b4fc;
+  --primary: #818cf8;
+  --primary-foreground: #18181b;
+  --success-soft: #173124;
+  --success: #86efac;
+  --warning-soft: #382718;
+  --warning: #fdba74;
+  --destructive-soft: #3a1d23;
+  --destructive: #fca5a5;
+  --chart-1: #818cf8;
+  --chart-2: #2dd4bf;
+  --chart-3: #fbbf24;
+  --chart-4: #60a5fa;
+  --chart-5: #a78bfa;
+}
+
+

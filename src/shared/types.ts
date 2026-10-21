@@ -40,7 +40,7 @@ export type Balance = {
   expiresAt?: Field<EntitlementDate>;
   poolId?: string;
 };
-export type Cycle = 'monthly' | 'yearly' | 'days' | 'once' | 'irregular' | 'none';
+export type Cycle = 'monthly' | 'quarterly' | 'yearly' | 'days' | 'once' | 'irregular' | 'none';
 export type Lifecycle = 'active' | 'trial' | 'ending' | 'expired' | 'cancelled' | 'pending' | 'archived';
 export type Metric = {
   id: string;
@@ -95,12 +95,37 @@ export type Subscription = {
   connectionId: string | null;
   website: string;
   reminder: 'none' | 'local' | 'external';
+  /** Local organisation attribute; never a provider plan or account identity. */
+  category?: string;
+  /** Subscription override for reminder lead days; null inherits the global value. */
+  reminderLeadDays?: number | null;
   pinned: boolean;
   notes: string;
   scheduleOverrides?: Record<string, string>;
   archivedFrom?: Exclude<Lifecycle, 'archived'>;
   history: { at: string; text: string; dataOrigin: DataOrigin }[];
 };
+/** One real payment that already happened. Never a rename of Subscription.price. */
+export type PaymentSource = 'manual' | 'configured' | 'imported';
+export type PaymentRecord = {
+  id: string;
+  revision: number;
+  subscriptionId: string | null;
+  billingGroupId: string | null;
+  name: string;
+  category: string;
+  amount: string;
+  currency: string;
+  paidOn: string;
+  planOccurrenceId?: string | null;
+  planDate?: string | null;
+  note: string;
+  recordedAt: string;
+  updatedAt: string;
+  source: PaymentSource;
+};
+export type PaymentInput = Omit<PaymentRecord, 'id' | 'revision' | 'recordedAt' | 'updatedAt'>;
+
 export type ConnectionState =
   | 'ready'
   | 'refreshing'
@@ -196,11 +221,21 @@ export type Preferences = {
   reducedMotion: boolean;
   closeToTray: boolean;
   reminder: 'none' | 'local' | 'external';
-  dndStart?: string;
-  dndEnd?: string;
+  dndStart?: string | null;
+  dndEnd?: string | null;
   notificationsMuted?: boolean;
   walletThresholds: Record<string, string>;
   order: string[];
+  /** Display-only workspace name; does not create a second account model. */
+  workspaceName: string;
+  /** Which recorded-spending currency the pages show. Never rewrites records. */
+  statisticsCurrency: string;
+  /** Monthly cap per currency. An absent key means "not set"; "0" is a real zero. */
+  monthlyBudgets: Record<string, string>;
+  /** Reminder lead days, independent from the reminder channel. */
+  reminderLeadDays: number;
+  /** Local category vocabulary; payment records keep their own snapshot. */
+  categories: string[];
 };
 export const scenarioIds = [
   'empty_first_run',
@@ -224,11 +259,14 @@ export type Space = {
   connections: Connection[];
   targets: CalendarTarget[];
   offline: boolean;
+  /** Present in the desktop store; optional so older preview data still loads. */
+  payments?: PaymentRecord[];
 };
 export type Snapshot = Space & {
   scenario: ScenarioId;
   preferences: Preferences;
   storageError: string | null;
+  payments: PaymentRecord[];
 };
 export type Store = {
   schemaVersion: 1;
@@ -247,6 +285,9 @@ export type ImportPreview = {
   removed: number;
   scenario: ScenarioId;
   text: string;
+  paymentCount?: number;
+  currentPaymentCount?: number;
+  removedPayments?: number;
 };
 export type Probe = {
   id: string;
@@ -290,6 +331,10 @@ export interface SubCalClient {
   remove(id: string, removeFuture: boolean): Promise<string>;
   undo(token: string): Promise<void>;
   reorder(ids: string[]): Promise<void>;
+  createPayment(input: PaymentInput, key: string, advancePlan?: boolean): Promise<string>;
+  updatePayment(id: string, revision: number, patch: Partial<PaymentInput>): Promise<void>;
+  removePayment(id: string): Promise<string>;
+  undoPayment(token: string): Promise<void>;
   setPreferences(patch: Partial<Preferences>): Promise<void>;
   resolveField(id: string, field: 'renewalDate' | 'price' | 'plan', accept: boolean): Promise<void>;
   refresh(id?: string): Promise<string>;

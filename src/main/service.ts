@@ -1,9 +1,10 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { ZodError } from 'zod';
 import type { IpcRequestEnvelope, IpcResponseEnvelope } from '../shared/bridge';
-import { parseRequest, subscriptionSchema, preferencesSchema } from '../shared/schema';
-import { projectEvents } from '../shared/rules';
-import { OFFICIAL_ADAPTER_CATALOG, type Subscription, type Snapshot, type Field, type Probe, type ImportPreview } from '../shared/types';
+import { parseRequest, subscriptionSchema, preferencesSchema, paymentInputSchema, paymentSchema } from '../shared/schema';
+import { dateInZone, projectEvents } from '../shared/rules';
+import { nextPlanDate, planOccurrenceId } from '../shared/spending';
+import { OFFICIAL_ADAPTER_CATALOG, type Subscription, type Snapshot, type Field, type Probe, type ImportPreview, type PaymentRecord } from '../shared/types';
 import { SubCalDatabase, DEFAULT_PRODUCTION_PREFERENCES } from './db/database';
 import { CredentialVault, sanitizeDiagnosticText } from './credentials';
 import { Scheduler, type CollectorPort } from './scheduler';
@@ -104,7 +105,7 @@ export class SubCalService {
   }
   subscribe(fn:()=>void) { this.listeners.add(fn); return ()=>{this.listeners.delete(fn);}; }
   changed() { for(const fn of this.listeners)fn(); }
-  snapshot():Snapshot { return {revision:this.db.getSpaceRevision(),now:new Date(this.now()).toISOString(),scenario:'empty_first_run',subscriptions:this.db.listSubscriptions(),connections:this.db.listConnections(ref=>this.vault.getMask(ref)),targets:this.db.listCalendarTargets(),offline:false,preferences:this.db.getPreferences(),storageError:this.db.getStorageError()}; }
+  snapshot():Snapshot { return {revision:this.db.getSpaceRevision(),now:new Date(this.now()).toISOString(),scenario:'empty_first_run',subscriptions:this.db.listSubscriptions(),connections:this.db.listConnections(ref=>this.vault.getMask(ref)),targets:this.db.listCalendarTargets(),offline:false,preferences:this.db.getPreferences(),storageError:this.db.getStorageError(),payments:this.db.listPayments()}; }
   private subscription(id:string) { return this.db.getSubscription(id)??fail('NOT_FOUND','订阅不存在'); }
   private connection(id:string) { return this.db.getConnectionRow(id)??fail('NOT_FOUND','连接不存在'); }
   private save(sub:Subscription) { if(sub.connectionId)sub.management='automatic';const validated=subscriptionSchema.parse(sub); this.db.upsertSubscription(validated);this.db.bumpSpaceRevision(); }
@@ -244,6 +245,59 @@ export class SubCalService {
         const all=new Set(this.db.listSubscriptions().map(s=>s.id));if(new Set(p.ids).size!==p.ids.length||p.ids.some((id:string)=>!all.has(id)))fail('VALIDATION_ERROR','排序包含重复或不存在的订阅');this.db.savePreferences({...this.db.getPreferences(),order:p.ids});this.db.bumpSpaceRevision();return;
       }
       case 'preferences.set':this.db.savePreferences(preferencesSchema.parse({...this.db.getPreferences(),...p.patch}));this.db.bumpSpaceRevision();return;
+      case 'payments.create': {
+        const input=paymentInputSchema.parse(p.input);
+        const sub=input.subscriptionId?this.subscription(input.subscriptionId):null;
+        const today=dateInZone(new Date(this.now()).toISOString(),this.db.getPreferences().timezone);
+        if(input.paidOn>today)fail('FUTURE_PAYMENT','实际支付日不能晚于今天');
+        if(sub){
+          if(!input.billingGroupId)input.billingGroupId=sub.billingGroupId||sub.id;
+          if(input.planDate&&!input.planOccurrenceId)input.planOccurrenceId=planOccurrenceId(sub,input.planDate);
+        }
+        if(p.advancePlan){
+          if(!sub)fail('NO_PLAN','请选择要顺延的手动订阅');
+          if(isAutomatic(sub))fail('AUTOMATIC_PLAN','自动来源的续费日期只能由来源确认，记账不会改写供应商日期');
+          if(!sub.renewalDate.value)fail('NO_PLAN','此订阅没有可顺延的计划日期');
+          if(input.planDate&&input.planDate!==sub.renewalDate.value)fail('PLAN_MISMATCH','这条计划已不是当前一期，请重新打开订阅核对');
+          const current=sub.renewalDate.value,next=nextPlanDate(sub,current);
+          if(!next)fail('NO_PLAN','该周期无法计算下一期，请核对账期锚点');
+          const payment:PaymentRecord={...input,planDate:current,planOccurrenceId:planOccurrenceId(sub,current),id:randomUUID(),revision:1,recordedAt:new Date(this.now()).toISOString(),updatedAt:new Date(this.now()).toISOString()};
+          this.db.upsertPayment(paymentSchema.parse(payment),true);
+          sub.anchorDate=sub.anchorDate||current;
+          sub.renewalDate={...sub.renewalDate,value:next,observedAt:payment.recordedAt,dataOrigin:'manual'};
+          this.history(sub,`记录付款 ${input.amount} ${input.currency}，计划顺延至 ${next}`);
+          this.save(sub);
+          return payment.id;
+        }
+        const payment:PaymentRecord={...input,id:randomUUID(),revision:1,recordedAt:new Date(this.now()).toISOString(),updatedAt:new Date(this.now()).toISOString()};
+        this.db.upsertPayment(paymentSchema.parse(payment),true);
+        return payment.id;
+      }
+      case 'payments.update': {
+        const existing=this.db.getPayment(p.id)??fail('NOT_FOUND','付款记录不存在');
+        if(req.expectedRevision!==existing.revision)fail('REVISION_CONFLICT','付款记录已更新，请重新读取后编辑');
+        const patch=paymentInputSchema.partial().parse(p.patch);
+        const today=dateInZone(new Date(this.now()).toISOString(),this.db.getPreferences().timezone);
+        if((patch.paidOn??existing.paidOn)>today)fail('FUTURE_PAYMENT','实际支付日不能晚于今天');
+        const next:PaymentRecord={...existing,...patch,source:existing.source,revision:existing.revision+1,updatedAt:new Date(this.now()).toISOString()};
+        this.db.upsertPayment(paymentSchema.parse(next));
+        return;
+      }
+      case 'payments.remove': {
+        const payment=this.db.getPayment(p.id)??fail('NOT_FOUND','付款记录不存在');
+        const token=randomUUID();
+        this.db.setSetting(`undoPayment:${token}`,{payment,expires:this.now()+30000});
+        this.db.deletePayment(payment.id);
+        return token;
+      }
+      case 'payments.undo': {
+        const undo=this.db.getSetting<{payment:PaymentRecord;expires:number}|null>(`undoPayment:${p.token}`,null);
+        if(!undo||undo.expires<this.now())fail('UNDO_EXPIRED','撤销已过期');
+        if(this.db.getPayment(undo.payment.id))fail('REVISION_CONFLICT','该付款记录已存在');
+        this.db.upsertPayment(paymentSchema.parse(undo.payment),true);
+        this.db.setSetting(`undoPayment:${p.token}`,null);
+        return;
+      }
       case 'subscriptions.resolveField': {
         const sub=this.subscription(p.id),field=sub[p.field as 'plan'];
         if(isAutomatic(sub)&&p.field==='price')fail('AUTOMATIC_FIELD','实际支付请直接编辑，供应商标价不能覆盖支付金额');
@@ -297,11 +351,12 @@ export class SubCalService {
       }
       case 'collections.diagnose':return JSON.stringify({schemaVersion:1,storageError:Boolean(this.db.getStorageError()),notifications:this.db.getSetting('notificationStatus','unknown'),connections:this.db.listConnections().map(c=>({adapter:c.adapterId,state:c.state,generation:c.generation,version:c.version,verification:c.verification,lastAttempt:c.lastAttempt,lastSuccess:c.lastSuccess,errorCode:c.error?.code??null}))},null,2);
       case 'calendars.events':return projectEvents(this.db.listSubscriptions().filter(s=>s.lifecycle!=='archived'),new Date(this.now()).toISOString(),p.includeReset);
-      case 'data.export':return JSON.stringify({schemaVersion:2,format:'subcal-backup',exportedAt:new Date(this.now()).toISOString(),subscriptions:this.db.listSubscriptions(),preferences:this.db.getPreferences()},null,2);
+      case 'data.export':return JSON.stringify({schemaVersion:3,format:'subcal-backup',exportedAt:new Date(this.now()).toISOString(),subscriptions:this.db.listSubscriptions(),payments:this.db.listPayments(),preferences:this.db.getPreferences()},null,2);
       case 'data.importPreview': {
-        const imported=this.parseImport(p.text),current=this.db.listSubscriptions(),id=randomUUID();
+        const imported=this.parseImport(p.text),current=this.db.listSubscriptions(),currentPayments=this.db.listPayments(),id=randomUUID();
         const old=new Set(current.map(s=>s.id)),next=new Set(imported.subscriptions.map(s=>s.id));
-        const preview:ImportPreview={id,count:next.size,currentCount:old.size,added:[...next].filter(x=>!old.has(x)).length,overwritten:[...next].filter(x=>old.has(x)).length,removed:[...old].filter(x=>!next.has(x)).length,scenario:'empty_first_run',text:p.text};
+        const nextPayments=new Set(imported.payments.map(x=>x.id));
+        const preview:ImportPreview={id,count:next.size,currentCount:old.size,added:[...next].filter(x=>!old.has(x)).length,overwritten:[...next].filter(x=>old.has(x)).length,removed:[...old].filter(x=>!next.has(x)).length,scenario:'empty_first_run',text:p.text,paymentCount:nextPayments.size,currentPaymentCount:currentPayments.length,removedPayments:currentPayments.filter(x=>!nextPayments.has(x.id)).length};
         this.db.setSetting(`import:${id}`,{hash:hash(p.text),revision:this.db.getSpaceRevision(),expires:this.now()+600000});return preview;
       }
       case 'data.importCommit': {
@@ -310,6 +365,8 @@ export class SubCalService {
         const imported=this.parseImport(p.text);
         for(const c of this.db.listConnections())this.disconnect(c.id,false);
         for(const s of this.db.listSubscriptions())this.db.deleteSubscription(s.id);
+        this.db.deleteAllPayments();
+        for(const payment of imported.payments)this.db.upsertPayment(paymentSchema.parse(payment));
         for(const sub of imported.subscriptions){if(sub.connectionId)sub.management='automatic';sub.connectionId=null;this.save(sub);}
         this.db.savePreferences(imported.preferences);this.db.setSetting(`import:${p.id}`,null);return;
       }
@@ -320,10 +377,14 @@ export class SubCalService {
     if(Buffer.byteLength(text,'utf8')>2*1024*1024)fail('INVALID_IMPORT','导入文件不能超过 2MB');
     let raw:any;try{raw=JSON.parse(text);}catch{fail('INVALID_IMPORT','不是有效 JSON 文件');}
     const source=raw?.format==='subcal-backup'?raw:raw?.spaces?.[raw.active]??raw?.space??raw;
-    if(![1,2].includes(raw?.schemaVersion)||!Array.isArray(source?.subscriptions)||source.subscriptions.length>10000)fail('INVALID_IMPORT','备份格式或版本不支持');
+    if(![1,2,3].includes(raw?.schemaVersion)||!Array.isArray(source?.subscriptions)||source.subscriptions.length>10000)fail('INVALID_IMPORT','备份格式或版本不支持');
     const subscriptions:Subscription[]=source.subscriptions.map((s:unknown)=>subscriptionSchema.parse(s));
     if(new Set(subscriptions.map(s=>s.id)).size!==subscriptions.length)fail('INVALID_IMPORT','备份中订阅 ID 重复');
-    return {subscriptions,preferences:preferencesSchema.parse({...DEFAULT_PRODUCTION_PREFERENCES,...raw.preferences})};
+    const rawPayments=Array.isArray(source?.payments)?source.payments:[];
+    if(rawPayments.length>100000)fail('INVALID_IMPORT','备份中付款记录过多');
+    const payments:PaymentRecord[]=rawPayments.map((x:unknown)=>paymentSchema.parse(x));
+    if(new Set(payments.map(x=>x.id)).size!==payments.length)fail('INVALID_IMPORT','备份中付款 ID 重复');
+    return {subscriptions,payments,preferences:preferencesSchema.parse({...DEFAULT_PRODUCTION_PREFERENCES,...raw.preferences})};
   }
   private resolveConnectionId(id:string) {return this.db.getConnectionRow(id)?id:this.subscription(id).connectionId??fail('NO_CONNECTION','此订阅尚未连接');}
   private disconnect(id:string,removeCredential:boolean) {
@@ -341,7 +402,7 @@ export class SubCalService {
   }
   private emptySubscription(id:string):Subscription {
     const m=this.scheduler.manifest(id),unknown=():Field<string>=>({value:null,availability:'unfetched',source:'来源尚未提供',observedAt:null,dataOrigin:'manual'});
-    return {id:randomUUID(),revision:1,product:m.product,brand:m.brand,kind:m.authMode==='api_key'?'wallet':'window',account:'',region:m.region,organization:'个人',plan:unknown(),price:unknown(),currency:m.id==='kimi-platform-cn'?'CNY':'USD',cycle:m.authMode==='api_key'?'none':'irregular',intervalDays:30,anchorDate:null,timezone:this.db.getPreferences().timezone,startDate:unknown(),renewalDate:unknown(),paidThrough:unknown(),trialEnd:unknown(),lifecycle:'active',autoRenew:'unknown',billingGroupId:null,quotaPoolId:null,possibleSharedWallet:false,metrics:[],connectionId:id,website:'',reminder:'local',pinned:false,notes:'',history:[]};
+    return {id:randomUUID(),revision:1,product:m.product,brand:m.brand,kind:m.authMode==='api_key'?'wallet':'window',account:'',region:m.region,organization:'个人',plan:unknown(),price:unknown(),currency:m.id==='kimi-platform-cn'?'CNY':'USD',cycle:m.authMode==='api_key'?'none':'irregular',intervalDays:30,anchorDate:null,timezone:this.db.getPreferences().timezone,startDate:unknown(),renewalDate:unknown(),paidThrough:unknown(),trialEnd:unknown(),lifecycle:'active',autoRenew:'unknown',billingGroupId:null,quotaPoolId:null,possibleSharedWallet:false,metrics:[],connectionId:id,website:'',reminder:'local',category:'其他',pinned:false,notes:'',history:[]};
   }
   applyCollection(id:string,result:CollectOutput) {
     for(const sub of this.db.listSubscriptions().filter(s=>s.connectionId===id)) {
