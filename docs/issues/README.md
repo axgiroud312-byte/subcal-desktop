@@ -1,5 +1,11 @@
 # SubCal 开发 Issue 索引
 
+## 新任务：账号自动发现与接入
+
+远端任务：[GitHub #3](https://github.com/axgiroud312-byte/subcal-desktop/issues/3)。
+
+[BE-011](BE-011.md)：已完成术语、规格和 Magpie/CC Switch 源码核对，功能待实施。当前依据：[项目术语](../../GLOSSARY.md)、[账号接入规格](../specs/account-access.md)、[源码核对](../references/account-access-source-review.md)。FE-020 的读取/确认向导不满足新需求，仅作为历史实施记录。
+
 ## 当前批次：真实后端与前端收尾
 
 用户纠正后的新增流程：[FE-020](FE-020.md)，选择服务并连接账号后自动建档，删除手动指标配置。源码参考和实际验证见[账号新增设计](../design/account-onboarding.md)。
@@ -16,7 +22,7 @@
 
 当前开发依据：[视觉基础与组件约定](../design/visual-foundation.md)、[前端执行规格](../specs/frontend-first.md)、[完整 PRD](../../SubCal-Desktop-V1-PRD.md)。第一版设计来源：[Gemini 原始方案](../design/gemini-frontend-proposal.md)及[调用回执](../design/gemini-call-receipt.json)。启动整批工作的指令见[前端开发指令](../../前端开发指令.md)。
 
-下一批（已制定、尚未实施）：真实后端 BE-001 至 BE-010，把演示数据替换为本地 SQLite 服务与五个正式适配器的真实查询，启动指令见[后端开发指令](../../后端开发指令.md)。
+历史批次 BE-001 至 BE-010 已有实现与检查记录；用户已删除旧后端开发指令，不再作为当前依据。后续账号接入按 BE-011 执行。
 
 ## 当前批次：视觉重做 FE-011 至 FE-018
 
