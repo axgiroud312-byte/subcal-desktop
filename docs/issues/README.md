@@ -2,6 +2,8 @@
 
 ## 当前批次：真实后端与前端收尾
 
+用户纠正后的新增流程：[FE-020](FE-020.md)，选择服务并连接账号后自动建档，删除手动指标配置。源码参考和实际验证见[账号新增设计](../design/account-onboarding.md)。
+
 本地 Issue 已先于实施建立，沿用本项目本地 Issue 约定。BE-001 汇总目标并交付 IPC 接缝，依次实施 BE-002 → BE-003 → BE-004 → BE-005 → BE-006 → BE-007 / BE-008 → BE-009 → BE-010；前端最后优化单列 FE-019，纳入整体交付与回归。
 
 远端汇总追踪：[GitHub #1：真实后端接入与前端最后优化](https://github.com/axgiroud312-byte/subcal-desktop/issues/1)。BE/FE 编号仍指本地任务，不是远端编号。

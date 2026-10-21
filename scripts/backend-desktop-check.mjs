@@ -41,10 +41,13 @@ try {
   });
   await check('真实窗口创建手动订阅', async () => {
     await page.getByRole('button', { name: '新增订阅', exact: true }).first().click();
+    await shot('add-service.png');
+    await page.getByRole('button', { name: '手动记录其他订阅', exact: true }).click();
+    assert.doesNotMatch(await page.locator('[role="dialog"]').innerText(), /指标名称|数据可用性状态|unfetched|绑定自动采集连接/);
     await page.locator('#sub-product').fill('本地持久化验证');
     await page.locator('#sub-price').fill('12.50');
     await page.locator('#sub-renewal-date').fill('2026-11-25');
-    await page.getByRole('button', { name: '创建订阅', exact: true }).click();
+    await page.getByRole('button', { name: '保存手动记录', exact: true }).click();
     await page.getByRole('button', { name: '编辑记录', exact: true }).waitFor();
     const s = await state(); assert.equal(s.subscriptions.length, 1); assert.equal(s.subscriptions[0].price.value, '12.50');
     assert.notEqual(s.subscriptions[0].price.dataOrigin, 'demo');
@@ -103,7 +106,7 @@ try {
     await page.getByRole('button', { name: '添加连接', exact: true }).click();
     await assertClean();
     assert.equal(await page.locator('#auth-secret').getAttribute('type'), 'password');
-    assert.equal(await page.getByRole('button', { name: '读取账号与字段', exact: true }).isDisabled(), true);
+    assert.equal(await page.getByRole('button', { name: '连接并读取', exact: true }).isDisabled(), true);
     await shot('connection-auth.png'); await closeModal();
     await page.getByRole('button', { name: '打开设置与备份' }).click();
     await assertClean(); await shot('settings.png'); await closeModal();

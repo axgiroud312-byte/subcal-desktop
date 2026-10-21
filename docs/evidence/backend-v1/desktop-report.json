@@ -1,5 +1,5 @@
 {
-  "at": "2026-10-21T03:18:22.113Z",
+  "at": "2026-10-21T03:35:36.390Z",
   "platform": "win32",
   "checks": [
     "真实 IPC、空 SQLite 与桌面隔离",
@@ -10,7 +10,7 @@
     "完整退出后重新打开仍有记录与偏好"
   ],
   "errors": [],
-  "profile": "C:\\Users\\niilo\\AppData\\Local\\Temp\\opencode\\subcal-real-check-j5l8yf",
+  "profile": "C:\\Users\\niilo\\AppData\\Local\\Temp\\opencode\\subcal-real-check-kDZKmI",
   "userAcceptance": "pending",
   "limitations": [
     "未使用真实账号查询供应商",

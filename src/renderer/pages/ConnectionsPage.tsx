@@ -9,7 +9,7 @@ import { Input } from '../components/ui/input';
 import { Field, FieldLabel } from '../components/ui/field';
 import './connections.css';
 
-const PROVIDERS = [
+export const PROVIDERS = [
   { id: 'deepseek-balance', name: 'DeepSeek', mode: 'api_key', reads: '可用总余额、充值余额、赠送余额及币种', unavailable: '订阅开始日、续费日', permission: 'API Key 同时具有推理权限；此连接仅查询余额。' },
   { id: 'kimi-platform-cn', name: 'Kimi API', mode: 'api_key', reads: '国内站可用余额、现金余额、代金券余额', unavailable: 'Kimi Code 额度、会员续费日', permission: '国内站 API Key 同时具有推理权限；此连接仅查询余额。' },
   { id: 'openrouter-key', name: 'OpenRouter', mode: 'api_key', reads: '当前 Key 用量、限额及剩余预算', unavailable: '账户总资金、会员续费日', permission: '当前 API Key 同时具有推理权限；此连接仅查询 Key 预算。' },
@@ -17,8 +17,8 @@ const PROVIDERS = [
   { id: 'copilot-local', name: 'GitHub Copilot', mode: 'local_client', reads: '官方 SDK 返回的额度及重置时间', unavailable: '会员扣费日', permission: '连接本机已登录的官方 Copilot 运行时，仅查询账号额度，不创建对话。' },
 ] as const;
 
-export function ConnectionsPage({ snapshot, client, notify, onOpen, focusId }: PageProps & { focusId?: string }) {
-  const [wizard, setWizard] = useState<{ provider: string; connectionId?: string } | null>(null);
+export function ConnectionsPage({ snapshot, client, notify, onOpen, focusId, initialProvider, wizardOnly = false, onWizardClose, onConnected }: PageProps & { focusId?: string; initialProvider?: string; wizardOnly?: boolean; onWizardClose?: () => void; onConnected?: (id: string) => void }) {
+  const [wizard, setWizard] = useState<{ provider: string; connectionId?: string } | null>(() => initialProvider ? { provider: initialProvider } : null);
   const [subscriptionId, setSubscriptionId] = useState('');
   const [secret, setSecret] = useState('');
   const [auth, setAuth] = useState<AuthSession | null>(null);
@@ -48,6 +48,7 @@ export function ConnectionsPage({ snapshot, client, notify, onOpen, focusId }: P
   };
   const closeWizard = () => {
     sequence.current++; setSecret(''); setProbe(null); setAuth(null); setWizard(null); setBusy(false);
+    onWizardClose?.();
   };
 
   async function testConnection() {
@@ -82,11 +83,12 @@ export function ConnectionsPage({ snapshot, client, notify, onOpen, focusId }: P
     if (!probe || busy) return;
     const request = sequence.current;
     setBusy(true); setError('');
-    try { await client.bind(probe); if (request === sequence.current) closeWizard(); notify('已启用自动更新'); }
+    try { await client.bind(probe); if (request === sequence.current) { onConnected?.(probe.connectionId); closeWizard(); } notify('已加入订阅，自动更新已开启'); }
     catch (e) { if (request === sequence.current) { setError((e as Error).message); setBusy(false); } }
   }
 
   return <div className="conn-page">
+    {!wizardOnly && <>
     <div className="conn-header-bar">
       <h2 className="conn-page-title">连接</h2>
       <div className="row">
@@ -120,17 +122,19 @@ export function ConnectionsPage({ snapshot, client, notify, onOpen, focusId }: P
 
     <section className="panel stack"><h3>支持的服务</h3><div className="conn-grid">{PROVIDERS.map(p => <div className="row" key={p.id}><BrandIcon product={p.name} /><span>{p.name}</span><StatusBadge>待验证</StatusBadge><Button variant="ghost" onClick={() => openWizard(p.id)}>连接</Button></div>)}</div></section>
     <section className="panel stack"><h3>日历连接</h3><div className="row">{['Google Calendar', 'iCloud CalDAV', 'macOS EventKit'].map(name => <span className="row" key={name}>{name}<StatusBadge>待接入</StatusBadge></span>)}</div></section>
+    </>}
 
-    {wizard && <Modal title={wizard.connectionId ? '重新连接' : '添加连接'} onClose={closeWizard}>
+    {wizard && <Modal title={wizard.connectionId ? `重新连接 ${selected.name}` : `添加 ${selected.name}`} onClose={closeWizard}>
       <div className="stack">
-        {!wizard.connectionId && <Field><FieldLabel htmlFor="auth-provider">服务</FieldLabel><FormSelect id="auth-provider" value={selected.id} disabled={busy || !!auth} onChange={e => openWizard(e.target.value)}>{PROVIDERS.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</FormSelect></Field>}
-        <dl className="stack"><div><dt>读取</dt><dd>{selected.reads}</dd></div><div><dt>不提供</dt><dd>{selected.unavailable}</dd></div><div><dt>权限</dt><dd>{selected.permission}</dd></div><div><dt>凭据位置</dt><dd>{selected.mode === 'api_key' ? '由当前系统用户加密保存在本机，备份不含 Key。' : '由官方客户端管理，不复制登录文件。'}</dd></div></dl>
-        {!wizard.connectionId && <Field><FieldLabel htmlFor="auth-subscription">关联订阅</FieldLabel><FormSelect id="auth-subscription" value={subscriptionId} disabled={busy || !!auth} onChange={e => setSubscriptionId(e.target.value)}><option value="">新建订阅</option>{snapshot.subscriptions.filter(s => !s.connectionId && s.lifecycle !== 'archived').map(s => <option key={s.id} value={s.id}>{s.product} · {s.account || '未命名账号'}</option>)}</FormSelect></Field>}
+        {!wizard.connectionId && !wizardOnly && <Field><FieldLabel htmlFor="auth-provider">服务</FieldLabel><FormSelect id="auth-provider" value={selected.id} disabled={busy || !!auth} onChange={e => openWizard(e.target.value)}>{PROVIDERS.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</FormSelect></Field>}
+        <p>{selected.mode === 'local_client' ? '读取本机已登录账号，自动添加套餐和额度。' : '填写 API Key，自动读取并添加余额或预算。'}</p>
+        <details><summary>读取范围与权限</summary><dl className="stack"><div><dt>读取</dt><dd>{selected.reads}</dd></div><div><dt>不提供</dt><dd>{selected.unavailable}</dd></div><div><dt>权限</dt><dd>{selected.permission}</dd></div><div><dt>凭据位置</dt><dd>{selected.mode === 'api_key' ? '由当前系统用户加密保存在本机，备份不含 Key。' : '由官方客户端管理，不复制登录文件。'}</dd></div></dl></details>
+        {!wizard.connectionId && snapshot.subscriptions.some(s => !s.connectionId && s.lifecycle !== 'archived') && <details><summary>关联已有记录</summary><Field><FieldLabel htmlFor="auth-subscription">订阅</FieldLabel><FormSelect id="auth-subscription" value={subscriptionId} disabled={busy || !!auth} onChange={e => setSubscriptionId(e.target.value)}><option value="">自动新建</option>{snapshot.subscriptions.filter(s => !s.connectionId && s.lifecycle !== 'archived').map(s => <option key={s.id} value={s.id}>{s.product} · {s.account || '未命名账号'}</option>)}</FormSelect></Field></details>}
         {selected.mode === 'api_key' && <Field><FieldLabel htmlFor="auth-secret">API Key {mask && `· ${mask}`}</FieldLabel><Input id="auth-secret" type="password" autoComplete="off" spellCheck={false} value={secret} disabled={busy} onChange={e => { setSecret(e.target.value); setProbe(null); }} placeholder={mask || (wizard.connectionId ? '留空使用已保存的 Key' : '填写 API Key')} /></Field>}
         {selected.mode === 'local_client' && <Button variant="ghost" onClick={() => void run(async () => { if (!window.subcal) throw new Error('请在桌面应用内打开'); await window.subcal.openExternal(selected.id === 'codex-local' ? 'https://github.com/openai/codex' : 'https://github.com/github/copilot-cli'); })}>官方安装与登录说明</Button>}
         {error && <p role="alert" className="danger-text">{error}</p>}
-        <Button variant="outline" disabled={busy || (selected.mode === 'api_key' && !secret.trim() && !mask && !wizard.connectionId)} onClick={() => void testConnection()}><RefreshCw />{busy ? '查询中…' : probe ? '重新查询' : '读取账号与字段'}</Button>
-        {probe && <section className="panel stack"><strong>{probe.account || '当前 Key'}</strong>{probe.samples.length ? probe.samples.map((sample, i) => <p key={i}>{sample}</p>) : <p>未返回可用字段</p>}<p className="muted">{probe.fields.join('、')}</p><Button disabled={busy} onClick={() => void confirmConnection()}>确认并启用自动更新</Button></section>}
+        <Button variant="outline" disabled={busy || (selected.mode === 'api_key' && !secret.trim() && !mask && !wizard.connectionId)} onClick={() => void testConnection()}><RefreshCw />{busy ? '正在读取…' : probe ? '重新读取' : selected.mode === 'local_client' ? '读取已登录账号' : '连接并读取'}</Button>
+        {probe && <section className="panel stack"><strong>{probe.account || '当前 Key'}</strong>{probe.samples.length ? probe.samples.map((sample, i) => <p key={i}>{sample}</p>) : <p>未返回可用字段</p>}<Button disabled={busy} onClick={() => void confirmConnection()}>确认添加</Button></section>}
       </div>
     </Modal>}
     {disconnecting && <Modal title="断开连接？" onClose={() => setDisconnecting(null)}><div className="stack"><p>停止采集并删除保存的凭据，订阅资料保留。</p><Button variant="destructive" onClick={() => void run(async () => { await client.disconnect(disconnecting.id, true); setDisconnecting(null); }, '已断开连接')}>断开并删除凭据</Button></div></Modal>}

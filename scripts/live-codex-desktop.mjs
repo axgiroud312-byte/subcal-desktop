@@ -15,13 +15,20 @@ let app;
 try {
   app = await _electron.launch({ executablePath: electron, args: ['.'], env });
   const page = await app.firstWindow();
-  await page.getByRole('button', { name: '连接', exact: true }).click();
-  await page.getByRole('button', { name: '添加连接', exact: true }).click();
-  await page.locator('#auth-provider').click();
-  await page.getByRole('option', { name: 'Codex', exact: true }).click();
-  await page.getByRole('button', { name: '读取账号与字段', exact: true }).click();
-  await page.getByRole('button', { name: '确认并启用自动更新', exact: true }).click({ timeout: 45000 });
-  await page.locator('#auth-provider').waitFor({ state: 'hidden' });
+  await page.getByRole('button', { name: '新增订阅', exact: true }).first().click();
+  await page.getByRole('button', { name: 'Codex 本机账号', exact: true }).click();
+  assert.equal(await page.locator('[id^="metric-"]').count(), 0);
+  await page.getByRole('button', { name: '读取已登录账号', exact: true }).click();
+  await page.getByRole('button', { name: '确认添加', exact: true }).click({ timeout: 45000 });
+  await page.getByRole('button', { name: '编辑记录', exact: true }).waitFor();
+  const originalMetrics = await page.evaluate(async () => JSON.stringify((await (await import('/src/renderer/service/client.ts')).client.snapshot()).subscriptions[0].metrics));
+  await page.getByRole('button', { name: '编辑记录', exact: true }).click();
+  assert.equal(await page.locator('[id^="metric-"]').count(), 0);
+  await page.locator('#sub-price').fill('12.50');
+  await page.getByRole('button', { name: '保存更改', exact: true }).click();
+  await page.getByRole('button', { name: '编辑记录', exact: true }).waitFor();
+  const preservedMetrics = await page.evaluate(async () => JSON.stringify((await (await import('/src/renderer/service/client.ts')).client.snapshot()).subscriptions[0].metrics));
+  assert.equal(originalMetrics === preservedMetrics, true, '编辑收费信息必须保留实际采集指标与时间');
   const result = await page.evaluate(async () => {
     const { client } = await import('/src/renderer/service/client.ts');
     const snapshot = await client.snapshot();

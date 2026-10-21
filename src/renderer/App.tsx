@@ -13,7 +13,8 @@ import { dateInZone, daysBetween, freshness, money, renewalText } from '../share
 import { OverviewPage } from './pages/OverviewPage';
 import { SubscriptionsPage } from './pages/SubscriptionsPage';
 import { CalendarPage } from './pages/CalendarPage';
-import { ConnectionsPage } from './pages/ConnectionsPage';
+import { ConnectionsPage, PROVIDERS } from './pages/ConnectionsPage';
+import { AddSubscription } from './components/AddSubscription';
 import { Settings } from './components/Settings';
 import { DetailDrawer } from './components/DetailDrawer';
 import { SubscriptionForm } from './components/SubscriptionForm';
@@ -52,6 +53,8 @@ export function App() {
     { mode: 'create'; presetProduct?: string } | { mode: 'edit'; subscriptionId: string } | null
   >(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [addProvider, setAddProvider] = useState<string | null>(null);
   const [connectionFocusId, setConnectionFocusId] = useState<string | undefined>(undefined);
 
   const [refreshingAll, setRefreshingAll] = useState(false);
@@ -296,7 +299,7 @@ export function App() {
     client,
     notify,
     onOpen: (id: string) => setDetailId(id),
-    onCreate: () => setFormState({ mode: 'create' }),
+    onCreate: () => setAddOpen(true),
     onConnection: (connId: string) => {
       setConnectionFocusId(connId);
       navigateToPage('连接');
@@ -346,7 +349,7 @@ export function App() {
             type="button"
             className="btn-add-sub"
             aria-label="新增订阅"
-            onClick={() => setFormState({ mode: 'create' })}
+            onClick={() => setAddOpen(true)}
           >
             <Plus /> 新增订阅
           </Button>
@@ -443,9 +446,11 @@ export function App() {
           <SubscriptionsPage
             {...pageProps}
             onEdit={(sub) => setFormState({ mode: 'edit', subscriptionId: sub.id })}
-            onCreateWithPreset={(presetProduct) =>
-              setFormState({ mode: 'create', presetProduct })
-            }
+            onCreateWithPreset={(presetProduct) => {
+              const provider = PROVIDERS.find(p => p.name === presetProduct || (p.id === 'deepseek-balance' && presetProduct === 'DeepSeek API'));
+              if (provider) setAddProvider(provider.id);
+              else setFormState({ mode: 'create', presetProduct });
+            }}
           />
         ) : null}
         {page === '日历' ? <CalendarPage {...pageProps} /> : null}
@@ -476,7 +481,9 @@ export function App() {
       ) : null}
 
       {/* Shared Create / Edit Subscription Modal */}
-      {formState ? (
+       {addOpen && <AddSubscription onClose={() => setAddOpen(false)} onSelect={id => { setAddOpen(false); setAddProvider(id); }} onManual={() => { setAddOpen(false); setFormState({ mode: 'create' }); }} />}
+       {addProvider && <ConnectionsPage {...pageProps} initialProvider={addProvider} wizardOnly onWizardClose={() => setAddProvider(null)} onConnected={id => { void client.snapshot().then(next => { setSnapshot(next); setPage('概览'); setDetailId(next.subscriptions.find(s => s.connectionId === id)?.id ?? null); }).catch(e => notify((e as Error).message)); }} />}
+       {formState ? (
         <SubscriptionForm
           mode={formState.mode}
           initial={editingSubscription ?? undefined}
