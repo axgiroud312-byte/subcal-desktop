@@ -2,6 +2,8 @@
 
 ## 新任务：账号自动发现与接入
 
+**当前执行入口：[BE-012](BE-012.md) / [GitHub #4](https://github.com/axgiroud312-byte/subcal-desktop/issues/4)**。优先移植 Magpie / CC Switch 的账号凭据、授权和查询实现，接替 BE-011 的候选方案任务；功能尚未实施。
+
 远端任务：[GitHub #3](https://github.com/axgiroud312-byte/subcal-desktop/issues/3)。
 
 [BE-011](BE-011.md)：已完成术语、规格和 Magpie/CC Switch 源码核对，功能待实施。当前依据：[项目术语](../../GLOSSARY.md)、[账号接入规格](../specs/account-access.md)、[源码核对](../references/account-access-source-review.md)。FE-020 的读取/确认向导不满足新需求，仅作为历史实施记录。
