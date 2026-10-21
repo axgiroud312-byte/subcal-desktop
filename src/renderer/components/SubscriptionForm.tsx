@@ -309,6 +309,10 @@ function ManualSubscriptionForm({
   const [reminder, setReminder] = useState<Subscription['reminder']>(
     initial?.reminder ?? snapshot.preferences.reminder ?? 'local'
   );
+  const [category, setCategory] = useState(initial?.category ?? snapshot.preferences.categories?.[0] ?? '其他');
+  const [reminderLeadDays, setReminderLeadDays] = useState(
+    initial?.reminderLeadDays === null || initial?.reminderLeadDays === undefined ? '' : String(initial.reminderLeadDays)
+  );
   const [pinned, setPinned] = useState(Boolean(initial?.pinned));
   const [notes, setNotes] = useState(initial?.notes ?? '');
 
@@ -412,6 +416,8 @@ function ManualSubscriptionForm({
       connectionId: initial?.connectionId ?? null,
       website: website.trim(),
       reminder,
+      category: category.trim() || '其他',
+      reminderLeadDays: reminderLeadDays.trim() === '' ? null : Number(reminderLeadDays),
       pinned,
       notes: notes.trim(),
       ...(initial?.scheduleOverrides ? { scheduleOverrides: initial.scheduleOverrides } : {}),
@@ -654,6 +660,22 @@ function ManualSubscriptionForm({
             </Field>
 
             <Field className="field">
+              <FieldLabel htmlFor="sub-category">本地分类</FieldLabel>
+              <FormSelect
+                id="sub-category"
+                value={category}
+                onChange={(e) => {
+                  markDirty();
+                  setCategory(e.target.value);
+                }}
+              >
+                {[...new Set([category, ...(snapshot.preferences.categories ?? [])])].filter(Boolean).map((item) => (
+                  <option key={item} value={item}>{item}</option>
+                ))}
+              </FormSelect>
+            </Field>
+
+            <Field className="field">
               <FieldLabel htmlFor="sub-account">账号标识（请勿输入真实密钥）</FieldLabel>
               <Input
                 id="sub-account"
@@ -746,6 +768,7 @@ function ManualSubscriptionForm({
                 }}
               >
                 <option value="monthly">按月</option>
+                <option value="quarterly">按季度（三个日历月）</option>
                 <option value="yearly">按年</option>
                 <option value="days">自定义天数</option>
                 <option value="once">单次买断</option>
@@ -963,6 +986,21 @@ function ManualSubscriptionForm({
                 <option value="local">本地日历与桌面提醒</option>
                 <option value="external">本地 + 外部日历提醒（待接入）</option>
                 <option value="none">不提醒</option>
+              </FormSelect>
+            </Field>
+
+            <Field className="field">
+              <FieldLabel htmlFor="sub-reminder-lead">提前提醒天数</FieldLabel>
+              <FormSelect
+                id="sub-reminder-lead"
+                value={reminderLeadDays}
+                onChange={(e) => {
+                  markDirty();
+                  setReminderLeadDays(e.target.value);
+                }}
+              >
+                <option value="">继承全局（{snapshot.preferences.reminderLeadDays} 天）</option>
+                {[1, 3, 7, 14].map((d) => <option key={d} value={d}>{d} 天前</option>)}
               </FormSelect>
             </Field>
 

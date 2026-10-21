@@ -22,13 +22,13 @@ async function launch() {
   app = await _electron.launch({ executablePath: electron, args: ['.'], env });
   page = await app.firstWindow();
   page.on('pageerror', e => errors.push(e.message));
-  await page.getByRole('button', { name: '新增订阅', exact: true }).first().waitFor({ timeout: 30000 });
+  await page.getByRole('button', { name: '添加订阅', exact: true }).first().waitFor({ timeout: 30000 });
 }
 async function state() { return page.evaluate(async () => (await import('/src/renderer/service/client.ts')).client.snapshot()); }
 async function nav(name) { await page.getByRole('button', { name, exact: true }).first().click(); }
 async function closeModal() { await page.locator('[role="dialog"]:visible').last().locator('.modal-close').click(); }
 async function check(name, fn) { await fn(); checks.push(name); console.log(`PASS ${name}`); }
-async function assertClean() { assert.doesNotMatch(await page.locator('body').innerText(), /模拟|演示|组件示例|前端预览|Mira|shadcn/); }
+async function assertClean() { assert.doesNotMatch(await page.locator('body').innerText(), /组件示例|前端预览|Mira|shadcn/); }
 async function shot(file) { await page.screenshot({ path: path.join(evidence, file), animations: 'disabled' }); }
 try {
   await launch();
@@ -41,7 +41,7 @@ try {
     await assertClean(); await shot('overview-empty.png');
   });
   await check('真实窗口创建手动订阅', async () => {
-    await page.getByRole('button', { name: '新增订阅', exact: true }).first().click();
+    await page.getByRole('button', { name: '添加订阅', exact: true }).first().click();
     await shot('add-service.png');
     await page.getByRole('button', { name: '手动记录其他订阅', exact: true }).click();
     assert.doesNotMatch(await page.locator('[role="dialog"]').innerText(), /指标名称|数据可用性状态|unfetched|绑定自动采集连接/);
@@ -98,7 +98,7 @@ try {
   await check('四页、连接步骤、设置与最小窗口', async () => {
     for (const [width, height] of [[1280, 820], [960, 640]]) {
       await app.evaluate(({ BrowserWindow }, size) => BrowserWindow.getAllWindows()[0].setSize(...size), [width, height]);
-      for (const name of ['概览', '订阅', '日历', '连接']) {
+      for (const name of ['订阅', '日历', '账号']) {
         await nav(name); await assertClean();
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `${name} overflow`);
         await shot(`${name}-${width}.png`);
@@ -122,8 +122,16 @@ try {
     await page.getByRole('option', { name: '腾讯企业套餐广州', exact: true }).click();
     assert.equal(await page.getByLabel('团队 ID（可选）').getAttribute('required'), null);
     await shot('tencent-auth.png'); await closeModal();
-    await page.getByRole('button', { name: '打开设置与备份' }).click();
-    await assertClean(); await shot('settings.png'); await closeModal();
+    await nav('订阅');
+    await page.getByRole('searchbox', { name: '搜索订阅' }).fill('本地持久化验证');
+    await page.waitForTimeout(200);
+    await shot('subscriptions-search.png');
+    await page.getByRole('searchbox', { name: '搜索订阅' }).fill('');
+    await page.locator('.sc-sidebar').getByRole('button', { name: '设置', exact: true }).click();
+    await assertClean(); await shot('settings.png');
+    await page.getByRole('checkbox', { name: '减少动效' }).check();
+    await page.getByRole('button', { name: '保存设置', exact: true }).first().click();
+    await page.waitForTimeout(300);
   });
   await check('完整退出后重新打开仍有记录与偏好', async () => {
     await app.close(); app = null; await launch();

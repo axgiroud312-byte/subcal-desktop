@@ -8,7 +8,7 @@ function isDevEnvironment(): boolean {
   try {
     const metaEnv = (
       import.meta as unknown as { env?: { DEV?: boolean; MODE?: string; VITE_SUBCAL_MODE?: string } }
-    )?.env;
+    ).env;
     if (metaEnv?.DEV === true || metaEnv?.MODE === 'development') return true;
   } catch {
     /* ignore */
@@ -30,7 +30,7 @@ export function isPreviewMode(): boolean {
   try {
     const metaEnv = (
       import.meta as unknown as { env?: Record<string, string | boolean | undefined> }
-    )?.env;
+    ).env;
     if (metaEnv?.VITE_SUBCAL_MODE === 'preview') return true;
   } catch {
     /* ignore */
@@ -94,6 +94,10 @@ function createLazyPreviewClient(): AppClient {
     remove: async (id, removeFuture) => (await loadPreviewClient()).remove(id, removeFuture),
     undo: async (token) => (await loadPreviewClient()).undo(token),
     reorder: async (ids) => (await loadPreviewClient()).reorder(ids),
+    createPayment: async (input, key, advancePlan) => (await loadPreviewClient()).createPayment(input, key, advancePlan),
+    updatePayment: async (id, revision, patch) => (await loadPreviewClient()).updatePayment(id, revision, patch),
+    removePayment: async (id) => (await loadPreviewClient()).removePayment(id),
+    undoPayment: async (token) => (await loadPreviewClient()).undoPayment(token),
     setPreferences: async (patch) => (await loadPreviewClient()).setPreferences(patch),
     resolveField: async (id, field, accept) =>
       (await loadPreviewClient()).resolveField(id, field, accept),

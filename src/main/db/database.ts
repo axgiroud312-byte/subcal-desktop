@@ -7,11 +7,12 @@ import {
   OFFICIAL_ADAPTER_CATALOG,
   type CalendarTarget,
   type Connection,
+  type PaymentRecord,
   type Preferences,
   type Subscription,
 } from '../../shared/types';
 
-export const CURRENT_SCHEMA_VERSION = 3;
+export const CURRENT_SCHEMA_VERSION = 4;
 
 const MIGRATION_V1_SQL = `
 CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -247,10 +248,41 @@ ALTER TABLE metric_observations ADD COLUMN observation_json TEXT;
 UPDATE subscriptions SET record_json=json_set(record_json,'$.management','automatic')
 WHERE connection_id IS NOT NULL AND json_extract(record_json,'$.management') IS NULL;
 `;
+
+/**
+ * A payment ledger is deliberately independent from schedule_rules /
+ * billing_occurrences: those are projections that can be regenerated, while a
+ * real payment must survive subscription deletion and plan changes.
+ */
+const MIGRATION_V4_SQL = `
+CREATE TABLE IF NOT EXISTS payments (
+  id TEXT PRIMARY KEY,
+  subscription_id TEXT,
+  billing_group_id TEXT,
+  name TEXT NOT NULL,
+  category TEXT NOT NULL,
+  amount_decimal TEXT NOT NULL,
+  currency TEXT NOT NULL,
+  paid_on TEXT NOT NULL,
+  plan_occurrence_id TEXT,
+  plan_date TEXT,
+  note TEXT NOT NULL DEFAULT '',
+  source TEXT NOT NULL,
+  revision INTEGER NOT NULL DEFAULT 1,
+  record_json TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_payments_paid_on ON payments(paid_on);
+CREATE INDEX IF NOT EXISTS idx_payments_subscription ON payments(subscription_id);
+UPDATE subscriptions SET record_json=json_set(record_json,'$.category','其他')
+WHERE json_extract(record_json,'$.category') IS NULL;
+`;
 const MIGRATIONS: readonly { version: number; sql: string }[] = [
   { version: 1, sql: MIGRATION_V1_SQL },
   { version: 2, sql: MIGRATION_V2_SQL },
   { version: 3, sql: MIGRATION_V3_SQL },
+  { version: 4, sql: MIGRATION_V4_SQL },
 ];
 
 export const DEFAULT_PRODUCTION_PREFERENCES: Preferences = {
@@ -266,6 +298,11 @@ export const DEFAULT_PRODUCTION_PREFERENCES: Preferences = {
   notificationsMuted: false,
   walletThresholds: { CNY: '10.00', USD: '5.00' },
   order: [],
+  workspaceName: '个人工作区',
+  statisticsCurrency: 'CNY',
+  monthlyBudgets: {},
+  reminderLeadDays: 3,
+  categories: ['AI 工具', '生产力', '影音娱乐', '云存储', '其他'],
 };
 
 export const DEFAULT_PRODUCTION_TARGETS: readonly CalendarTarget[] = [
@@ -350,6 +387,7 @@ export class SubCalDatabase {
       this.sqlite.exec(MIGRATION_V1_SQL);
       this.sqlite.exec(MIGRATION_V2_SQL);
       this.sqlite.exec(MIGRATION_V3_SQL);
+      this.sqlite.exec(MIGRATION_V4_SQL);
       this.orm = this.createDrizzleInstance();
       // Error reporting only: never seed or write the fallback database.
     }
@@ -858,8 +896,82 @@ export class SubCalDatabase {
     });
   }
 
-  public listConnections(getMask?: (ref: string | null) => string | undefined): Connection[] {
+  public listPayments(): PaymentRecord[] {
     const rows = this.sqlite
+      .prepare('SELECT record_json FROM payments ORDER BY paid_on DESC, created_at DESC')
+      .all() as { record_json: string }[];
+    return rows.map((r) => JSON.parse(r.record_json) as PaymentRecord);
+  }
+
+  public getPayment(id: string): PaymentRecord | null {
+    const row = this.sqlite
+      .prepare('SELECT record_json FROM payments WHERE id = ?')
+      .get(id) as { record_json: string } | undefined;
+    return row ? (JSON.parse(row.record_json) as PaymentRecord) : null;
+  }
+
+  public upsertPayment(payment: PaymentRecord, isNew = false): void {
+    this.writeTransaction(() => {
+      this.sqlite
+        .prepare(
+          `INSERT INTO payments (
+             id, subscription_id, billing_group_id, name, category, amount_decimal, currency,
+             paid_on, plan_occurrence_id, plan_date, note, source, revision, record_json,
+             created_at, updated_at
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET
+             subscription_id = excluded.subscription_id,
+             billing_group_id = excluded.billing_group_id,
+             name = excluded.name,
+             category = excluded.category,
+             amount_decimal = excluded.amount_decimal,
+             currency = excluded.currency,
+             paid_on = excluded.paid_on,
+             plan_occurrence_id = excluded.plan_occurrence_id,
+             plan_date = excluded.plan_date,
+             note = excluded.note,
+             source = excluded.source,
+             revision = excluded.revision,
+             record_json = excluded.record_json,
+             updated_at = excluded.updated_at`,
+        )
+        .run(
+          payment.id,
+          payment.subscriptionId,
+          payment.billingGroupId,
+          payment.name,
+          payment.category,
+          payment.amount,
+          payment.currency,
+          payment.paidOn,
+          payment.planOccurrenceId ?? null,
+          payment.planDate ?? null,
+          payment.note,
+          payment.source,
+          payment.revision,
+          JSON.stringify(payment),
+          Date.parse(payment.recordedAt),
+          Date.parse(payment.updatedAt),
+        );
+      if (isNew) this.bumpSpaceRevision();
+    });
+  }
+
+  public deletePayment(id: string): void {
+    this.writeTransaction(() => {
+      this.sqlite.prepare('DELETE FROM payments WHERE id = ?').run(id);
+      this.bumpSpaceRevision();
+    });
+  }
+
+  public deleteAllPayments(): void {
+    this.writeTransaction(() => {
+      this.sqlite.prepare('DELETE FROM payments').run();
+      this.bumpSpaceRevision();
+    });
+  }
+
+  public listConnections(getMask?: (ref: string | null) => string | undefined): Connection[] {    const rows = this.sqlite
       .prepare(
         `SELECT c.id, c.provider_id, c.auth_type, c.credential_ref, c.state, c.generation,
                 c.last_attempt_at, c.last_success_at, c.next_allowed_at, c.error_json,

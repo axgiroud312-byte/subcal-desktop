@@ -33,7 +33,7 @@ export function isAutomatic(sub: Subscription): boolean {
 export function writableSubscriptionPatch(sub: Subscription, patch: Partial<SubscriptionInput>): Partial<SubscriptionInput> {
   if (!isAutomatic(sub)) return patch;
   const result: Partial<SubscriptionInput> = {};
-  for (const key of ['price','currency','website','reminder','pinned','notes'] as const) {
+  for (const key of ['price','currency','website','reminder','category','reminderLeadDays','pinned','notes'] as const) {
     if (patch[key] !== undefined) (result as Record<string, unknown>)[key] = patch[key];
   }
   if (result.price) result.price = {...result.price, dataOrigin:'manual', evidence:'configured', source:'用户实际支付', locked:undefined, proposed:undefined};

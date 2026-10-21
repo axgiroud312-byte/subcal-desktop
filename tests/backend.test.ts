@@ -253,6 +253,12 @@ test('v2 upgrade preserves legacy manual data and creates a pre-v3 backup; v1 an
       const text=JSON.stringify({schemaVersion:version,format:'subcal-backup',subscriptions:[original],preferences:f.db.getPreferences()});
       const preview=await f.call('data.importPreview',{text});await f.call('data.importCommit',{id:preview.id,text});assert.deepEqual(f.db.getSubscription(id),original);
     }
-    const exported=JSON.parse(await f.call('data.export'));assert.equal(exported.schemaVersion,2);assert.deepEqual(exported.subscriptions[0],original);
+    const exported=JSON.parse(await f.call('data.export'));assert.equal(exported.schemaVersion,3);assert.deepEqual(exported.payments,[]);assert.deepEqual(exported.subscriptions[0],original);
+    // A database that predates the payment ledger gains it through v4 with a consistency backup.
+    f.db.rawPrepare('DROP TABLE payments').run();f.db.rawPrepare('DELETE FROM schema_migrations WHERE version=4').run();
+    const upgraded=new SubCalDatabase(f.dir);try {
+      const migration=upgraded.getAppliedMigrations().find(m=>m.version===4)!;assert.ok(migration.backupRef&&fs.existsSync(migration.backupRef));
+      assert.deepEqual(upgraded.listPayments(),[]);
+    }finally{upgraded.close();}
   }finally{f.close();}
 });
