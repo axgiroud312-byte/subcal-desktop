@@ -29,7 +29,7 @@ export class AdapterError extends Error {
 }
 
 export interface AdapterManifest {
-  id: 'codex-local' | 'copilot-local' | 'deepseek-balance' | 'kimi-platform-cn' | 'openrouter-key';
+  id: 'codex-local' | 'copilot-local' | 'claude-local' | 'deepseek-balance' | 'kimi-platform-cn' | 'openrouter-key' | 'openrouter-credits';
   version: string;
   brand: string;
   product: string;
@@ -129,7 +129,7 @@ export function defaultDescribeRecovery(
         state: 'auth',
         code: 'AUTH_REQUIRED',
         message: error.message || '认证凭据已失效或未授权，旧额度快照已保留',
-        action: manifest.authMode === 'api_key' ? '替换有效 API Key' : '在官方客户端重新登录',
+        action: manifest.authMode === 'api_key' ? '填写有效 API Key' : manifest.id==='claude-local'?'在 Claude Code 中重新登录':'重新登录或选择本机已登录账号',
       };
     case 'PERMISSION_DENIED':
       return {
@@ -171,8 +171,8 @@ export function defaultDescribeRecovery(
       return {
         state: 'auth',
         code: 'ACCOUNT_MISMATCH',
-        message: error.message || '检测到本机登录账号已变更，已暂停旧绑定防止串号',
-        action: '重新探测并确认新账号身份',
+        message: error.message || '登录账号已改变，已暂停更新以防串号',
+        action: '重新连接并确认账号',
       };
     case 'TIMEOUT':
     case 'UPSTREAM_UNAVAILABLE':

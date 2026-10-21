@@ -51,3 +51,32 @@
 - [CC Switch codex_oauth_auth.rs：设备码、持久账号与刷新竞争处理](https://github.com/farion1231/cc-switch/blob/c776fd0ebfe35d769b5909b86bdfa1ccdf089988/src-tauri/src/proxy/providers/codex_oauth_auth.rs)
 - [CC Switch copilot_auth.rs：GitHub 授权及额度请求](https://github.com/farion1231/cc-switch/blob/c776fd0ebfe35d769b5909b86bdfa1ccdf089988/src-tauri/src/proxy/providers/copilot_auth.rs#L1087)
 - [CC Switch balance.rs：OpenRouter 账户余额](https://github.com/farion1231/cc-switch/blob/c776fd0ebfe35d769b5909b86bdfa1ccdf089988/src-tauri/src/services/balance.rs#L295)
+
+## BE-012 移植映射（2026-10-21）
+
+两份完整 MIT 原文保存在 `third_party/`；Electron 构建会复制到 `dist-electron/third_party/`。未新增第三方运行时依赖。
+
+| 本地文件 | 上游原文件（以上固定提交） | 适配内容 |
+| --- | --- | --- |
+| `src/main/account-access.ts` | Magpie `account.go`, `codex_store.go`, `copilot_cli.go`, `claude_dirs.go` | 实际目录、存储方式、账号/工作区身份、编辑器与 CLI 凭据分流；仅只读外部来源 |
+| 同上 | CC Switch `codex_oauth_auth.rs`, `copilot_auth.rs`, `services/subscription.rs` | 设备码、轮询间隔、PKCE 交换、刷新单飞/代次、Claude 两种 OAuth 结构 |
+| 同上 | Magpie `internal/provider/importapps.go`, `internal/gui/importapps.go`, `internal/gui/assets/app.js` | 后台候选发现、再次读取后导入、已支持配置结构解析；没有复制整个 GUI/代理 |
+| `src/main/adapters/credential-adapters.ts` | Magpie `subscription_usage.go`, `balance.go`, `copilot_cli.go`；CC Switch `subscription.rs`, `balance.rs`, `copilot_auth.rs` | wham 动态窗口/套餐/积分、Claude 用量、Copilot 来源请求头与 quota_snapshots、OpenRouter credits；账户资金和 Key 预算并行独立处理 |
+| `src/main/adapters/http-adapters.ts` | Magpie `balance.go`；CC Switch `balance.rs` | 保留并核对现有 DeepSeek/Kimi 只读余额解析；OpenRouter Key 用量与预算独立，不替代 credits |
+| `tests/account-access.test.ts`, `tests/credential-adapters.test.ts` | 上述固定源码中的协议/解析分支与内联测试布局 | TypeScript 合成夹具覆盖缺失/null/无限量、范围窗口、设备轮询、刷新竞争和来源切换；不是实际账号验证 |
+
+### 本次支持的配置范围
+
+- Codex：`CODEX_HOME` 或 `~/.codex`，`config.toml` 根级存储模式、`auth.json`；传统系统凭据 `Codex Auth` + canonical-home hash。
+- Claude Code：`CLAUDE_CONFIG_DIR` 或 `~/.claude` 的 `.credentials.json`，macOS 对应钥匙串；OAuth profile 只读核验账号/组织 UUID，避免 opaque Token 轮换变成新账号。
+- Copilot 编辑器：XDG 配置目录、Windows LocalAppData 下 `github-copilot/apps.json` / `hosts.json`。CLI：`COPILOT_HOME` 或 `~/.copilot/config.json` 的用户集合、文件 Token 或 `copilot-cli` 系统凭据。
+- API 导入：OpenCode `auth.json` 的 `type: api` 项；Claude `settings.json` 的供应商环境配置；Codex TOML base_url 与 auth.json Key；CC Switch `cc-switch.db` providers；Alma `chat_threads.db` providers。只识别 DeepSeek、Moonshot 国内与 OpenRouter 的固定 HTTPS 主机；不扫描其他文件。
+- Windows 传统凭据使用只读 CredReadW 小桥接；macOS 使用 security，Linux 使用 secret-tool。不写回外部来源。API Key 按 Key 身份去重，接口没提供账户 ID 时不臆断不同 Key 属于同一账户。
+
+### 明确边界
+
+Magpie 固定版本的 `codex_store.go` 明确未实现 Codex 特殊 `secret_auth_storage` 解密。SubCal 同样不能读取此类存储或 ephemeral 内存登录，会明确提示使用设备码登录；不会误读旧 auth.json。Copilot 企业主机未适配，不把其 Token 发往 github.com。Claude CLI `/usage` 未启用后备（当前无必要触发依据）；缺 OAuth 仍要求在原客户端登录。
+
+外部 OAuth 不抢占原客户端刷新链：每次采集前、30 秒核对和唤醒时读取最新同身份凭据；托管授权串行刷新并在使用前加密持久化。系统代理由 Electron 解析，独立 Node 24 采集进程使用解析后的 HTTP(S) 代理；SOCKS/PAC 多级故障切换尚未验证。
+
+实际验证结果见 [BE-012 交付记录](../evidence/BE-012/acceptance.md)，不能据此将未提供真实账号的服务标为已验收。

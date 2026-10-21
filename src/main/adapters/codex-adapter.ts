@@ -285,7 +285,7 @@ export class CodexLocalAdapter implements ProviderAdapter {
     ) {
       throw new AdapterError(
         'ACCOUNT_MISMATCH',
-        `检测到本机 Codex 账号已从原绑定切换为 ${out.account.alias}，已暂停自动更新以防串号`,
+        `本机 Codex 账号已切换为 ${out.account.alias}，请重新连接`,
       );
     }
     return out;

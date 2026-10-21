@@ -168,6 +168,7 @@ export function formatRelativeTime(observedAt: string | null, now?: string): str
 
 export function formatDateTime(instant: string | null, zone = 'Asia/Shanghai'): string {
   if (!instant) return '未记录';
+  if(/^\d{4}-\d{2}-\d{2}$/.test(instant))return instant;
   try {
     return new Intl.DateTimeFormat('zh-CN', {
       timeZone: zone,

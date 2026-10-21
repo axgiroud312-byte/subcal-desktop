@@ -217,7 +217,7 @@ export type Probe = {
 };
 export type AdapterSupportTier = 'official_auto' | 'official_next' | 'experimental' | 'manual';
 export type AdapterCatalogEntry = {
-  adapterId: 'codex-local' | 'copilot-local' | 'deepseek-balance' | 'kimi-platform-cn' | 'openrouter-key';
+  adapterId: 'codex-local' | 'claude-local' | 'copilot-local' | 'deepseek-balance' | 'kimi-platform-cn' | 'openrouter-key';
   provider: string;
   brand: string;
   region: string;
@@ -235,6 +235,10 @@ export type AdapterCatalogEntry = {
   credentialLocation: string;
 };
 export interface SubCalClient {
+  discoverAccounts?(): Promise<{accounts:{id:string;providerId:string;alias:string;source:string;organization?:string}[];warnings:string[]}>;
+  addAccount?(input:{candidateId?:string;providerId?:string;secret?:string}):Promise<{subscriptionId:string;connectionId:string}>;
+  startAccountLogin?(providerId:string):Promise<{id:string;userCode:string;verificationUri:string;intervalSeconds:number;expiresAt:number}>;
+  pollAccountLogin?(id:string):Promise<{status:'pending'|'complete'|'expired';subscriptionId?:string;connectionId?:string}>;
   snapshot(): Promise<Snapshot>;
   subscribe(listener: () => void): () => void;
   create(input: SubscriptionInput, key: string): Promise<string>;
@@ -287,14 +291,19 @@ export const OFFICIAL_ADAPTER_CATALOG: readonly AdapterCatalogEntry[] = [
     supportTier: 'official_auto',
     verification: 'pending',
     version: '1.0.0',
-    endpointSummary: '官方 Codex App Server · account/read 与 account/rateLimits/read',
+    endpointSummary: 'GET https://chatgpt.com/backend-api/wham/usage',
     minIntervalSeconds: 60,
     defaultForegroundSeconds: 300,
     defaultBackgroundSeconds: 900,
     fields: ['额度桶（动态识别）', '剩余/已用百分比', '窗口长度（分钟）', '重置时间'],
     unsupported: ['ChatGPT 全功能消费者聊天总额度', '会员真实扣费日期与账单历史'],
-    permissions: '仅调用官方 App Server 只读查询方法（account/read、account/rateLimits/read），禁止创建会话或消耗额度。',
-    credentialLocation: '由本机官方 Codex 客户端自行管理；SubCal 不复制或导出其认证文件。',
+    permissions: '只查询套餐与额度，不创建对话。',
+    credentialLocation: '跟随本机登录，或使用本应用授权；凭据由系统加密保护。',
+  },
+  {
+    adapterId:'claude-local',provider:'Claude Code',brand:'Anthropic',region:'api.anthropic.com',authMode:'local_client',supportTier:'official_auto',verification:'pending',version:'2.0.0',
+    endpointSummary:'GET https://api.anthropic.com/api/oauth/usage',minIntervalSeconds:300,defaultForegroundSeconds:600,defaultBackgroundSeconds:1800,
+    fields:['额度窗口','重置时间','额外用量'],unsupported:['真实账单金额与续费日'],permissions:'只查询权益，不创建对话。',credentialLocation:'跟随 Claude Code 本机登录；凭据由系统加密保护。',
   },
   {
     adapterId: 'copilot-local',
@@ -305,14 +314,14 @@ export const OFFICIAL_ADAPTER_CATALOG: readonly AdapterCatalogEntry[] = [
     supportTier: 'official_auto',
     verification: 'pending',
     version: '1.0.0',
-    endpointSummary: '官方 Copilot SDK / CLI 运行时 · account.getQuota',
+    endpointSummary: 'GET https://api.github.com/copilot_internal/user',
     minIntervalSeconds: 300,
     defaultForegroundSeconds: 600,
     defaultBackgroundSeconds: 1800,
     fields: ['quotaSnapshots（全键遍历）', '剩余百分比/次数', '无限量标记', 'resetDate（返回时）'],
     unsupported: ['个人或组织会员真实扣费日期', '历史账单发票明细'],
-    permissions: '仅调用官方运行时 account.getQuota 只读方法，禁止发起补全或聊天请求。',
-    credentialLocation: '由本机 GitHub / Copilot 官方运行时管理；SubCal 不读取或备份其登录凭据。',
+    permissions: '只查询套餐与额度，不发起补全或聊天请求。',
+    credentialLocation: '区分编辑器与 CLI 登录，或通过 GitHub 授权；凭据由系统加密保护。',
   },
   {
     adapterId: 'deepseek-balance',
@@ -359,13 +368,13 @@ export const OFFICIAL_ADAPTER_CATALOG: readonly AdapterCatalogEntry[] = [
     supportTier: 'official_auto',
     verification: 'pending',
     version: '1.0.0',
-    endpointSummary: 'GET https://openrouter.ai/api/v1/key',
+    endpointSummary: 'GET https://openrouter.ai/api/v1/credits 与 /api/v1/key',
     minIntervalSeconds: 300,
     defaultForegroundSeconds: 1800,
     defaultBackgroundSeconds: 1800,
     fields: ['当前 Key 剩余预算（limit_remaining）', 'Key 限额（limit）', '当前用量（usage）', '重置规则（limit_reset）'],
-    unsupported: ['账户总资金池（需 Management Key 查 /api/v1/credits）', '订阅扣费日期'],
-    permissions: '仅使用当前普通 API Key 调用 GET /api/v1/key 查询该 Key 范围预算，不要求 Management Key。',
+    unsupported: ['订阅扣费日期'],
+    permissions: '分别查询账户余额和 Key 预算；无权读取的项目保留未知状态。',
     credentialLocation: '经系统凭据保护（Electron safeStorage）加密后保存在本机，数据库仅存引用 ID，不回显明文。',
   },
 ] as const;

@@ -34,6 +34,7 @@ import { SubCalService } from './service';
 import { Collector } from './collector';
 import { manifests } from './adapters';
 import { NotificationService } from './notifications';
+import { AccountAccess } from './account-access';
 
 /** 渲染层动作通道（主 → 渲染），合同见 src/shared/bridge.ts。 */
 const ACTION_CHANNEL = 'subcal:action';
@@ -289,13 +290,13 @@ void app.whenReady().then(async () => {
   prefsFile = path.join(app.getPath('userData'), 'preview-shell.json');
   prefs = await loadShellPrefs(prefsFile);
   const db=new SubCalDatabase(app.getPath('userData'));
-  service=new SubCalService(db,new CredentialVault(app.getPath('userData'),safeStorage),new Collector(),manifests);
+  service=new SubCalService(db,new CredentialVault(app.getPath('userData'),safeStorage),new Collector(url=>session.defaultSession.resolveProxy(url)),manifests,Date.now,new AccountAccess({fetch:net.fetch.bind(net) as typeof fetch}));
   prefs.closeToTray=db.getPreferences().closeToTray;
   notifications=new NotificationService(db,{available:()=>Notification.isSupported(),show:(title,body)=>{new Notification({title,body}).show();}});
   service.subscribe(()=>{mainWindow?.webContents.send('subcal:state-changed');prefs.closeToTray=db.getPreferences().closeToTray;});
-  if(!db.getStorageError()){service.scheduler.start();notifications.start();}
+  if(!db.getStorageError()){service.scheduler.start();service.startAccountUpdates();notifications.start();}
   powerMonitor.on('suspend',()=>service.scheduler.suspend());
-  powerMonitor.on('resume',()=>{service.scheduler.resume();notifications.tick();});
+  powerMonitor.on('resume',()=>{service.scheduler.resume();void service.reconcileCredentials();notifications.tick();});
   const networkTimer=setInterval(()=>service.scheduler.setOnline(net.isOnline()),5000);networkTimer.unref();
 
   // 预览不需要任何系统权限（通知、摄像头等），全部拒绝

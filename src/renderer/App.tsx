@@ -481,8 +481,7 @@ export function App() {
       ) : null}
 
       {/* Shared Create / Edit Subscription Modal */}
-       {addOpen && <AddSubscription onClose={() => setAddOpen(false)} onSelect={id => { setAddOpen(false); setAddProvider(id); }} onManual={() => { setAddOpen(false); setFormState({ mode: 'create' }); }} />}
-       {addProvider && <ConnectionsPage {...pageProps} initialProvider={addProvider} wizardOnly onWizardClose={() => setAddProvider(null)} onConnected={id => { void client.snapshot().then(next => { setSnapshot(next); setPage('概览'); setDetailId(next.subscriptions.find(s => s.connectionId === id)?.id ?? null); }).catch(e => notify((e as Error).message)); }} />}
+       {(addOpen || addProvider) && <AddSubscription client={client} notify={notify} initialProvider={addProvider ?? undefined} onClose={() => { setAddOpen(false); setAddProvider(null); }} onAdded={() => { void loadSnapshot(); setPage('概览'); }} onManual={() => { setAddOpen(false); setAddProvider(null); setFormState({ mode: 'create' }); }} />}
        {formState ? (
         <SubscriptionForm
           mode={formState.mode}

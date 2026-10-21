@@ -6,13 +6,13 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 
 // Run against freshly built Electron entries; use an isolated, initially empty real database.
-const evidence = path.resolve('docs/evidence/backend-v1');
+const evidence = path.resolve('docs/evidence/BE-012-regression');
 const temp = path.join(process.env.LOCALAPPDATA, 'Temp', 'opencode');
 const profile = await fs.mkdtemp(path.join(temp, 'subcal-real-check-'));
 await fs.mkdir(evidence, { recursive: true });
-const server = await createServer({ cacheDir: path.join(profile, 'vite-cache'), server: { port: 5186, strictPort: true, hmr: false } });
+const server = await createServer({ cacheDir: path.join(profile, 'vite-cache'), server: { port: 0, strictPort: false, hmr: false } });
 await server.listen();
-const env = { ...process.env, SUBCAL_USER_DATA: profile, SUBCAL_DEV_URL: 'http://127.0.0.1:5186/' };
+const env = { ...process.env, SUBCAL_USER_DATA: profile, SUBCAL_DEV_URL: server.resolvedUrls.local[0] };
 delete env.ELECTRON_RUN_AS_NODE;
 delete env.SUBCAL_PREVIEW;
 const checks = [], errors = [];
@@ -103,10 +103,11 @@ try {
         await shot(`${name}-${width}.png`);
       }
     }
-    await page.getByRole('button', { name: '添加连接', exact: true }).click();
+    await page.getByRole('button', { name: '添加账号', exact: true }).first().click();
     await assertClean();
-    assert.equal(await page.locator('#auth-secret').getAttribute('type'), 'password');
-    assert.equal(await page.getByRole('button', { name: '连接并读取', exact: true }).isDisabled(), true);
+    await page.getByRole('group', { name: '选择服务' }).getByRole('button', { name: 'DeepSeek API', exact: true }).click();
+    assert.equal(await page.locator('#account-key').getAttribute('type'), 'password');
+    assert.equal(await page.locator('form').getByRole('button', { name: '加入', exact: true }).isDisabled(), true);
     await shot('connection-auth.png'); await closeModal();
     await page.getByRole('button', { name: '打开设置与备份' }).click();
     await assertClean(); await shot('settings.png'); await closeModal();

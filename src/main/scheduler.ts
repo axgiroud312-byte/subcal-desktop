@@ -82,9 +82,9 @@ export class Scheduler {
       if(reason!=='probe'&&c.accountSubject&&c.accountSubject!==result.account.subject)throw new AdapterError('ACCOUNT_MISMATCH','官方客户端账号已改变，请重新核对');
       this.db.writeTransaction(()=>{
         if(reason!=='probe')this.apply(id,result);
-        this.db.updateConnection(id,{state:result.partialFailures.length?'partial':(reason==='probe'?'paused':'ready'),lastSuccessAt:this.now(),error:null});
+        this.db.updateConnection(id,{state:result.partialFailures.length?'partial':(reason==='probe'?'paused':'ready'),lastSuccessAt:this.now(),error:result.partialFailures.length?{code:'PARTIAL',message:sanitizeDiagnosticText(result.partialFailures.map(f=>f.reason).join('；')).slice(0,1000),action:'已保留可用资料，将自动重试未更新的项目'}:null});
         let next=this.now()+(this.foreground?m.defaultForegroundSeconds:m.defaultBackgroundSeconds)*1000;
-        for(const metric of result.metrics) { const reset=metric.resetAt?Date.parse(metric.resetAt):0; if(reset>this.now())next=Math.min(next,reset+30000+Math.floor(this.random()*90000)); }
+        for(const metric of result.metrics) { const reset=metric.resetAt?.includes('T')?Date.parse(metric.resetAt):0; if(reset>this.now())next=Math.min(next,reset+30000+Math.floor(this.random()*90000)); }
         next=Math.max(next,now+m.minIntervalSeconds*1000);
         this.db.rawPrepare('UPDATE collection_jobs SET state=?,lease_until=NULL,next_run_at=?,attempt=0,consecutive_schema_errors=0 WHERE connection_id=?').run(reason==='probe'?'paused':'queued',next,id);
         this.db.rawPrepare("UPDATE collection_runs SET finished_at=?,result=?,error_code=NULL WHERE id=?").run(this.now(),result.partialFailures.length?'partial':'success',runId);

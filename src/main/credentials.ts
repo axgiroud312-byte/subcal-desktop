@@ -125,7 +125,7 @@ export class CredentialVault {
     if (this.loadError) throw new Error(this.loadError);
     const previous = structuredClone(this.cache);
     const cleaned = rawSecret.trim();
-    if (!cleaned || cleaned.length < 4 || cleaned.length > 4096) {
+    if (!cleaned || cleaned.length < 4 || cleaned.length > 32768) {
       throw new Error('凭据格式无效：请输入有效的 API Key');
     }
     if (!this.isEncryptionAvailable()) {
@@ -154,7 +154,8 @@ export class CredentialVault {
     }
 
     const ref = `cred-${connectionId}-${randomUUID().slice(0, 12)}`;
-    const mask = maskSecret(cleaned);
+    // OAuth envelopes include tokens and local paths: never derive a display mask from JSON.
+    const mask = cleaned.startsWith('{') ? '已保存登录' : maskSecret(cleaned);
     this.cache.entries[ref] = {
       ref,
       connectionId,
@@ -215,6 +216,7 @@ export class CredentialVault {
 
 export function sanitizeDiagnosticText(input: string): string {
   return input
+    .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, '[REDACTED_TOKEN]')
     .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, 'Bearer [REDACTED]')
     .replace(/\bsk-[A-Za-z0-9_-]{6,}\b/g, 'sk-[REDACTED]')
     .replace(/\bgh[pousr]_[A-Za-z0-9_]{6,}\b/g, 'gh-[REDACTED]')

@@ -8,7 +8,7 @@ const instant = z.string().datetime({ offset: true });
 const date = z.string().refine(dateValid, '日期无效');
 const zone = z.string().max(100).refine(v => { try { new Intl.DateTimeFormat('en', { timeZone: v }); return true; } catch { return false; } }, '时区无效');
 export const fieldSchema = z.object({ value: text.nullable(), availability: z.enum(['known','unfetched','unsupported','na','denied','unlimited']), source: text, observedAt: instant.nullable(), dataOrigin: z.enum(['demo','manual','official_api','local_client','calendar','imported','computed']), locked: z.boolean().optional(), proposed: text.optional() }).strict();
-export const metricSchema = z.object({ id, label: text, unit: z.string().min(1).max(80), remaining: fieldSchema, total: text.nullable(), resetAt: instant.nullable(), staleAfterMinutes: z.number().positive().max(525600) }).strict();
+export const metricSchema = z.object({ id, label: text, unit: z.string().min(1).max(80), remaining: fieldSchema, total: text.nullable(), resetAt: z.union([instant,date]).nullable(), staleAfterMinutes: z.number().positive().max(525600) }).strict();
 export const subscriptionInputSchema = z.object({
   product: z.string().trim().min(1).max(200), brand: z.string().max(200), kind: z.enum(['window','wallet','manual']), account: text, region: text, organization: text,
   plan: fieldSchema, price: fieldSchema, currency: z.string().regex(/^[A-Z]{3}$/), cycle: z.enum(['monthly','yearly','days','once','irregular','none']), intervalDays: z.number().int().min(1).max(36500), anchorDate: date.nullable(), timezone: zone,
@@ -20,6 +20,10 @@ export const preferencesSchema = z.object({ theme:z.enum(['light','dark','system
 const probe = z.object({ id, connectionId:id, generation:z.number().int().positive(), account:text, fields:z.array(text).max(200), samples:z.array(text).max(200) }).strict();
 const backend = z.enum(['google','eventkit','icloud-caldav']);
 export const paramSchemas = {
+  'accounts.discover':z.object({}).strict(),
+  'accounts.add':z.object({candidateId:id.optional(),providerId:z.enum(['deepseek-balance','kimi-platform-cn','openrouter-key']).optional(),secret:z.string().trim().min(4).max(4096).optional()}).strict().refine(p=>Boolean(p.candidateId)!==Boolean(p.providerId&&p.secret),'请选择账号或填写 Key'),
+  'accounts.loginStart':z.object({providerId:z.enum(['codex-local','copilot-local'])}).strict(),
+  'accounts.loginPoll':z.object({id}).strict(),
   'subscriptions.snapshot':z.object({}).strict(),
   'subscriptions.create':z.object({ input:subscriptionInputSchema }).strict(),
   'subscriptions.update':z.object({ id, patch:subscriptionInputSchema.partial() }).strict(),

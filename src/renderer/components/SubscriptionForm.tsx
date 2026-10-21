@@ -189,7 +189,68 @@ export interface SubscriptionFormProps {
   onSaved?: (id: string) => void;
 }
 
-export function SubscriptionForm({
+export function SubscriptionForm(props: SubscriptionFormProps) {
+  const initial = props.initial;
+  const collected = initial && (initial.connectionId || initial.plan.dataOrigin === 'official_api' || initial.plan.dataOrigin === 'local_client' || initial.metrics.some(metric => ['official_api', 'local_client'].includes(metric.remaining.dataOrigin)));
+  return collected && props.mode === 'edit'
+    ? <CollectedBillingForm {...props} initial={initial} />
+    : <ManualSubscriptionForm {...props} />;
+}
+
+const BILLING_FIELDS = [
+  ['price', '账单金额'], ['renewalDate', '下次续费日'], ['startDate', '开始生效日'],
+  ['paidThrough', '已付有效期结束日'], ['trialEnd', '试用结束日'],
+] as const;
+type BillingKey = typeof BILLING_FIELDS[number][0];
+
+function canSupplement(field: FieldType<string>) {
+  return field.dataOrigin === 'manual' || (field.value === null && field.availability !== 'na');
+}
+
+function CollectedBillingForm({ initial, snapshot, client, notify, onClose, onSaved }: SubscriptionFormProps & { initial: Subscription }) {
+  const [original] = useState(initial);
+  const [values, setValues] = useState(() => Object.fromEntries(BILLING_FIELDS.map(([key]) => [key, original[key].value ?? ''])) as Record<BillingKey, string>);
+  const [currency, setCurrency] = useState(original.currency);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [discard, setDiscard] = useState(false);
+  const dirty = BILLING_FIELDS.some(([key]) => values[key] !== (original[key].value ?? '')) || currency !== original.currency;
+  const close = () => { if (saving) return; if (dirty) setDiscard(true); else onClose(); };
+  const save = async () => {
+    if (saving) return;
+    setSaving(true); setError('');
+    try {
+      const patch: Partial<SubscriptionInput> = {};
+      for (const [key] of BILLING_FIELDS) {
+        if (!canSupplement(original[key]) || values[key].trim() === (original[key].value ?? '')) continue;
+        patch[key] = makeFormField(values[key], snapshot.now);
+      }
+      if (canSupplement(original.price) && currency !== original.currency) patch.currency = currency;
+      if (Object.keys(patch).length) await client.update(original.id, original.revision, patch);
+      notify('账单资料已保存'); onSaved?.(original.id); onClose();
+    } catch (e) { setError((e as Error).message); }
+    finally { setSaving(false); }
+  };
+  return <Modal title={`账单资料 · ${original.product}`} onClose={close}>
+    <form className="sub-form stack" onSubmit={e => { e.preventDefault(); void save(); }}>
+      <section className="panel stack"><strong>{original.account}</strong><span>{original.plan.value ?? '套餐暂未提供'}</span></section>
+      <p className="muted">可补充服务未提供的账单金额和日期。</p>
+      <div className="form-grid">
+        {BILLING_FIELDS.map(([key, label]) => <Field key={key}>
+          <FieldLabel htmlFor={`billing-${key}`}>{label}</FieldLabel>
+          <Input id={`billing-${key}`} type={key === 'price' ? 'text' : 'date'} inputMode={key === 'price' ? 'decimal' : undefined} value={values[key]} disabled={saving || !canSupplement(original[key])} placeholder={canSupplement(original[key]) ? '未知可留空' : '服务提供'} onChange={e => setValues(current => ({ ...current, [key]: e.target.value }))} />
+          {!canSupplement(original[key]) && <FieldDescription>{original[key].availability === 'na' ? '不适用' : '由服务自动更新'}</FieldDescription>}
+        </Field>)}
+        <Field><FieldLabel htmlFor="billing-currency">账单币种</FieldLabel><FormSelect id="billing-currency" disabled={saving || !canSupplement(original.price)} value={currency} onChange={e => setCurrency(e.target.value)}>{Array.from(new Set([original.currency, 'USD', 'CNY', 'EUR', 'GBP', 'JPY', 'HKD'])).map(value => <option key={value} value={value}>{value}</option>)}</FormSelect></Field>
+      </div>
+      {error && <p className="danger-text" role="alert">{error}</p>}
+      <div className="row"><Button type="button" variant="outline" onClick={close}>取消</Button><Button type="submit" disabled={saving || !dirty}>{saving ? '保存中…' : '保存账单资料'}</Button></div>
+      <AlertDialog open={discard} onOpenChange={setDiscard}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>放弃未保存的账单资料？</AlertDialogTitle><AlertDialogDescription>关闭后，本次填写的内容不会保存。</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>继续编辑</AlertDialogCancel><Button type="button" variant="outline" onClick={onClose}>放弃修改</Button></AlertDialogFooter></AlertDialogContent></AlertDialog>
+    </form>
+  </Modal>;
+}
+
+function ManualSubscriptionForm({
   mode,
   initial: initialRecord,
   presetProduct,

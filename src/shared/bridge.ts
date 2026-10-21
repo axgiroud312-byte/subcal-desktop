@@ -9,6 +9,10 @@ export interface TraySummary {
 export const IPC_PROTOCOL_VERSION = 1 as const;
 
 export const ALLOWED_IPC_METHODS = [
+  'accounts.discover',
+  'accounts.add',
+  'accounts.loginStart',
+  'accounts.loginPoll',
   'subscriptions.snapshot',
   'subscriptions.create',
   'subscriptions.update',

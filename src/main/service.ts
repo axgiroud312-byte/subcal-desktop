@@ -8,19 +8,90 @@ import { SubCalDatabase, DEFAULT_PRODUCTION_PREFERENCES } from './db/database';
 import { CredentialVault, sanitizeDiagnosticText } from './credentials';
 import { Scheduler, type CollectorPort } from './scheduler';
 import type { AdapterManifest, CollectOutput } from './adapters/types';
+import { AdapterError } from './adapters/types';
+import { AccountAccess, AccountAccessError, type AccountCredential } from './account-access';
+import { hashKeySubject } from './adapters/http-adapters';
 
 export class BusinessError extends Error { constructor(public code:string,message:string) { super(message); } }
 function fail(code:string,message:string):never {throw new BusinessError(code,message);}
 const hash=(value:string)=>createHash('sha256').update(value).digest('hex');
-const reads=new Set(['subscriptions.snapshot','calendars.events','data.export','collections.diagnose','data.importPreview']);
+const reads=new Set(['accounts.discover','subscriptions.snapshot','calendars.events','data.export','collections.diagnose','data.importPreview']);
 type ProbeRecord={ probe:Probe; output:CollectOutput; subscriptionId?:string; expires:number };
 export class SubCalService {
   readonly scheduler:Scheduler;
   private listeners=new Set<()=>void>();
   private inflight=new Map<string,Promise<unknown>>();
   private inflightHashes=new Map<string,string>();
-  constructor(readonly db:SubCalDatabase, readonly vault:CredentialVault, collector:CollectorPort, manifests:readonly AdapterManifest[], private now:()=>number=Date.now) {
-    this.scheduler=new Scheduler(db,vault,collector,manifests,(id,result)=>this.applyCollection(id,result),()=>this.changed(),now);
+  private credentialTimer?:ReturnType<typeof setInterval>;
+  private reconciling=false;
+  private closed=false;
+  constructor(readonly db:SubCalDatabase, readonly vault:CredentialVault, collector:CollectorPort, manifests:readonly AdapterManifest[], private now:()=>number=Date.now, readonly accountAccess=new AccountAccess()) {
+    const authenticatedCollector:CollectorPort={
+      collect:async(provider,input)=>{
+        let secret:string|null;
+        try {secret=await this.prepareCredential(input.connectionId,input.generation,input.secret??null);}
+        catch(error) {
+          if(error instanceof AccountAccessError) {
+            const code=error.code==='ACCOUNT_MISMATCH'?'ACCOUNT_MISMATCH':error.code==='AUTH_REQUIRED'||error.code==='SOURCE_UNREADABLE'?'AUTH_REQUIRED':error.code==='STALE_GENERATION'?'CANCELLED':error.code==='SCHEMA_CHANGED'?'SCHEMA_CHANGED':'UPSTREAM_UNAVAILABLE';
+            throw new AdapterError(code,error.message);
+          }
+          throw error;
+        }
+        return collector.collect(provider,{...input,secret});
+      },cancel:id=>collector.cancel(id),close:()=>collector.close(),
+    };
+    this.scheduler=new Scheduler(db,vault,authenticatedCollector,manifests,(id,result)=>this.applyCollection(id,result),()=>this.changed(),now);
+  }
+  startAccountUpdates() {
+    void this.reconcileCredentials();
+    this.credentialTimer=setInterval(()=>void this.reconcileCredentials(),30000);
+    this.credentialTimer.unref?.();
+  }
+  private credential(id:string,secret:string):AccountCredential {
+    const c=this.connection(id);
+    return {providerId:c.providerId,subject:c.accountSubject??'',alias:c.accountAlias,secret};
+  }
+  private async prepareCredential(id:string,generation:number,secret:string|null) {
+    if(!secret?.startsWith('{'))return secret;
+    let parsed:any;try{parsed=JSON.parse(secret);}catch{throw new AdapterError('AUTH_REQUIRED','请重新登录');}
+    const original=this.connection(id),credential=this.credential(id,secret);
+    const next=parsed.management==='external'?await this.accountAccess.refreshExternal(credential):await this.accountAccess.refresh(credential);
+    if(this.closed)throw new AdapterError('CANCELLED','应用已退出');
+    const latest=this.connection(id);
+    if(latest.generation!==generation||latest.credentialRef!==original.credentialRef)throw new AdapterError('CANCELLED','登录已更新，旧查询已取消');
+    if(next.subject!==credential.subject)throw new AdapterError('ACCOUNT_MISMATCH','原客户端已切换账号，请添加新账号');
+    if(next.secret!==secret)this.vault.withRollback(()=>this.db.writeTransaction(()=>{
+      const saved=this.vault.saveSecret(id,next.secret,latest.credentialRef);this.db.updateConnection(id,{credentialRef:saved.credentialRef});
+    }));
+    return next.secret;
+  }
+  async reconcileCredentials() {
+    if(this.closed||this.reconciling||this.db.getStorageError())return;
+    this.reconciling=true;
+    try {
+      for(const row of this.db.listConnections()) {
+        if(['disconnected','paused'].includes(row.state))continue;
+        const c=this.connection(row.id),secret=this.vault.getSecret(c.credentialRef);
+        if(!secret?.startsWith('{'))continue;
+        let parsed:any;try{parsed=JSON.parse(secret);}catch{continue;}
+        if(parsed.management!=='external')continue;
+        try {
+          const next=await this.accountAccess.refreshExternal(this.credential(c.id,secret));
+          if(this.closed)return;
+          const latest=this.connection(c.id);
+          if(latest.generation!==c.generation||latest.credentialRef!==c.credentialRef||next.secret===secret)continue;
+          if(next.subject!==c.accountSubject)continue;
+          this.scheduler.cancel(c.id);
+          this.vault.withRollback(()=>this.db.writeTransaction(()=>{
+            const saved=this.vault.saveSecret(c.id,next.secret,c.credentialRef);
+            this.db.updateConnection(c.id,{credentialRef:saved.credentialRef,generation:c.generation+1,state:'ready',error:null});
+            this.scheduler.enqueue(c.id);
+            this.db.rawPrepare('UPDATE collection_jobs SET consecutive_schema_errors=0 WHERE connection_id=?').run(c.id);
+          }));
+          this.changed();
+        }catch{/* A missing/changed external login must never replace the saved identity. Collection reports recovery. */}
+      }
+    } finally {this.reconciling=false;}
   }
   subscribe(fn:()=>void) { this.listeners.add(fn); return ()=>{this.listeners.delete(fn);}; }
   changed() { for(const fn of this.listeners)fn(); }
@@ -43,14 +114,15 @@ export class SubCalService {
       if(cached) { if(cached.hash!==fingerprint)fail('IDEMPOTENCY_CONFLICT','幂等键已用于不同请求'); return {version:1,requestId,ok:true,result:cached.result}; }
       const execute=async()=>{
         let result:unknown;
-        if(req.method==='connections.probe')result=await this.probe((req.params as {id:string}).id);
+        if(req.method.startsWith('accounts.'))result=await this.handleAccount(req.method,req.params as any);
+        else if(req.method==='connections.probe')result=await this.probe((req.params as {id:string}).id);
         else if(reads.has(req.method)&&req.method!=='data.importPreview')result=this.dispatch(req as IpcRequestEnvelope);
         else result=this.vault.withRollback(()=>this.db.writeTransaction(()=>{
           const out=this.dispatch(req as IpcRequestEnvelope);
           if(key)this.db.setSetting(key,{hash:fingerprint,result:out??null});
           return out;
         }));
-        if(key&&req.method==='connections.probe')this.db.setSetting(key,{hash:fingerprint,result:result??null});
+        if(key&&(req.method==='connections.probe'||req.method==='accounts.add'))this.db.setSetting(key,{hash:fingerprint,result:result??null});
         if(write)this.changed();
         return result;
       };
@@ -63,6 +135,37 @@ export class SubCalService {
       return {version:1,requestId,ok:false,error:{code,message}};
     }
   }
+  private async handleAccount(method:string,p:any):Promise<unknown> {
+    if(method==='accounts.discover')return this.accountAccess.discover();
+    if(method==='accounts.loginStart')return this.accountAccess.startLogin(p.providerId);
+    if(method==='accounts.loginPoll') {
+      const result=await this.accountAccess.pollLogin(p.id);
+      if(result.status!=='complete'||!result.credential)return {status:result.status};
+      return {status:'complete',...this.addCredential(result.credential)};
+    }
+    const credential=p.candidateId?await this.accountAccess.resolve(p.candidateId):{
+      providerId:p.providerId,subject:hashKeySubject(p.providerId,p.secret),alias:'API Key',secret:p.secret,
+    };
+    return this.addCredential(credential);
+  }
+  private addCredential(credential:AccountCredential) {
+    if(this.closed)fail('CANCELLED','应用已退出');
+    return this.vault.withRollback(()=>this.db.writeTransaction(()=>{
+      const id=`${credential.providerId}:${hash(credential.subject).slice(0,32)}`;
+      this.db.ensureConnection(credential.providerId,id);
+      const c=this.connection(id);
+      let sub=this.db.listSubscriptions().find(s=>s.connectionId===id);
+      if(sub&&['ready','refreshing','partial'].includes(c.state)&&this.vault.getSecret(c.credentialRef)===credential.secret)
+        return {subscriptionId:sub.id,connectionId:id};
+      this.scheduler.cancel(id);
+      const saved=this.vault.saveSecret(id,credential.secret,c.credentialRef);
+      this.db.updateConnection(id,{credentialRef:saved.credentialRef,generation:c.generation+1,state:'ready',accountSubject:credential.subject,accountAlias:credential.alias,accountOrg:credential.organization,error:null});
+      if(!sub){sub=this.emptySubscription(id);sub.account=credential.alias;sub.organization=credential.organization??'个人';this.save(sub);}
+      this.scheduler.enqueue(id);
+      this.db.rawPrepare('UPDATE collection_jobs SET consecutive_schema_errors=0 WHERE connection_id=?').run(id);
+      return {subscriptionId:sub.id,connectionId:id};
+    }));
+  }
   private dispatch(req:IpcRequestEnvelope):unknown {
     const p=req.params as any;
     switch(req.method) {
@@ -74,17 +177,30 @@ export class SubCalService {
       case 'subscriptions.update': {
         const sub=this.subscription(p.id);if(req.expectedRevision!==sub.revision)fail('REVISION_CONFLICT','资料已更新，请重新打开后编辑');
         if(p.patch.connectionId&&p.patch.connectionId!==sub.connectionId)fail('BIND_REQUIRED','请通过探测流程绑定连接');
-        const next={...sub,...p.patch};this.history(next,'更新订阅资料');this.save(next);return;
+        const patch={...p.patch};
+        if(sub.connectionId) {
+          // The form may round-trip old values. Only billing/user presentation fields are writable.
+          for(const name of ['metrics','plan','account','organization','region','quotaPoolId','connectionId','product','brand','kind'] as const)delete patch[name];
+          for(const name of ['price','renewalDate','startDate','paidThrough','trialEnd'] as const)
+            if(sub[name].value!==null&&['official_api','local_client'].includes(sub[name].dataOrigin))delete patch[name];
+        }
+        const next={...sub,...patch};this.history(next,'更新订阅资料');this.save(next);return;
       }
       case 'subscriptions.archive': {
         const sub=this.subscription(p.id);if(p.archived&&sub.lifecycle!=='archived'){sub.archivedFrom=sub.lifecycle;sub.lifecycle='archived';}else if(!p.archived&&sub.lifecycle==='archived'){sub.lifecycle=sub.archivedFrom??'active';delete sub.archivedFrom;}
         this.history(sub,p.archived?'归档订阅':'恢复订阅');this.save(sub);return;
       }
       case 'subscriptions.remove': {
-        const sub=this.subscription(p.id),token=randomUUID();this.db.setSetting(`undo:${token}`,{sub,expires:this.now()+30000});this.db.deleteSubscription(sub.id);return token;
+        const sub=this.subscription(p.id),token=randomUUID();this.db.setSetting(`undo:${token}`,{sub,expires:this.now()+30000});this.db.deleteSubscription(sub.id);
+        if(sub.connectionId&&!this.db.listSubscriptions().some(s=>s.connectionId===sub.connectionId)) {
+          const c=this.connection(sub.connectionId);this.scheduler.cancel(c.id);this.db.updateConnection(c.id,{state:'paused',generation:c.generation+1});
+        }
+        return token;
       }
       case 'subscriptions.undo': {
-        const undo=this.db.getSetting<{sub:Subscription;expires:number}|null>(`undo:${p.token}`,null);if(!undo||undo.expires<this.now())fail('UNDO_EXPIRED','撤销已过期');if(this.db.getSubscription(undo.sub.id))fail('REVISION_CONFLICT','该订阅已存在');this.save(undo.sub);this.db.setSetting(`undo:${p.token}`,null);return;
+        const undo=this.db.getSetting<{sub:Subscription;expires:number}|null>(`undo:${p.token}`,null);if(!undo||undo.expires<this.now())fail('UNDO_EXPIRED','撤销已过期');if(this.db.getSubscription(undo.sub.id))fail('REVISION_CONFLICT','该订阅已存在');this.save(undo.sub);
+        if(undo.sub.connectionId){const c=this.connection(undo.sub.connectionId);if(c.credentialRef){this.db.updateConnection(c.id,{state:'ready'});this.scheduler.enqueue(c.id);}}
+        this.db.setSetting(`undo:${p.token}`,null);return;
       }
       case 'subscriptions.reorder': {
         const all=new Set(this.db.listSubscriptions().map(s=>s.id));if(new Set(p.ids).size!==p.ids.length||p.ids.some((id:string)=>!all.has(id)))fail('VALIDATION_ERROR','排序包含重复或不存在的订阅');this.db.savePreferences({...this.db.getPreferences(),order:p.ids});this.db.bumpSpaceRevision();return;
@@ -205,7 +321,7 @@ export class SubCalService {
       }
       sub.revision++;this.save(sub);
     }
-    for(const m of result.metrics)if(!result.partialFailures.some(f=>f.field===m.id))this.db.recordMetricObservation({poolId:result.poolId,unit:m.unit,meterKey:m.id,remaining:m.remaining,total:m.total,resetAtMs:m.resetAt?Date.parse(m.resetAt):null,observedAtMs:Date.parse(m.observedAt),source:m.source,availability:m.availability});
+    for(const m of result.metrics)if(!result.partialFailures.some(f=>f.field===m.id))this.db.recordMetricObservation({poolId:result.poolId,unit:m.unit,meterKey:m.id,remaining:m.remaining,total:m.total,resetAtMs:m.resetAt?.includes('T')?Date.parse(m.resetAt):null,observedAtMs:Date.parse(m.observedAt),source:m.source,availability:m.availability});
   }
-  close() {this.scheduler.close();this.db.close();}
+  close() {this.closed=true;if(this.credentialTimer)clearInterval(this.credentialTimer);this.scheduler.close();this.db.close();}
 }

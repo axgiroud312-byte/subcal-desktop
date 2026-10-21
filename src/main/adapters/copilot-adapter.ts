@@ -72,7 +72,7 @@ export class CopilotLocalAdapter implements ProviderAdapter {
   probe(input: CollectInput) { return this.collect(input); }
   async collect(input: CollectInput) {
     const out = this.normalize(await this.transport(input), new Date().toISOString());
-    if (input.expectedSubject && input.reason !== 'probe' && input.expectedSubject !== out.account.subject) throw new AdapterError('ACCOUNT_MISMATCH', 'Copilot 账号已改变，请重新确认绑定');
+    if (input.expectedSubject && input.reason !== 'probe' && input.expectedSubject !== out.account.subject) throw new AdapterError('ACCOUNT_MISMATCH', 'Copilot 账号已改变，请重新连接');
     return out;
   }
   normalize(raw: unknown, observedAt: string): CollectOutput {

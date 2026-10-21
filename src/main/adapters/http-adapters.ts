@@ -23,7 +23,7 @@ export type HttpFetchFn = (
   text(): Promise<string>;
 }>;
 
-const defaultHttpFetch: HttpFetchFn = async (url, init) => {
+export const defaultHttpFetch: HttpFetchFn = async (url, init) => {
   const res = await fetch(url, {
     method: init.method,
     headers: init.headers,
@@ -89,10 +89,17 @@ export function parseRetryAfterMs(headerValue: string | null | undefined, nowMs 
   return undefined;
 }
 
-function formatDecimalString(value: unknown): string | null {
+export function formatDecimalString(value: unknown): string | null {
   if (typeof value === 'number' && Number.isFinite(value)) {
     const text = String(value);
-    return /e/i.test(text) ? value.toFixed(20).replace(/0+$/, '').replace(/\.$/, '') : text;
+    if (!/e/i.test(text)) return text;
+    const [coefficient, exponentText] = text.toLowerCase().split('e');
+    const negative = coefficient.startsWith('-');
+    const unsigned = negative ? coefficient.slice(1) : coefficient;
+    const [whole, fraction = ''] = unsigned.split('.');
+    const digits = whole + fraction, point = whole.length + Number(exponentText);
+    const expanded = point <= 0 ? `0.${'0'.repeat(-point)}${digits}` : point >= digits.length ? digits + '0'.repeat(point - digits.length) : `${digits.slice(0, point)}.${digits.slice(point)}`;
+    return `${negative ? '-' : ''}${expanded}`;
   }
   if (typeof value === 'string' && /^-?\d+(\.\d+)?$/.test(value.trim())) {
     const trimmed = value.trim();
@@ -105,11 +112,18 @@ function keyFingerprint(secret: string): string {
   return createHash('sha256').update(secret.trim()).digest('hex').slice(0, 12);
 }
 
-async function executeOfficialGet(
+export function hashKeySubject(providerId: string, secret: string): string {
+  const prefix = ({ 'deepseek-balance': 'deepseek', 'kimi-platform-cn': 'kimi-cn', 'openrouter-key': 'openrouter', 'openrouter-credits': 'openrouter' } as Record<string, string>)[providerId];
+  if (!prefix) throw new AdapterError('UNSUPPORTED', '不支持的 API Key 服务');
+  return `${prefix}:${keyFingerprint(secret)}`;
+}
+
+export async function executeOfficialGet(
   manifest: AdapterManifest,
   endpointUrl: string,
   input: CollectInput,
   fetchFn: HttpFetchFn,
+  headers: Record<string, string> = {},
 ): Promise<unknown> {
   const secret = input.secret?.trim();
   if (input.signal?.aborted) throw new AdapterError('CANCELLED', '查询已取消');
@@ -130,6 +144,7 @@ async function executeOfficialGet(
         Authorization: `Bearer ${secret}`,
         Accept: 'application/json',
         'User-Agent': 'SubCal-Desktop/0.1.0',
+        ...headers,
       },
       signal: controller.signal,
     });
@@ -137,14 +152,14 @@ async function executeOfficialGet(
     if (response.status === 401) {
       throw new AdapterError(
         'AUTH_REQUIRED',
-        `${manifest.product} 返回 401：API Key 无效或已失效，请更换有效 Key`,
+        `${manifest.product} 登录已失效，请重新登录或更新 Key`,
         { httpStatus: 401 },
       );
     }
     if (response.status === 403) {
       throw new AdapterError(
         'PERMISSION_DENIED',
-        `${manifest.product} 返回 403：当前 Key 无余额/预算查询权限`,
+        `${manifest.product} 暂不允许读取这些权益，请核对账号权限`,
         { httpStatus: 403 },
       );
     }
@@ -246,7 +261,7 @@ export class DeepSeekBalanceAdapter implements ProviderAdapter {
     );
     const observedAt = new Date().toISOString();
     const mask = input.secret ? maskSecret(input.secret) : 'DeepSeek Key';
-    const subject = input.secret ? `deepseek:${keyFingerprint(input.secret)}` : 'deepseek:default';
+    const subject = input.secret ? hashKeySubject(this.manifest.id, input.secret) : 'deepseek:default';
     const out = this.normalize(raw, observedAt, { mask });
     out.account.subject = subject;
     out.poolId = `pool-deepseek-${subject.slice(-8)}`;
@@ -427,7 +442,7 @@ export class KimiPlatformCnAdapter implements ProviderAdapter {
     );
     const observedAt = new Date().toISOString();
     const mask = input.secret ? maskSecret(input.secret) : 'Kimi Key';
-    const subject = input.secret ? `kimi-cn:${keyFingerprint(input.secret)}` : 'kimi-cn:default';
+    const subject = input.secret ? hashKeySubject(this.manifest.id, input.secret) : 'kimi-cn:default';
     const out = this.normalize(raw, observedAt, { mask });
     out.account.subject = subject;
     out.poolId = `pool-kimi-${subject.slice(-8)}`;
@@ -588,7 +603,7 @@ export class OpenRouterKeyAdapter implements ProviderAdapter {
     const observedAt = new Date().toISOString();
     const mask = input.secret ? maskSecret(input.secret) : 'OpenRouter Key';
     const subject = input.secret
-      ? `openrouter:${keyFingerprint(input.secret)}`
+      ? hashKeySubject(this.manifest.id, input.secret)
       : 'openrouter:default';
     const out = this.normalize(raw, observedAt, { mask });
     out.account.subject = subject;

@@ -6,6 +6,7 @@ export function dateValid(value: string): boolean {
   return y >= 1900 && y <= 2200 && m >= 1 && m <= 12 && d >= 1 && d <= new Date(Date.UTC(y,m,0)).getUTCDate();
 }
 export function dateInZone(instant: string, zone = 'Asia/Shanghai'): string {
+  if(dateValid(instant))return instant;
   const parts = new Intl.DateTimeFormat('en-CA', {timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(instant));
   return ['year','month','day'].map(k => parts.find(p=>p.type===k)!.value).join('-');
 }
@@ -57,7 +58,7 @@ export function monthlySummary(subs: Subscription[]) {
   return {totals:Object.entries(sums).map(([currency,n])=>({currency,amount:decimalText(n)})),unknown,recurring};
 }
 export function freshness(metric: Metric, now: string): 'fresh' | 'stale' | 'past_reset' {
-  if(metric.resetAt && metric.resetAt<=now)return 'past_reset';
+  if(metric.resetAt && (dateValid(metric.resetAt)?metric.resetAt<now.slice(0,10):metric.resetAt<=now))return 'past_reset';
   if(!metric.remaining.observedAt || (Date.parse(now)-Date.parse(metric.remaining.observedAt))/60000>metric.staleAfterMinutes)return 'stale';
   return 'fresh';
 }
@@ -96,7 +97,7 @@ export function projectEvents(subs: Subscription[], now: string, includeReset=fa
         push('renewal',date,s.renewalDate,i);
       }
     }
-    if(includeReset)s.metrics.forEach((m,i)=>{if(m.resetAt)push('reset',dateInZone(m.resetAt,s.timezone),m.remaining,i,m.resetAt);});
+    if(includeReset)s.metrics.forEach((m,i)=>{if(m.resetAt)push('reset',dateInZone(m.resetAt,s.timezone),m.remaining,i,dateValid(m.resetAt)?undefined:m.resetAt);});
   }
   return result.sort((a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id));
 }

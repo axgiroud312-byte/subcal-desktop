@@ -26,7 +26,7 @@ import {
   upcomingSummary,
 } from '../../shared/rules';
 import { SubscriptionCard } from '../components/SubscriptionCard';
-import { StatusBadge } from '../components/ui';
+import { StatusBadge, connectionStateMeta } from '../components/ui';
 import { Button } from '../components/ui/button';
 import { FormSelect } from '../components/form-controls';
 import { LUCIDE_ICON_SM } from '../lib/utils';
@@ -324,7 +324,7 @@ export function OverviewPage({
               ? 'warning'
               : 'danger',
           badge: '连接需处理',
-          title: `${c.provider} · ${c.error?.code || c.state}`,
+          title: `${c.provider} · ${connectionStateMeta(c.state).label}`,
           detail:
             c.error?.message || '连接异常，已保留上次数据。',
           primaryLabel: c.error?.action || '前往连接恢复',
