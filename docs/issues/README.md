@@ -2,7 +2,7 @@
 
 ## 当前立项：绿色 SubCal 正式界面与消费闭环
 
-入口：[SC-000 总目标](subcal-ui/SC-000.md)、[九项实施任务](subcal-ui/README.md)、[正式界面规格](../specs/subcal-production-ui.md)、[绿色组件方案](../design/subcal-green.md)、[实施与验证记录](../evidence/subcal-ui/report.md)。2026-10-21 已完成实现与 Windows Electron 隔离检查；用户验收 pending。
+入口：[SC-000 总目标](subcal-ui/SC-000.md)、[九项实施任务](subcal-ui/README.md)、[正式界面规格](../specs/subcal-production-ui.md)、[绿色组件方案](../design/subcal-green.md)、[实施与验证记录](../evidence/subcal-ui/report.md)。2026-10-21 已完成实现与 Windows Electron 隔离检查；用户验收 pending。交付 [PR #53](https://github.com/axgiroud312-byte/subcal-desktop/pull/53)。
 
 远端：[总目标 #43](https://github.com/axgiroud312-byte/subcal-desktop/issues/43)，九个子任务 #44—#52。
 

@@ -2,7 +2,7 @@
 
 2026-10-21：源码核对、组件选型、功能开发与 Windows Electron 实机检查已完成。**用户已明确：保留旧 Magpie 订阅展示，新原型用于导航外壳及消费等页面。** 总目标 [SC-000](SC-000.md)。共同依据：[规格](../../specs/subcal-production-ui.md)、[设计与组件](../../design/subcal-green.md)、[消费领域](../../domain/spending.md)。实施证据：[验证记录](../../evidence/subcal-ui/report.md)。用户验收仍为 pending。
 
-已发布：[GitHub 总目标 #43](https://github.com/axgiroud312-byte/subcal-desktop/issues/43)，子任务 #44—#52；各本地任务正文顶部包含对应远端链接，编号及依赖登记在 `registry.json`。
+已发布：[GitHub 总目标 #43](https://github.com/axgiroud312-byte/subcal-desktop/issues/43)，子任务 #44—#52；交付 [PR #53](https://github.com/axgiroud312-byte/subcal-desktop/pull/53)。各本地任务正文顶部包含对应远端链接，编号及依赖登记在 `registry.json`。
 
 可直接交给开发 Agent 的执行入口：[正式开发指令](../../../正式开发指令.md)。
 

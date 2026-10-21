@@ -42,6 +42,6 @@ npm run test:subcal-ui
 
 真实桌面测试用独立临时资料目录，不访问用户的实际资料库。`scripts/live-codex-desktop.mjs` 是独立的真实 Codex 账号检查，只在需要账号对照时运行。
 
-实现与检查结果见 [验收记录](docs/evidence/backend-v1/acceptance.md)。用户验收仍 pending；macOS、签名安装包、系统通知实际送达、真实休眠恢复及 14 天试点未完成验收。
+实现与检查结果见 [验收记录](docs/evidence/backend-v1/acceptance.md)。新版界面与付款账本的检查见 [验证记录](docs/evidence/subcal-ui/report.md)。用户验收仍 pending；macOS、签名安装包、系统通知实际送达、真实休眠恢复及 14 天试点未完成验收。
 
-任务：[Issue #1](https://github.com/axgiroud312-byte/subcal-desktop/issues/1)、[PR #2](https://github.com/axgiroud312-byte/subcal-desktop/pull/2)、[本地任务索引](docs/issues/README.md)。前端预览历史见 `docs/evidence/visual-v2`。
+任务：[Issue #1](https://github.com/axgiroud312-byte/subcal-desktop/issues/1)、[PR #2](https://github.com/axgiroud312-byte/subcal-desktop/pull/2)、[绿色工作台总目标 #43](https://github.com/axgiroud312-byte/subcal-desktop/issues/43)、[PR #53](https://github.com/axgiroud312-byte/subcal-desktop/pull/53)、[本地任务索引](docs/issues/README.md)。前端预览历史见 `docs/evidence/visual-v2`。
