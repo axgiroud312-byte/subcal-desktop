@@ -1,55 +1,47 @@
-# SubCal Desktop · 前端预览
+# SubCal Desktop
 
-用本地演示资料管理订阅、额度与日历安排。当前是可交互的 Electron 桌面预览，全部外部连接与同步均为**模拟**。
+**绿色工作台与付款账本：** 用户选定的原型已接入导航外壳、首页、仪表盘、消费、日历与设置，**保留当前 Magpie 订阅卡片、列表和详情**。真实付款账本、预算、分类、季度周期与可配置提醒已落地，并完成 Windows Electron 实机检查。见 [SC-000 总目标](docs/issues/subcal-ui/SC-000.md)、[任务索引](docs/issues/subcal-ui/README.md)、[正式界面规格](docs/specs/subcal-production-ui.md) 和 [验证记录](docs/evidence/subcal-ui/report.md)。
 
-**视觉重做已交付，待你验收。** [FE-011 至 FE-018](docs/issues/README.md) 已完成实现、功能检查及实施者视觉核对；采用统一 Token、shadcn/ui Mira（Base UI）、Tailwind 4、Motion、dnd-kit、Recharts 3 与本地真实品牌 Logo。第一版视觉被否定的历史记录保留，本轮不自动视为用户接受。
+开发 Agent 执行入口：[正式开发指令.md](正式开发指令.md)。
+
+**当前状态：** [总目标 #5](https://github.com/axgiroud312-byte/subcal-desktop/issues/5) 的共享权益合同、多服务只读适配器、账号入口与权益卡片已进入整合交付；不等于所有服务均通过真实账号验收。当前进度、接入限制与检查证据见 [全服务交付记录](docs/evidence/full-service/acceptance.md)，规格见 [全服务计划](docs/specs/full-service-entitlements.md)。
+
+在本机管理订阅、续费日期与额度。桌面默认使用真实 IPC、SQLite 数据库与官方只读查询，不加载演示资料。
 
 ## 打开
 
-在本目录执行：
+双击 **`启动 SubCal.cmd`**，或执行 `npm run dev`。新电脑先运行 `npm install`，建议 Node.js 24。关闭窗口默认收起到托盘，托盘菜单可完全退出。
 
-```powershell
-npm run dev
-```
+首次启动为空：“新增订阅”自动发现支持来源中的账号；选择加入、登录或填写 Key 后自动建卡并更新，也可手动记录其他订阅。查询暂时失败保留账号，无需另行读取、绑定或启用更新。
 
-也可以双击 **`启动 SubCal.cmd`**。当前工作区已安装所需依赖；复制到另一台开发电脑时先执行 `npm install`。Node.js 需支持 Vite 7（20.19+ 或 22.12+）。主进程修改后重新启动，界面修改由 Vite 自动更新。
+开发态数据位于 `%APPDATA%\SubCal-Development`，正式打包使用 `%APPDATA%\SubCal`。SQLite 和加密凭据文件存于应用数据目录，不写安装目录。设置中可导入导出备份；备份不含凭据，恢复后须重新连接。旧前端预览资料不会自动灌入新库。
 
-若原先一直打开的窗口仍停留在本轮迁移期间的旧错误页，可按 **Ctrl+R** 重新载入，不需要重置演示资料。本次交付已实际打开入口并确认显示新界面。
+## 本批范围
 
-关闭窗口默认收起到系统托盘；点击托盘图标可重新打开。重复运行启动命令会打开已有窗口。托盘菜单 **“退出 SubCal 预览”** 完全退出，同时停止开发服务器。可在设置中关闭“关闭窗口后保留在系统托盘”。
+- 真实本地订阅 CRUD、版本冲突保护、撤销、排序、偏好与备份恢复。
+- safeStorage 加密凭据、独立进程采集、持久化心跳与限流、桌面通知及勿扰。
+- Codex、Claude Code、Copilot 直接权益查询；DeepSeek、Kimi API 国内站、OpenRouter 账户余额与 Key 预算。
+- 绿色工作台：首页、仪表盘、订阅管理、消费管理、订阅日历、账号管理、偏好设置七入口，默认进入仪表盘。
+- 逐笔付款账本、分币种月均/计划/实付统计、月度预算、本地分类、季度周期、提前提醒天数。
+- 原有 Magpie 订阅卡片、列表、详情、额度条与账号分组保持原样式，只接入新外壳。
 
-## 怎么试
+本机 Codex 与 Grok Build 已读到真实权益；Codex 另有五分钟更新与实际支付编辑验证。其他服务的协议测试不替代真实账号验证，缺凭据或接口的部分仍待验证，详见交付记录。Google / iCloud / EventKit 外部日历同步仍待接入。
 
-打开概览底部的 **“预览工具”**，可切换十二种场景。场景各自保存，切换不会清空其他场景的编辑；“重置当前场景”会明确询问。默认演示时间固定在 **2026-10-20 09:00（上海）**，不是系统实时采集。日期边界场景使用自己的时钟。
-
-卡片左上角手柄支持鼠标拖动；键盘聚焦手柄后按 **空格 → 方向键 → 空格** 排序，**Esc** 取消。同产品多账号默认完整显示一个，其余保留摘要。预览工具中的 **“组件示例 · 非实际消费”** 可试 Dialog 内下拉、深浅色图表 Tooltip、图例和空数据，不是真实消费统计。
-
-从“首次空白”开始，新增一个只有名称的订阅，再补齐价格和续费日期；在概览、详情和日历中查看同一条记录。删除后可在 8 秒内撤销。设置中的 JSON 备份可以保存为实际文件，导入先预览，确认后恢复；恢复后的模拟连接和日历目标暂停待核对。
-
-演示资料保存在 `%APPDATA%\SubCal-Preview` 内的 Electron localStorage；窗口偏好保存在同目录 `preview-shell.json`。测试使用独立目录，不覆盖试用资料。默认保留已有本地演示编辑。
-
-## 实现范围
-
-React + TypeScript、Electron 原生窗口与托盘，统一异步 `MockSubCalClient`。业务规则在 `src/shared`，演示存储和场景在 `src/renderer/service`，界面不直接读取 fixture 或写 localStorage。
-
-真实供应商采集、OAuth/API Key/CLI 登录、SQLite、真实后台心跳、系统定时通知、开机启动、Google/EventKit/CalDAV 写入及安装包均属于下一阶段。`.ics` 当前未实现。EventKit 仅演示**本机**读回，不声称 iCloud 云端已确认。
-
-## 验证与进度
+## 检查
 
 ```powershell
 npm run typecheck
+npm test
 npm run test:rules
+npm run test:backend
+npm run test:adapters
+npm run build:electron
 npm run test:desktop
+npm run test:subcal-ui
 ```
 
-本轮通过：类型检查、**17 项规则/服务检查、16 组完整真实 Electron 检查**；最后视觉留白修正后，另跑受影响分组。检查覆盖 1280×820、960×640、Windows 150% 缩放、四页深浅色及主要弹层。测试使用独立临时资料与 5174 端口，不覆盖试用资料；不生成安装包。**功能检查、实施者视觉核对、用户验收是三件事，用户验收仍待确认。**
+真实桌面测试用独立临时资料目录，不访问用户的实际资料库。`scripts/live-codex-desktop.mjs` 是独立的真实 Codex 账号检查，只在需要账号对照时运行。
 
-- [新截图、检查结论与剩余边界](docs/evidence/visual-v2/checks.md)
-- [实际组件版本、导入位置与操作入口](docs/design/component-adoption.md)
-- 第一轮历史检查见 [FE-010](docs/issues/FE-010.md)，不与本轮结果混记。
+实现与检查结果见 [验收记录](docs/evidence/backend-v1/acceptance.md)。新版界面与付款账本的检查见 [验证记录](docs/evidence/subcal-ui/report.md)。用户验收仍 pending；macOS、签名安装包、系统通知实际送达、真实休眠恢复及 14 天试点未完成验收。
 
-资源来源及文字后备说明见 [docs/assets.md](docs/assets.md)。
-
-## 代码仓库
-
-2026-10-21 建立 [axgiroud312-byte/subcal-desktop](https://github.com/axgiroud312-byte/subcal-desktop) 私有 GitHub 仓库，默认分支为 `main`。需要仓库访问权限才能查看；FE 编号仍由项目中的本地 Issue 文件管理，不代表已创建远端 GitHub Issue。
+任务：[Issue #1](https://github.com/axgiroud312-byte/subcal-desktop/issues/1)、[PR #2](https://github.com/axgiroud312-byte/subcal-desktop/pull/2)、[绿色工作台总目标 #43](https://github.com/axgiroud312-byte/subcal-desktop/issues/43)、[PR #53](https://github.com/axgiroud312-byte/subcal-desktop/pull/53)、[本地任务索引](docs/issues/README.md)。前端预览历史见 `docs/evidence/visual-v2`。

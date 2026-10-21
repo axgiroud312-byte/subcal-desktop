@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, FlaskConical, RotateCcw } from 'lucide-react';
-import type { ScenarioId, Snapshot } from '../../shared/types';
+import type { ScenarioId, Snapshot, SubCalClient, PreviewController } from '../../shared/types';
 import type { Notify } from '../contracts';
-import type { MockSubCalClient } from '../service/MockSubCalClient';
 import { Button } from './ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
@@ -13,7 +12,7 @@ import { formatDateTime } from './ui';
 interface PreviewToolsProps {
   snapshot: Snapshot;
   scenarios: { id: ScenarioId; name: string }[];
-  client: MockSubCalClient;
+  client: SubCalClient & { preview: PreviewController; exportRawStorage: () => Promise<string> };
   notify: Notify;
   editing: boolean;
   onScenarioChange: () => void;

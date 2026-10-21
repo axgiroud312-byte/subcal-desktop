@@ -51,6 +51,12 @@ export function syncDocumentTheme({
   root.dataset.theme = theme
   root.classList.toggle("dark", theme === "dark")
   root.style.colorScheme = theme
+  try {
+    // First paint of the next launch reads this before React mounts.
+    localStorage.setItem("subcal:resolved-theme", theme)
+  } catch {
+    /* storage can be unavailable; theme still applies for this session */
+  }
 
   if (density !== undefined) {
     root.dataset.density = density

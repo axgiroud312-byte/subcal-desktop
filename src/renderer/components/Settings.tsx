@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import {
-  Bell,
   Check,
   Download,
   FolderOpen,
@@ -65,7 +64,6 @@ export function Settings({
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [error, setError] = useState('');
   const [thresholdError, setThresholdError] = useState('');
-  const [notification, setNotification] = useState(false);
 
   const savedCNY = prefs.walletThresholds.CNY || '';
   const savedUSD = prefs.walletThresholds.USD || '';
@@ -132,11 +130,11 @@ export function Settings({
     try {
       const text = await client.exportData();
       const result = await window.subcal.saveFile(
-        'subcal-demo-backup.json',
+        'subcal-backup.json',
         text
       );
       if (result.saved) {
-        notify(`演示备份已保存：${result.path}`);
+        notify(`备份已保存：${result.path}`);
       }
     } catch (e) {
       setError((e as Error).message);
@@ -181,7 +179,7 @@ export function Settings({
       setRestoreConfirmOpen(false);
       setPreview(null);
       setFile(null);
-      notify('演示资料已恢复；模拟连接与日历目标已暂停，等待核对。');
+      notify('资料已恢复；连接与日历目标已暂停，等待核对。');
     } catch (e) {
       setRestoreConfirmOpen(false);
       setError((e as Error).message);
@@ -244,8 +242,8 @@ export function Settings({
                       })
                     }
                   >
-                    <option value="comfortable">舒适 · 通常三列</option>
-                    <option value="compact">紧凑 · 通常四列</option>
+                    <option value="comfortable">舒适</option>
+                    <option value="compact">紧凑</option>
                   </FormSelect>
                 </Field>
 
@@ -284,7 +282,7 @@ export function Settings({
               </FieldGroup>
 
               <FieldDescription>
-                日期型续费安排保留原订阅日期。此时区只影响精确时间和演示时钟显示。
+                日期型续费安排保留原订阅日期，此时区只影响精确时间的显示。
               </FieldDescription>
 
               <div className="settings-switch-list">
@@ -293,10 +291,6 @@ export function Settings({
                     <FieldTitle id="label-reduced-motion">
                       减少动态效果
                     </FieldTitle>
-                    <FieldDescription>
-                      同步至根节点动效变量与多账号展开过渡（当前：
-                      {prefs.reducedMotion ? '已开启减少动效' : '标准过渡'}）。
-                    </FieldDescription>
                   </FieldContent>
                   <Switch
                     id="pref-reduced-motion"
@@ -315,8 +309,7 @@ export function Settings({
                       关闭窗口后保留在系统托盘
                     </FieldTitle>
                     <FieldDescription>
-                      点击窗口关闭按钮时隐藏至系统托盘，可通过托盘菜单重新打开或退出（当前：
-                      {prefs.closeToTray ? '保留在托盘' : '直接关闭'}）。
+                      后台继续更新；从托盘菜单完全退出。
                     </FieldDescription>
                   </FieldContent>
                   <Switch
@@ -335,9 +328,9 @@ export function Settings({
             <Separator />
 
             {/* Group 2: Reminder Preferences */}
-            <section className="settings-section" aria-label="提醒偏好（演示）">
+            <section className="settings-section" aria-label="提醒偏好">
               <div className="settings-section-header">
-                <h3 className="settings-section-title">提醒偏好（演示）</h3>
+                <h3 className="settings-section-title">提醒偏好</h3>
                 <StatusBadge tone="neutral">新记录默认项</StatusBadge>
               </div>
 
@@ -356,55 +349,67 @@ export function Settings({
                       })
                     }
                   >
-                    <option value="local">本地提醒（计划）</option>
-                    <option value="external">仅外部日历提醒（计划）</option>
+                    <option value="local">桌面提醒</option>
+                    <option value="external">外部日历提醒（待接入）</option>
                     <option value="none">不提醒</option>
                   </FormSelect>
                   <FieldDescription>
-                    保存默认偏好供新记录使用。仅外部日历提醒可以避免未来收到两处提醒；当前不会发出系统通知。
+                    仅影响之后新增的订阅。
                   </FieldDescription>
                 </Field>
               </FieldGroup>
 
-              <div className="row">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setNotification(!notification)}
-                >
-                  <Bell />
-                  预览页面内提醒样式
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled
-                  title="真实服务接入阶段实现"
-                >
-                  开机启动 · 后续实现
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled
-                  title="真实服务接入阶段实现"
-                >
-                  系统定时通知 · 后续实现
-                </Button>
+              <div className="settings-switch-list">
+                <div className="settings-switch-row">
+                  <FieldContent className="settings-switch-copy">
+                    <FieldTitle id="label-notifications-muted">
+                      勿扰模式
+                    </FieldTitle>
+                    <FieldDescription>
+                      暂停桌面提醒。
+                    </FieldDescription>
+                  </FieldContent>
+                  <Switch
+                    id="pref-notifications-muted"
+                    aria-label="勿扰模式"
+                    aria-labelledby="label-notifications-muted"
+                    checked={Boolean(prefs.notificationsMuted)}
+                    onCheckedChange={(checked) =>
+                      void save({ notificationsMuted: Boolean(checked) })
+                    }
+                  />
+                </div>
               </div>
 
-              {notification && (
-                <div role="status" className="notification-preview">
-                  <strong>续费核对提醒 · 样式预览</strong>
-                  <span>Claude Pro · 2 天后计划续费（示例）</span>
-                  <span className="muted">
-                    仅页面样式，没有发送系统通知。
-                  </span>
-                </div>
-              )}
+              <FieldGroup className="settings-grid">
+                <Field>
+                  <FieldLabel htmlFor="pref-dnd-start">勿扰时段开始</FieldLabel>
+                  <Input
+                    id="pref-dnd-start"
+                    aria-label="勿扰时段开始"
+                    type="time"
+                    value={prefs.dndStart ?? ''}
+                    onChange={(e) =>
+                      void save({ dndStart: e.target.value || undefined })
+                    }
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="pref-dnd-end">勿扰时段结束</FieldLabel>
+                  <Input
+                    id="pref-dnd-end"
+                    aria-label="勿扰时段结束"
+                    type="time"
+                    value={prefs.dndEnd ?? ''}
+                    onChange={(e) =>
+                      void save({ dndEnd: e.target.value || undefined })
+                    }
+                  />
+                </Field>
+              </FieldGroup>
+              <FieldDescription>
+                设置后，该时间段内不发出桌面提醒；留空表示不限制时段。
+              </FieldDescription>
             </section>
 
             <Separator />
@@ -480,16 +485,15 @@ export function Settings({
           </TabsContent>
 
           <TabsContent value="备份与恢复" className="settings-content">
-            <section className="settings-section" aria-label="演示资料备份与恢复">
+            <section className="settings-section" aria-label="资料备份与恢复">
               <div className="settings-section-header">
                 <h3 className="settings-section-title">
-                  演示空间 JSON 备份与差异恢复
+                  备份与恢复
                 </h3>
-                <StatusBadge tone="neutral">schemaVersion 1 · 上限 2 MB</StatusBadge>
               </div>
 
               <p style={{ margin: 0 }}>
-                备份包含全部已保存演示场景、订阅记录、偏好和模拟日历快照。恢复会替换这些演示空间，并在恢复后自动暂停全部模拟连接与 3 个日历同步目标等待核对。
+                备份包含全部订阅记录、偏好与日历同步状态。恢复会整体替换当前资料，并在恢复后自动暂停全部连接与日历同步目标，等待核对。
               </p>
 
               <div className="row">
@@ -499,7 +503,7 @@ export function Settings({
                   onClick={() => void exportBackup()}
                 >
                   <Download />
-                  导出演示备份 JSON
+                  导出备份 JSON
                 </Button>
                 <Button
                   type="button"
@@ -513,7 +517,7 @@ export function Settings({
               </div>
 
               <FieldDescription>
-                仅接受 schemaVersion 1，文件上限 2 MB。原文件在最终确认提交前会重新读取并核对内容，预览后若被外部修改将拒绝覆盖。
+                文件上限 2 MB。备份不包含凭据，恢复后需要重新连接。
               </FieldDescription>
 
               {error && (
@@ -531,8 +535,7 @@ export function Settings({
 
                   <div className="settings-diff-stats">
                     <span>
-                      当前空间 {preview.currentCount} 条 → 备份空间 {preview.count} 条（
-                      {preview.scenario}）
+                      当前 {preview.currentCount} 条 → 备份 {preview.count} 条
                     </span>
                     <span>·</span>
                     <span>
@@ -542,7 +545,7 @@ export function Settings({
                   </div>
 
                   <p className="muted" style={{ margin: 0 }}>
-                    以上数量比较当前活动空间；备份中的其他演示空间与显示偏好也将整体恢复。所有模拟连接和日历目标恢复后暂停，需重新核对。
+                    以上数量与当前资料比较；显示偏好等设置也将整体恢复。所有连接和日历目标恢复后暂停，需重新核对。
                   </p>
 
                   <div className="row">
@@ -553,7 +556,7 @@ export function Settings({
                       onClick={() => setRestoreConfirmOpen(true)}
                     >
                       <Check />
-                      恢复演示资料…
+                      恢复备份…
                     </Button>
                     <Button
                       type="button"
@@ -574,44 +577,34 @@ export function Settings({
           </TabsContent>
 
           <TabsContent value="隐私与许可" className="settings-content">
-            <section className="settings-info-card" aria-label="本地演示空间说明">
+            <section className="settings-info-card" aria-label="本地数据与凭据边界">
               <div className="toolbar">
-                <strong>本地演示空间与凭据边界</strong>
-                <StatusBadge tone="neutral">纯本地存储</StatusBadge>
+                <strong>本地数据与凭据边界</strong>
+                <StatusBadge tone="neutral">本机存储</StatusBadge>
               </div>
               <p>
-                数据由统一 MockSubCalClient 保存到 SubCal-Preview 的浏览器本地存储。没有生产数据库或凭据存储；重置只影响明确选择的演示场景。
+                订阅记录、偏好与日历同步状态保存在本机。连接所需的密钥或 Token 仅在「连接」页按说明填写和使用，经系统凭据保护保存，不写入订阅记录或备注。
               </p>
               <p>
-                预览不会读取密码、API Key、OAuth Token 或官方客户端登录文件，也不会调用订阅或外部日历接口。
-              </p>
-              <p className="muted">
-                历史只记录实际发生的演示观察和本地编辑，最多保留每条记录最近 100 条。
+                自动采集只调用各连接页面列明的只读接口，不会在未经确认时向外部日历写入内容。
               </p>
             </section>
 
             <section className="settings-info-card" aria-label="资源与第三方许可说明">
               <div className="toolbar">
-                <strong>品牌资源、组件与第三方许可</strong>
+                <strong>品牌资源与第三方许可</strong>
                 <StatusBadge tone="neutral">
                   <ShieldCheck className="size-3.5" />
                   仅指示性使用 · 不含商标授权
                 </StatusBadge>
               </div>
               <p>
-                SubCal 应用标识与托盘日历图形由本项目代码生成（<code>src/main/tray-icon.ts</code>）。常见供应商品牌标识采用仓库内置的本地单色 SVG（<code>src/renderer/assets/brands/</code>，固定版本源自 Simple Icons CC0-1.0 与 <code>@lobehub/icons-static-svg</code> MIT，内联随主题着色），未收录品牌自动回退至清晰品牌文字缩略后备，运行时不联网拉取图标。
+                供应商品牌标识采用内置本地图标（源自 Simple Icons CC0-1.0 与 @lobehub/icons-static-svg MIT），运行时不联网拉取；未收录品牌显示品牌文字缩写。
               </p>
               <p>
-                上游图标集的开源许可（CC0-1.0 / MIT）仅覆盖图标图形文件本身的版权贡献，<strong>不包括任何品牌的商标许可</strong>；各品牌名称与标识归对应权利人所有，仅作订阅归属的指示性显示，不暗示官方合作或背书。
-              </p>
-              <p>
-                界面交互组件基于 shadcn/ui（<code>base-mira</code> / <code>@base-ui/react</code>）、操作图标采用 <code>lucide-react</code>。Magpie 界面仅作信息层级参考，未复制其图标或源码。完整素材来源、版本与对比度记录见 <code>docs/assets.md</code> 与 <code>docs/design/component-adoption.md</code>；运行依赖许可证保存在 <code>node_modules</code> 对应包目录。
+                图标许可仅覆盖图形文件本身，<strong>不包括任何品牌的商标许可</strong>；各品牌名称与标识归对应权利人所有，仅作订阅归属的指示性显示，不暗示官方合作或背书。
               </p>
             </section>
-
-            <p className="muted" style={{ margin: 0 }}>
-              语言：简体中文。英文、SQLite、系统凭据保护和真实同步在后续阶段实施。
-            </p>
           </TabsContent>
         </Tabs>
 
@@ -622,11 +615,11 @@ export function Settings({
         >
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>确认恢复演示资料？</AlertDialogTitle>
+              <AlertDialogTitle>确认恢复备份？</AlertDialogTitle>
               <AlertDialogDescription>
                 {preview && file
-                  ? `即将从「${file.name}」恢复演示资料（当前活动空间 ${preview.currentCount} 条 → 备份空间 ${preview.count} 条，新增 ${preview.added} 条、覆盖 ${preview.overwritten} 条、移除 ${preview.removed} 条）。恢复后全部模拟连接与 3 个日历同步目标将自动暂停，提交前会再次校验原文件未发生变更。`
-                  : '恢复将替换全部演示场景、订阅记录、偏好与日历快照。'}
+                  ? `即将从「${file.name}」恢复备份（当前 ${preview.currentCount} 条 → 备份 ${preview.count} 条，新增 ${preview.added} 条、覆盖 ${preview.overwritten} 条、移除 ${preview.removed} 条）。恢复后全部连接与日历同步目标将自动暂停，提交前会再次校验原文件未发生变更。`
+                  : '恢复将替换全部订阅记录、偏好与日历同步状态。'}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -637,7 +630,7 @@ export function Settings({
                 disabled={busy}
                 onClick={() => void restore()}
               >
-                确认恢复演示资料
+                确认恢复
               </Button>
             </AlertDialogFooter>
           </AlertDialogContent>

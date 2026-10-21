@@ -1,0 +1,17 @@
+{
+  "repository": "axgiroud312-byte/subcal-desktop",
+  "createdOn": "2026-10-21",
+  "updatedOn": "2026-10-21",
+  "parent": { "key": "SC-000", "number": 43, "id": 5958948714, "status": "verified" },
+  "tasks": [
+    { "key": "SC-001", "number": 44, "id": 5958952268, "blockedBy": [], "status": "implemented" },
+    { "key": "SC-002", "number": 45, "id": 5958952630, "blockedBy": ["SC-001"], "status": "implemented" },
+    { "key": "SC-003", "number": 46, "id": 5958952976, "blockedBy": ["SC-002", "SC-005"], "status": "implemented" },
+    { "key": "SC-004", "number": 47, "id": 5958953283, "blockedBy": ["SC-002"], "status": "implemented" },
+    { "key": "SC-005", "number": 48, "id": 5958953602, "blockedBy": [], "status": "implemented" },
+    { "key": "SC-006", "number": 49, "id": 5958953873, "blockedBy": ["SC-002", "SC-005"], "status": "implemented" },
+    { "key": "SC-007", "number": 50, "id": 5958954204, "blockedBy": ["SC-002", "SC-005"], "status": "implemented" },
+    { "key": "SC-008", "number": 51, "id": 5958954541, "blockedBy": ["SC-002", "SC-005", "SC-007"], "status": "implemented" },
+    { "key": "SC-009", "number": 52, "id": 5958954865, "blockedBy": ["SC-001", "SC-002", "SC-003", "SC-004", "SC-005", "SC-006", "SC-007", "SC-008"], "status": "verified" }
+  ]
+}

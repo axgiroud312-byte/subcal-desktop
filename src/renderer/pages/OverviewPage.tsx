@@ -26,12 +26,13 @@ import {
   upcomingSummary,
 } from '../../shared/rules';
 import { SubscriptionCard } from '../components/SubscriptionCard';
-import { StatusBadge } from '../components/ui';
+import { StatusBadge, connectionStateMeta } from '../components/ui';
 import { Button } from '../components/ui/button';
 import { FormSelect } from '../components/form-controls';
 import { LUCIDE_ICON_SM } from '../lib/utils';
 import { DND_POINTER_ACTIVATION_CONSTRAINT } from '../lib/motion';
 import './overview.css';
+import { isAutomatic } from '../lib/entitlements';
 
 type FilterKind = 'all' | 'upcoming' | 'low' | 'attention' | 'manual';
 type SortKind = 'custom' | 'renewal' | 'brand';
@@ -70,7 +71,19 @@ function buildCardGroups(subscriptions: Subscription[]): CardGroup[] {
       groups.push(entry);
     }
   }
+  for (const group of groups) {
+    group.accounts.sort((a, b) => (a.connectionId ?? a.id).localeCompare(b.connectionId ?? b.id) || a.id.localeCompare(b.id));
+    group.primary = group.accounts[0];
+  }
   return groups;
+}
+
+function automaticDates(sub: Subscription): string[] {
+  const e = sub.entitlements;
+  return [e?.membershipExpiresAt, e?.billingPeriodEnd, e?.nextBillingStart].flatMap(field => {
+    if (field?.availability !== 'known' || !field.value) return [];
+    return [field.value.precision === 'day' ? field.value.value : dateInZone(field.value.value, sub.timezone)];
+  }).sort();
 }
 
 export function OverviewPage({
@@ -131,14 +144,14 @@ export function OverviewPage({
     if (sort === 'renewal') {
       list.sort((a, b) => {
         const da =
-          a.renewalDate.value ||
+          (isAutomatic(a) ? automaticDates(a)[0] : a.renewalDate.value ||
           a.paidThrough.value ||
-          a.trialEnd.value ||
+          a.trialEnd.value) ||
           '9999-12-31';
         const db =
-          b.renewalDate.value ||
+          (isAutomatic(b) ? automaticDates(b)[0] : b.renewalDate.value ||
           b.paidThrough.value ||
-          b.trialEnd.value ||
+          b.trialEnd.value) ||
           '9999-12-31';
         return da.localeCompare(db) || a.product.localeCompare(b.product);
       });
@@ -159,13 +172,13 @@ export function OverviewPage({
 
     for (const s of activeSubscriptions) {
       const today = dateInZone(snapshot.now, s.timezone);
-      const rDays = s.renewalDate.value
+      const rDays = !isAutomatic(s) && s.renewalDate.value
         ? daysBetween(today, s.renewalDate.value)
         : null;
-      const pDays = s.paidThrough.value
+      const pDays = !isAutomatic(s) && s.paidThrough.value
         ? daysBetween(today, s.paidThrough.value)
         : null;
-      const tDays = s.trialEnd.value
+      const tDays = !isAutomatic(s) && s.trialEnd.value
         ? daysBetween(today, s.trialEnd.value)
         : null;
 
@@ -285,17 +298,17 @@ export function OverviewPage({
 
       // Priority 5a: 人工锁定字段与模拟探测差异
       if (
-        s.renewalDate.proposed !== undefined ||
+        !isAutomatic(s) && (s.renewalDate.proposed !== undefined ||
         s.price.proposed !== undefined ||
-        s.plan.proposed !== undefined
+        s.plan.proposed !== undefined)
       ) {
         items.push({
           id: `proposed-${s.id}`,
           priority: 5,
           tone: 'warning',
           badge: '锁定字段待裁决',
-          title: `${s.product} · 手动锁定值与模拟探测值不一致`,
-          detail: `当前锁定 ${s.renewalDate.value ?? ''}，模拟探测新值为 ${
+          title: `${s.product} · 日期待核对`,
+          detail: `当前锁定 ${s.renewalDate.value ?? ''}，新值为 ${
             s.renewalDate.proposed ?? s.price.proposed ?? s.plan.proposed
           }（未静默覆盖）`,
           primaryLabel: '保留或采纳',
@@ -323,11 +336,11 @@ export function OverviewPage({
             c.state === 'rate_limited' || c.state === 'partial'
               ? 'warning'
               : 'danger',
-          badge: '模拟连接需处理',
-          title: `${c.provider} · ${c.error?.code || c.state}`,
+          badge: '账号需处理',
+          title: `${activeSubscriptions.find(s => s.connectionId === c.id)?.product ?? '账号'} · ${connectionStateMeta(c.state).label}`,
           detail:
-            c.error?.message || '模拟连接异常，旧观察数据已保留未清零。',
-          primaryLabel: c.error?.action || '前往连接恢复',
+            c.error?.message || '连接异常，已保留上次数据。',
+          primaryLabel: c.state === 'auth' ? '重新登录' : '查看账号',
           onPrimary: () => onConnection(c.id),
         });
       }
@@ -348,7 +361,7 @@ export function OverviewPage({
           id: `target-${t.id}`,
           priority: 5,
           tone: 'warning',
-          badge: '模拟日历待核对',
+          badge: '日历待核对',
           title: `${t.name} · ${hasConflict ? '存在外部改期冲突' : t.message}`,
           detail: '可在「日历」页执行同步预演或冲突三选一裁决。',
           primaryLabel: '查看详情',
@@ -363,7 +376,7 @@ export function OverviewPage({
     // Priority 6: 日期待补充
     for (const s of activeSubscriptions) {
       if (
-        s.kind !== 'wallet' &&
+        !isAutomatic(s) && s.kind !== 'wallet' &&
         s.cycle !== 'none' &&
         !s.renewalDate.value &&
         !s.paidThrough.value &&
@@ -410,6 +423,7 @@ export function OverviewPage({
       : null;
 
     if (f === 'upcoming') {
+      if (isAutomatic(s)) return automaticDates(s).some(date => { const days = daysBetween(today, date); return days >= 0 && days <= 7; });
       return (
         (rDays !== null && rDays <= 7 && s.autoRenew !== 'off') ||
         (pDays !== null && pDays >= 0 && pDays <= 7) ||
@@ -420,7 +434,7 @@ export function OverviewPage({
       return isLow(s, snapshot.now, snapshot.preferences);
     }
     if (f === 'manual') {
-      return s.kind === 'manual' || !s.connectionId;
+      return !isAutomatic(s);
     }
     if (f === 'attention') {
       const conn = s.connectionId
@@ -436,17 +450,17 @@ export function OverviewPage({
           'rate_limited',
           'partial',
         ].includes(conn.state);
-      const hasProposed =
+      const hasProposed = !isAutomatic(s) && (
         s.renewalDate.proposed !== undefined ||
         s.price.proposed !== undefined ||
-        s.plan.proposed !== undefined;
+        s.plan.proposed !== undefined);
       const missingDate =
-        s.kind !== 'wallet' &&
+        !isAutomatic(s) && s.kind !== 'wallet' &&
         s.cycle !== 'none' &&
         !s.renewalDate.value &&
         !s.paidThrough.value &&
         !s.trialEnd.value;
-      const pastDue = rDays !== null && rDays <= 0 && s.autoRenew !== 'off';
+      const pastDue = !isAutomatic(s) && rDays !== null && rDays <= 0 && s.autoRenew !== 'off';
       return Boolean(
         connIssue ||
           hasProposed ||
@@ -772,7 +786,7 @@ export function OverviewPage({
             {(
               [
                 { id: 'all', label: `全部 (${filterCounts.all})` },
-                { id: 'upcoming', label: `近期续费 (${filterCounts.upcoming})` },
+                { id: 'upcoming', label: `近期日期 (${filterCounts.upcoming})` },
                 { id: 'low', label: `低额度 (${filterCounts.low})` },
                 { id: 'attention', label: `需处理 (${filterCounts.attention})` },
                 { id: 'manual', label: `手动记录 (${filterCounts.manual})` },
@@ -801,7 +815,7 @@ export function OverviewPage({
                 onChange={(e) => setSort(e.target.value as SortKind)}
               >
                 <option value="custom">自定义顺序</option>
-                <option value="renewal">按下次续费/到期日</option>
+                <option value="renewal">按权益/订阅日期</option>
                 <option value="brand">按品牌与产品名称</option>
               </FormSelect>
             </label>
@@ -886,25 +900,10 @@ export function OverviewPage({
       {/* 3. 三类品牌订阅卡片网格 (dnd-kit Sortable) */}
       {activeSubscriptions.length === 0 ? (
         <div className="empty onboarding-empty panel stack">
-          <h3>先花 1 分钟把正在使用的 AI 订阅或 API 钱包记下来</h3>
-          <p className="muted">
-            本阶段为前端交互预览（外部服务未连接，无需准备真实 API
-            Key）。你可以从内置品牌目录添加订阅，也可以直接载入标准混合演示数据体验完整卡片与日历联动。
-          </p>
+          <h3>暂无订阅</h3>
           <div className="row center-row">
             <Button type="button" variant="default" onClick={onCreate}>
-              <Plus {...LUCIDE_ICON_SM} />从品牌目录添加第一项订阅
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() =>
-                void client.preview
-                  .switchScenario('normal_mixed')
-                  .then(() => notify('已切换到「标准混合」示例场景'))
-              }
-            >
-              载入「标准混合」演示数据集
+              <Plus {...LUCIDE_ICON_SM} />添加第一项订阅
             </Button>
           </div>
         </div>

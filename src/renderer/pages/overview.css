@@ -4,6 +4,13 @@
    ========================================================================== */
 
 @layer components {
+  .entitlement-dates, .balance-details { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; font-size: var(--font-size-xs); color: var(--muted-foreground); }
+  .entitlement-dates strong { color: var(--foreground); font-weight: var(--font-weight-medium); }
+  .balance-item { display: flex; flex-direction: column; gap: var(--space-0-5); min-width: 0; }
+  .balance-main { display: flex; justify-content: space-between; flex-wrap: wrap; gap: var(--space-1); color: var(--foreground); }
+  .quota-window { display: flex; flex-direction: column; gap: var(--space-0-5); min-width: 0; }
+  .quota-window-meta { flex-wrap: wrap; }
+  .entitlement-dates, .balance-item, .quota-window { overflow-wrap: anywhere; }
   .overview-page {
     display: flex;
     flex-direction: column;
@@ -231,11 +238,11 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    gap: var(--space-3, 0.75rem);
+    gap: var(--card-section-gap, var(--space-2));
     background: var(--card);
     color: var(--card-foreground);
     border: var(--border-width, 1px) solid var(--border);
-    border-radius: var(--radius-lg, 0.75rem);
+    border-radius: var(--card-radius, var(--radius-lg));
     padding: var(--card-padding, 1rem);
     box-shadow: var(--shadow-card, none);
     min-width: 0;

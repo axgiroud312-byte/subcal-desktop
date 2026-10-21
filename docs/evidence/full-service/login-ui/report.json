@@ -1,0 +1,11 @@
+{
+  "at": "2026-10-21T08:35:13.361Z",
+  "kind": "real-electron-synthetic-authorization",
+  "checks": [
+    "真实窗口点击登录，通过真实 IPC 创建 PKCE 授权并自动请求打开浏览器（测试拦截）",
+    "取消登录回到可重试状态，没有创建订阅",
+    "隔离供应商窗口真实加载：独立会话、sandbox、无 Node/preload，凭据仅主进程读取，关闭清理"
+  ],
+  "errors": [],
+  "realAccountAuthorization": "pending"
+}

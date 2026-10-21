@@ -30,7 +30,7 @@ const EMPTY_SUMMARY: TraySummary = {
 
 function buildTemplate(summary: TraySummary, deps: PreviewTrayDeps): MenuItemConstructorOptions[] {
   const items: MenuItemConstructorOptions[] = [
-    { label: 'SubCal 前端预览 · 外部服务未连接', enabled: false },
+    { label: 'SubCal · 本地订阅管理', enabled: false },
   ];
   const pinned = summary.pinned.slice(0, TRAY_PINNED_MAX);
   const hasInfo =
@@ -43,7 +43,7 @@ function buildTemplate(summary: TraySummary, deps: PreviewTrayDeps): MenuItemCon
   }
   if (summary.reconnectCount > 0) {
     items.push({
-      label: `需要重新连接（模拟）：${summary.reconnectCount} 项`,
+      label: `需要重新连接：${summary.reconnectCount} 项`,
       enabled: false,
     });
   }
@@ -53,23 +53,23 @@ function buildTemplate(summary: TraySummary, deps: PreviewTrayDeps): MenuItemCon
   items.push(
     { type: 'separator' },
     { label: '打开主窗口', click: deps.onOpen },
-    { label: '立即刷新（模拟）', click: () => deps.onAction('refresh') },
+    { label: '刷新已启用连接', click: () => deps.onAction('refresh') },
     {
-      label: summary.paused ? '恢复模拟刷新' : '暂停模拟刷新',
+      label: summary.paused ? '恢复采集' : '暂停采集',
       click: () => deps.onAction('toggle-pause'),
     },
     { label: '打开设置', click: () => deps.onAction('settings') },
     { type: 'separator' },
-    { label: '退出 SubCal 预览', click: deps.onQuit },
+    { label: '退出 SubCal', click: deps.onQuit },
   );
   return items;
 }
 
 function buildTooltip(summary: TraySummary): string {
-  let tip = 'SubCal 前端预览';
-  if (summary.paused) tip += ' · 模拟刷新已暂停';
+  let tip = 'SubCal';
+  if (summary.paused) tip += ' · 采集已暂停';
   if (summary.nextRenewal.length > 0) tip += `\n下一续费：${summary.nextRenewal}`;
-  if (summary.reconnectCount > 0) tip += `\n需要重新连接（模拟）：${summary.reconnectCount} 项`;
+  if (summary.reconnectCount > 0) tip += `\n需要重新连接：${summary.reconnectCount} 项`;
   return tip.slice(0, 120);
 }
 

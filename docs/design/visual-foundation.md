@@ -1,5 +1,9 @@
 # SubCal 视觉重做：Design Tokens 与组件约定
 
+**2026-10-21 用户纠正：保留旧界面的订阅展示。** 新外壳及消费等页面依据 [原型接入方案](subcal-green.md) 和 [正式界面规格](../specs/subcal-production-ui.md)；订阅卡片、列表、详情的 Magpie 外观、字号密度、额度条及账号分组继续沿当前实现。下文历史顶部四页导航不约束新外壳；当前订阅展示不得被全局 Token/组件改动一起重做。新方案当前仅立项，尚未迁移或实测。
+
+2026-10-21 真实后端批次补充：用户最新指示以 [FE-019](../issues/FE-019.md) 为准。正式桌面移除预览标记、模拟操作、组件示例与产品自述，保留必要业务状态；原文涉及“模拟/示例”常驻标记的规定仅适用于显式开发预览。布局、Tokens 与成熟组件方案保持沿用。
+
 状态：FE-011 至 FE-018 已实施，并完成真实 Electron 功能及实施者视觉核对；待用户验收，不等于 accepted。日期：2026-10-20。实际版本/入口见 [component-adoption.md](component-adoption.md)，证据见 [visual-v2/checks.md](../evidence/visual-v2/checks.md)。  
 任务入口：[FE-011](../issues/FE-011.md)、[Issue 索引](../issues/README.md)。
 

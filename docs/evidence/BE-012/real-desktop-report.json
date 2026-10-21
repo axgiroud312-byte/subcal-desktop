@@ -1,0 +1,77 @@
+{
+  "at": "2026-10-21T06:43:23.910Z",
+  "platform": "win32",
+  "userAcceptance": "pending",
+  "checks": [
+    "真实 Electron 添加入口已打开，后台自动发现已调用",
+    "完整退出与重启后账号和订阅持久化",
+    "普通备份不含凭据字段"
+  ],
+  "services": [
+    {
+      "providerId": "codex-local",
+      "discovered": 1,
+      "status": "真实权益查询通过，完整生命周期仍待验证",
+      "checks": [
+        "在真实窗口选择已发现账号后生成卡片",
+        "后台自动尝试查询，无需读取或绑定",
+        "供应商实际返回权益",
+        "编辑资料不能篡改自动额度与套餐",
+        "重复加入保持同一卡片"
+      ],
+      "blocker": "",
+      "state": "ready",
+      "errorCode": null,
+      "metrics": [
+        {
+          "label": "7天额度",
+          "unit": "%",
+          "availability": "known",
+          "hasObservedAt": true
+        },
+        {
+          "label": "Codex 积分",
+          "unit": "积分",
+          "availability": "known",
+          "hasObservedAt": true
+        }
+      ]
+    },
+    {
+      "providerId": "claude-local",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "copilot-local",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "deepseek-balance",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "kimi-platform-cn",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "openrouter-key",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    }
+  ],
+  "errors": []
+}

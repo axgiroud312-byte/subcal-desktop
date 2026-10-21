@@ -121,7 +121,7 @@ export function BrandIcon({ product, brand, size = 22 }: BrandIconProps) {
   }
 
   const label = (product || brand || 'SC').trim().replace(/^[^\p{L}\p{N}]+/u, '');
-  const monogram = label.slice(0, 2).toUpperCase() || 'SC';
+  const monogram = (/^[\u3400-\u9fff]/.test(label) ? label.slice(0, 1) : label.slice(0, 2).toUpperCase()) || 'SC';
 
   return (
     <span
@@ -168,6 +168,7 @@ export function formatRelativeTime(observedAt: string | null, now?: string): str
 
 export function formatDateTime(instant: string | null, zone = 'Asia/Shanghai'): string {
   if (!instant) return '未记录';
+  if(/^\d{4}-\d{2}-\d{2}$/.test(instant))return instant;
   try {
     return new Intl.DateTimeFormat('zh-CN', {
       timeZone: zone,
@@ -189,6 +190,7 @@ export interface FieldSourceProps {
 }
 
 export function FieldSource({ field, now, label }: FieldSourceProps) {
+  if (field.value === null && !field.observedAt && field.proposed === undefined && !field.locked) return null;
   const timeText = field.observedAt ? formatRelativeTime(field.observedAt, now) : '无观察时间';
   const availNote =
     field.availability === 'unfetched'
@@ -207,11 +209,11 @@ export function FieldSource({ field, now, label }: FieldSourceProps) {
     <span className="field-source">
       {label ? <span className="field-source-label">{label}：</span> : null}
       {field.locked ? (
-        <span className="field-lock-tag" title="用户已手动锁定此字段，模拟采集不会静默覆盖">
+        <span className="field-lock-tag" title="已锁定，采集不会覆盖">
           <LockKeyhole aria-hidden="true" /> 手动锁定
         </span>
       ) : null}
-      <span>{field.source || '手动记录（示例）'}</span>
+      <span>{field.source || '手动记录'}</span>
       <span className="field-source-sep">·</span>
       <span>{timeText}</span>
       {availNote && field.availability !== 'known' ? (
@@ -221,7 +223,7 @@ export function FieldSource({ field, now, label }: FieldSourceProps) {
         </>
       ) : null}
       {field.proposed !== undefined ? (
-        <StatusBadge tone="warning" className="field-proposed-pill">待裁决模拟新值：{field.proposed}</StatusBadge>
+        <StatusBadge tone="warning" className="field-proposed-pill">待确认：{field.proposed}</StatusBadge>
       ) : null}
     </span>
   );
@@ -233,7 +235,26 @@ export interface QuotaMeterProps {
   view?: 'remaining' | 'used';
 }
 
-export function QuotaMeter({ metric, now = '2026-10-20T01:00:00.000Z', view = 'remaining' }: QuotaMeterProps) {
+export function QuotaMeter({ metric, now = new Date().toISOString(), view = 'remaining' }: QuotaMeterProps) {
+  const reset = metric.resetObservation;
+  const resetDate = reset?.availability === 'known' ? reset.value : null;
+  const normalized = { ...metric, total: metric.totalObservation ? metric.totalObservation.availability === 'known' ? metric.totalObservation.value : null : metric.total, resetAt: reset ? resetDate?.precision === 'instant' ? resetDate.value : null : metric.resetAt };
+  const scope = metric.scope && metric.scope!=='account' && metric.scope!=='model' ? ({ account: '账户', key: 'Key 预算', organization: '工作区共享', model: '模型', seat: '席位' } as const)[metric.scope] : null;
+  const minutes = metric.windowMinutes;
+  const windowLabel = minutes && Number.isFinite(minutes) && minutes > 0
+    ? `${minutes % 1440 === 0 ? `${minutes / 1440} 天` : minutes % 60 === 0 ? `${minutes / 60} 小时` : `${minutes} 分钟`}窗口`
+    : null;
+  return <div className="quota-window" title={metric.remaining.observedAt?`上次观察 ${formatDateTime(metric.remaining.observedAt)}`:undefined}>
+    <QuotaValue metric={normalized} now={now} view={view} />
+    {(windowLabel || scope || metric.models?.length || metric.poolId) ? <div className="quota-sub quota-window-meta">{windowLabel && <span>{windowLabel}</span>}{scope && <span>{scope}</span>}{metric.poolId && <span>共享额度</span>}{metric.models?.length ? <span>{metric.models.join('、')}</span> : null}</div> : null}
+    {resetDate?.precision === 'day' && <div className="quota-sub">重置 {resetDate.value}（日期）</div>}
+    {metric.windowStart?.availability === 'known' && metric.windowStart.value && <div className="quota-sub">窗口开始 {metric.windowStart.value.precision === 'day' ? metric.windowStart.value.value : formatDateTime(metric.windowStart.value.value)}</div>}
+    {metric.windowEnd?.availability === 'known' && metric.windowEnd.value && <div className="quota-sub">窗口结束 {metric.windowEnd.value.precision === 'day' ? metric.windowEnd.value.value : formatDateTime(metric.windowEnd.value.value)}</div>}
+    {metric.remaining.observedAt && (metric.evidence==='cached'||freshness(metric,now)!=='fresh') && <div className="quota-sub">{formatRelativeTime(metric.remaining.observedAt, now)}观察{metric.evidence==='cached'?' · 远端缓存':''}</div>}
+  </div>;
+}
+
+function QuotaValue({ metric, now = new Date().toISOString(), view = 'remaining' }: QuotaMeterProps) {
   const { remaining, unit, label, total, resetAt } = metric;
   const freshState = freshness(metric, now);
   const relTime = remaining.observedAt ? formatRelativeTime(remaining.observedAt, now) : '无时间戳';
@@ -258,16 +279,15 @@ export function QuotaMeter({ metric, now = '2026-10-20T01:00:00.000Z', view = 'r
           <span className="quota-label">{label}</span>
           <span className="quota-value unavailable-text">{statusText}</span>
         </div>
-        <div className="quota-sub">
-          <span>{remaining.observedAt ? `${relTime} · 不等于 0%` : '不等于 0%'}</span>
-        </div>
+        {remaining.observedAt && <div className="quota-sub"><span>{relTime}</span></div>}
       </div>
     );
   }
 
   if (unit === '%') {
-    const remNum = Math.max(0, Math.min(100, Number(remaining.value)));
-    const usedNum = Math.max(0, Math.min(100, 100 - remNum));
+    const remNum = Number(remaining.value);
+    const usedNum = Number((100 - remNum).toFixed(6));
+    const anomalous = !Number.isFinite(remNum) || remNum < 0 || remNum > 100;
     const displayNum = view === 'used' ? usedNum : remNum;
     const modePrefix = view === 'used' ? '已用' : '剩余';
 
@@ -292,7 +312,7 @@ export function QuotaMeter({ metric, now = '2026-10-20T01:00:00.000Z', view = 'r
               <strong className="quota-value past-reset-text">预计已重置，尚待核实</strong>
             ) : (
               <strong className={`quota-value tabular ${isLowQuota ? 'danger-text' : ''}`}>
-                {modePrefix} {displayNum}%
+                 {modePrefix} {displayNum}%{anomalous ? ' · 数据异常' : ''}
               </strong>
             )}
           </div>
@@ -300,7 +320,7 @@ export function QuotaMeter({ metric, now = '2026-10-20T01:00:00.000Z', view = 'r
         {freshState !== 'past_reset' ? <Progress
           className={`quota-progress tone-${barTone}`}
           tone={barTone === 'danger' ? 'destructive' : barTone === 'warning' ? 'warning' : barTone === 'stale' ? 'muted' : 'default'}
-          value={displayNum}
+          value={Number.isFinite(displayNum) ? Math.max(0, Math.min(100, displayNum)) : 0}
           aria-label={`${label} ${modePrefix}百分比`}
         /> : null}
         {freshState !== 'fresh' || resetText ? (
@@ -319,7 +339,8 @@ export function QuotaMeter({ metric, now = '2026-10-20T01:00:00.000Z', view = 'r
 
   // Currency / Wallet / Key Budget metric
   const hasTotal = total !== null && total !== undefined;
-  let primaryDisplay = money(remaining.value, unit);
+  const metricMoney = (value: string | null, metricUnit: string) => /^[A-Z]{3}$/.test(metricUnit) ? money(value, metricUnit) : `${value?.includes('.') ? value.replace(/0+$/,'').replace(/\.$/,'') : value ?? '尚未获取'} ${metricUnit}`;
+  let primaryDisplay = metricMoney(remaining.value, unit);
   let pctWidth: number | null = null;
 
   if (hasTotal) {
@@ -333,12 +354,12 @@ export function QuotaMeter({ metric, now = '2026-10-20T01:00:00.000Z', view = 'r
       }
       if (view === 'used') {
         const usedNum = (Number(totDec - remDec) / 1_000_000).toFixed(2);
-        primaryDisplay = `已用 ${money(usedNum, unit)} / ${money(total, unit)}`;
+        primaryDisplay = `已用 ${metricMoney(usedNum, unit)} / ${metricMoney(total, unit)}`;
       } else {
-        primaryDisplay = `${money(remaining.value, unit)} / ${money(total, unit)}`;
+        primaryDisplay = `${metricMoney(remaining.value, unit)} / ${metricMoney(total, unit)}`;
       }
     } catch {
-      primaryDisplay = `${money(remaining.value, unit)} / ${money(total, unit)}`;
+      primaryDisplay = `${metricMoney(remaining.value, unit)} / ${metricMoney(total, unit)}`;
     }
   }
 
@@ -356,7 +377,7 @@ export function QuotaMeter({ metric, now = '2026-10-20T01:00:00.000Z', view = 'r
       {freshState !== 'fresh' || resetText ? (
         <div className="quota-sub">
           {freshState === 'past_reset' ? (
-            <span>原观察值 {money(remaining.value, unit)}（{relTime}），已过重置时间待复查</span>
+            <span>原观察值 {metricMoney(remaining.value, unit)} · {relTime}</span>
           ) : freshState === 'stale' ? (
             <span>{relTime} · 已过时</span>
           ) : null}
@@ -374,27 +395,27 @@ export function connectionStateMeta(state: ConnectionState): {
 } {
   switch (state) {
     case 'ready':
-      return { label: '模拟就绪', tone: 'neutral', needsRecovery: false };
+      return { label: '已添加', tone: 'neutral', needsRecovery: false };
     case 'refreshing':
-      return { label: '模拟刷新中…', tone: 'primary', needsRecovery: false };
+      return { label: '更新中…', tone: 'primary', needsRecovery: false };
     case 'partial':
-      return { label: '部分成功（模拟）', tone: 'warning', needsRecovery: true };
+      return { label: '部分成功', tone: 'warning', needsRecovery: true };
     case 'auth':
-      return { label: '需要重新连接（模拟）', tone: 'danger', needsRecovery: true };
+      return { label: '需要重新登录', tone: 'danger', needsRecovery: true };
     case 'denied':
-      return { label: '权限不足（模拟）', tone: 'danger', needsRecovery: true };
+      return { label: '权限不足', tone: 'danger', needsRecovery: true };
     case 'rate_limited':
-      return { label: '触发限流（模拟）', tone: 'warning', needsRecovery: true };
+      return { label: '触发限流', tone: 'warning', needsRecovery: true };
     case 'offline':
-      return { label: '离线保留快照（模拟）', tone: 'warning', needsRecovery: false };
+      return { label: '离线', tone: 'warning', needsRecovery: false };
     case 'runtime_missing':
-      return { label: '缺少运行时（模拟）', tone: 'danger', needsRecovery: true };
+      return { label: '缺少官方客户端', tone: 'danger', needsRecovery: true };
     case 'schema_changed':
-      return { label: '结构变化待恢复（模拟）', tone: 'danger', needsRecovery: true };
+      return { label: '服务数据格式有变化', tone: 'danger', needsRecovery: true };
     case 'paused':
-      return { label: '模拟已暂停', tone: 'neutral', needsRecovery: false };
+      return { label: '已暂停', tone: 'neutral', needsRecovery: false };
     case 'disconnected':
-      return { label: '未绑定模拟连接', tone: 'neutral', needsRecovery: true };
+      return { label: '未连接', tone: 'neutral', needsRecovery: true };
   }
 }
 

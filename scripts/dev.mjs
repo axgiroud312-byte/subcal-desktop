@@ -8,7 +8,7 @@
  */
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { build } from 'esbuild';
+import { buildElectron } from './build-electron.mjs';
 import { createServer } from 'vite';
 
 // electron 的可执行文件路径在 require 时解析；二进制未下载（postinstall 未完成）时给出明确提示
@@ -33,16 +33,7 @@ const ESBUILD_COMMON = {
 
 async function main() {
   console.log('[dev] 编译 Electron 主进程与 preload…');
-  await build({
-    ...ESBUILD_COMMON,
-    entryPoints: ['src/main/main.ts'],
-    outfile: 'dist-electron/main.cjs',
-  });
-  await build({
-    ...ESBUILD_COMMON,
-    entryPoints: ['src/preload/preload.ts'],
-    outfile: 'dist-electron/preload.cjs',
-  });
+  await buildElectron();
 
   console.log('[dev] 启动 Vite 开发服务器…');
   let server;

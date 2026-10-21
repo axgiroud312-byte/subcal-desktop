@@ -1,0 +1,20 @@
+{
+  "at": "2026-10-21T03:35:36.390Z",
+  "platform": "win32",
+  "checks": [
+    "真实 IPC、空 SQLite 与桌面隔离",
+    "真实窗口创建手动订阅",
+    "版本冲突、删除撤销、导入导出与偏好",
+    "系统加密凭据、IPC拒绝无效输入、备份无秘密",
+    "四页、连接步骤、设置与最小窗口",
+    "完整退出后重新打开仍有记录与偏好"
+  ],
+  "errors": [],
+  "profile": "C:\\Users\\niilo\\AppData\\Local\\Temp\\opencode\\subcal-real-check-kDZKmI",
+  "userAcceptance": "pending",
+  "limitations": [
+    "未使用真实账号查询供应商",
+    "macOS 未实测",
+    "通知到达与休眠恢复需实机人工核对"
+  ]
+}

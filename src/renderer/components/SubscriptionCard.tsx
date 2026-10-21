@@ -31,6 +31,8 @@ import {
 import { Button } from './ui/button';
 import { LUCIDE_ICON_SM } from '../lib/utils';
 import { getMotionTransition, getSortableTransition, isReducedMotionActive } from '../lib/motion';
+import { balanceAmount, isAutomatic, latestObservation, uniqueWindows, entitlementDate } from '../lib/entitlements';
+import { BalanceDetails, EntitlementDates } from './EntitlementDetails';
 
 export interface SubscriptionCardProps {
   subscription: Subscription;
@@ -54,6 +56,8 @@ function summarizeAccountMetric(
   quotaView: 'remaining' | 'used'
 ): string {
   const firstMetric = sub.metrics[0];
+  const balance = sub.balances?.[0];
+  if (balance) return `${balance.scope === 'key' ? 'Key' : '账户'} · ${balance.label} ${balance.amount.availability === 'known' && balance.amount.value !== null ? balanceAmount(balance.amount.value, balance.currency) : fieldText(balance.amount)}`;
   if (!firstMetric) {
     if (sub.price.availability === 'known' && sub.price.value !== null) {
       return `${money(sub.price.value, sub.currency)} / ${cycleLabel(sub.cycle, sub.intervalDays)}`;
@@ -73,12 +77,22 @@ function summarizeAccountMetric(
   if (freshState === 'past_reset') {
     return `${firstMetric.label}：预计已重置，尚待核实`;
   }
+  const staleSuffix =
+    freshState === 'stale'
+      ? ` · 已过时（${formatRelativeTime(firstMetric.remaining.observedAt, now)}）`
+      : '';
   if (firstMetric.unit === '%') {
-    const rem = Math.max(0, Math.min(100, Number(firstMetric.remaining.value)));
-    const val = quotaView === 'used' ? 100 - rem : rem;
-    return `${firstMetric.label} ${quotaView === 'used' ? '已用' : '剩余'} ${val}%${freshState === 'stale' ? ` · 已过时（${formatRelativeTime(firstMetric.remaining.observedAt, now)}）` : ''}`;
+    // Display the recorded value as-is; anomalous percentages stay visible (only bars clamp)
+    const remNum = Number(firstMetric.remaining.value);
+    const usedNum = Number((100 - remNum).toFixed(6));
+    const anomalous = !Number.isFinite(remNum) || remNum < 0 || remNum > 100;
+    const val = quotaView === 'used' ? usedNum : remNum;
+    return `${firstMetric.label} ${quotaView === 'used' ? '已用' : '剩余'} ${val}%${anomalous ? ' · 数据异常' : ''}${staleSuffix}`;
   }
-  return `${firstMetric.label} ${money(firstMetric.remaining.value, firstMetric.unit)}${freshState === 'stale' ? ` · 已过时（${formatRelativeTime(firstMetric.remaining.observedAt, now)}）` : ''}`;
+  const amountText = /^[A-Z]{3}$/.test(firstMetric.unit)
+    ? money(firstMetric.remaining.value, firstMetric.unit)
+    : `${firstMetric.remaining.value} ${firstMetric.unit}`;
+  return `${firstMetric.label} ${amountText}${staleSuffix}`;
 }
 
 export function SubscriptionCard({
@@ -97,7 +111,7 @@ export function SubscriptionCard({
   draggable = false,
 }: SubscriptionCardProps) {
   const accountList =
-    accounts && accounts.length > 0 ? accounts : [subscription];
+     accounts && accounts.length > 0 ? [...accounts].sort((a, b) => (a.connectionId ?? a.id).localeCompare(b.connectionId ?? b.id) || a.id.localeCompare(b.id)) : [subscription];
   const isMultiAccount = accountList.length > 1;
   const secondaryAccounts = isMultiAccount ? accountList.slice(1) : [];
 
@@ -173,22 +187,23 @@ export function SubscriptionCard({
       ? connections.find((c) => c.id === sub.connectionId) || null
       : null;
     const low = isLow(sub, now, preferences);
-    const hasProposed =
+    const automatic = isAutomatic(sub);
+    const hasProposed = !automatic && (
       sub.renewalDate.proposed !== undefined ||
       sub.price.proposed !== undefined ||
-      sub.plan.proposed !== undefined;
+      sub.plan.proposed !== undefined);
 
     const today = dateInZone(now, sub.timezone);
     const renewalDays = sub.renewalDate.value
       ? daysBetween(today, sub.renewalDate.value)
       : null;
     const isPastDue =
-      renewalDays !== null &&
+      !automatic && renewalDays !== null &&
       renewalDays <= 0 &&
       sub.autoRenew !== 'off' &&
       !['ending', 'cancelled', 'expired', 'archived'].includes(sub.lifecycle);
     const isSoon =
-      renewalDays !== null &&
+      !automatic && renewalDays !== null &&
       renewalDays > 0 &&
       renewalDays <= 7 &&
       sub.autoRenew !== 'off' &&
@@ -224,7 +239,7 @@ export function SubscriptionCard({
     // Card footer keeps only the freshest observation time; per-field sources
     // and full history stay in the detail drawer's 来源与历史 group.
     const latestObserved =
-      [sub.renewalDate.observedAt, metricObservedAt]
+      [automatic ? latestObservation(sub) : sub.renewalDate.observedAt, metricObservedAt]
         .filter((t): t is string => Boolean(t))
         .sort()
         .reverse()[0] ?? null;
@@ -266,9 +281,10 @@ export function SubscriptionCard({
           </div>
         ) : null}
 
+        {automatic ? <EntitlementDates subscription={sub} /> : null}
         {/* 3. Core Metrics / Balance / Manual Hero */}
         <div className="card-metrics-area">
-          {sub.kind === 'wallet' ? (
+          {sub.balances?.length ? <><div className="window-metrics-block">{uniqueWindows(sub.metrics).map(m => <QuotaMeter key={m.id} metric={m} now={now} view={preferences.quotaView} />)}</div><BalanceDetails subscription={sub} now={now} /></> : sub.kind === 'wallet' ? (
             <div className="wallet-metrics-block">
               {primaryWalletMetric ? (
                 <QuotaMeter
@@ -299,7 +315,7 @@ export function SubscriptionCard({
                           <strong>
                             {bm.remaining.availability === 'known' &&
                             bm.remaining.value !== null
-                              ? money(bm.remaining.value, bm.unit)
+                              ? balanceAmount(bm.remaining.value, bm.unit)
                               : fieldText(bm.remaining)}
                           </strong>
                         </span>
@@ -325,7 +341,7 @@ export function SubscriptionCard({
                 </div>
               ) : null}
             </div>
-          ) : sub.kind === 'manual' ? (
+          ) : sub.kind === 'manual' && !automatic ? (
             <div className="manual-focus-block">
               <div
                 className={`manual-renewal-hero ${
@@ -355,7 +371,7 @@ export function SubscriptionCard({
           ) : (
             <div className="window-metrics-block">
               {sub.metrics.length > 0 ? (
-                sub.metrics.map((m) => (
+                uniqueWindows(sub.metrics).map((m) => (
                   <QuotaMeter
                     key={m.id}
                     metric={m}
@@ -368,7 +384,7 @@ export function SubscriptionCard({
                   <div className="quota-header">
                     <span className="quota-label">额度</span>
                     <span className="quota-value unavailable-text">
-                      尚未获取
+                      {conn?.state === 'refreshing' ? '正在查询…' : conn?.error ? '上次查询未完成，等待更新' : '尚未获取'}
                     </span>
                   </div>
                 </div>
@@ -378,7 +394,7 @@ export function SubscriptionCard({
         </div>
 
         {/* 4. Dedicated Renewal / Expiry Row (Separated from Quota Reset) */}
-        {sub.kind !== 'manual' ? (
+        {sub.kind !== 'manual' || automatic ? (
           <div
             className={`card-renewal-row ${
               isPastDue
@@ -390,9 +406,9 @@ export function SubscriptionCard({
           >
             <div className="renewal-main-line">
               <span className="renewal-date-text tabular">
-                {renewalText(sub, now)}
+                {automatic ? '实际支付' : renewalText(sub, now)}
               </span>
-              <span className="renewal-price-text tabular">{priceDisplay}</span>
+               <span className="renewal-price-text tabular">{automatic ? sub.price.availability === 'known' && sub.price.value !== null ? money(sub.price.value, sub.currency) : '未记录' : priceDisplay}</span>
             </div>
           </div>
         ) : null}
@@ -411,7 +427,7 @@ export function SubscriptionCard({
             {hasProposed ? (
               <StatusBadge
                 tone="warning"
-                title="手动锁定值与模拟探测值不一致，请在详情中保留或采纳"
+                title="手动记录与服务更新不一致，请在详情中核对"
               >
                 待核对
               </StatusBadge>
@@ -434,7 +450,7 @@ export function SubscriptionCard({
                 onConnection(conn.id);
               }}
             >
-              {conn.error.action || '处理模拟连接'}
+              {conn.state === 'auth' ? '重新登录' : '查看账号'}
             </Button>
           </div>
         ) : null}
@@ -456,7 +472,7 @@ export function SubscriptionCard({
       now,
       preferences.quotaView
     );
-    const summaryDate = renewalText(sub, now);
+    const summaryDate = isAutomatic(sub) ? `有效至 ${entitlementDate(sub.entitlements?.membershipExpiresAt)}` : renewalText(sub, now);
     const accountConnection = connections.find((connection) => connection.id === sub.connectionId);
     const accountState = accountConnection && accountConnection.state !== 'ready' ? connectionStateMeta(accountConnection.state) : null;
 
@@ -614,10 +630,10 @@ export function SubscriptionCard({
               type="button"
               variant="outline"
               size="xs"
-              title="前往模拟连接恢复"
+              title="前往连接恢复"
               onClick={() => onConnection(primaryConn.id)}
             >
-              恢复连接
+              查看账号
             </Button>
           ) : subscription.connectionId ? (
             <Button
@@ -625,13 +641,13 @@ export function SubscriptionCard({
               variant="ghost"
               size="xs"
               className="card-hover-reveal"
-              title="模拟刷新此卡片额度（不覆盖锁定续费日）"
+              title="更新此账号的套餐、额度和余额"
               disabled={primaryConn?.state === 'refreshing'}
               onClick={() => onRefresh(subscription.id)}
-              aria-label={`模拟刷新 ${subscription.product}`}
+              aria-label={`更新 ${subscription.product}`}
             >
               <RefreshCw {...LUCIDE_ICON_SM} />
-              {primaryConn?.state === 'refreshing' ? '刷新中…' : '模拟'}
+              {primaryConn?.state === 'refreshing' ? '更新中…' : '更新'}
             </Button>
           ) : null}
 

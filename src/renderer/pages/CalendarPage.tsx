@@ -1,27 +1,23 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
-  AlertTriangle,
-  CalendarSync,
   ChevronLeft,
   ChevronRight,
   Plus,
 } from 'lucide-react';
 import type { PageProps } from '../contracts';
 import type {
-  Backend,
   CalendarEvent,
   EventKind,
   Subscription,
 } from '../../shared/types';
 import { addDays, dateInZone, daysBetween, money } from '../../shared/rules';
-import { BrandIcon, Modal } from '../components/ui';
+import { BrandIcon } from '../components/ui';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Label } from '../components/ui/label';
 import { Switch } from '../components/ui/switch';
 import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { FormSelect } from '../components/form-controls';
-import { SyncPreview } from '../components/SyncPreview';
 import './calendar.css';
 
 const WEEKDAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
@@ -106,7 +102,8 @@ export function CalendarPage({
   notify,
   onOpen,
   onCreate,
-}: PageProps) {
+  onRecordPayment,
+}: PageProps & { onRecordPayment?: (subscriptionId: string, planDate?: string) => void }) {
   const resetSwitchId = useId();
   const userTz = snapshot.preferences.timezone || 'Asia/Shanghai';
   const demoToday = useMemo(
@@ -125,10 +122,18 @@ export function CalendarPage({
   const [viewTab, setViewTab] = useState<'month' | 'agenda'>('month');
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState<boolean>(false);
-  const [syncModalState, setSyncModalState] = useState<{
-    open: boolean;
-    backend?: Backend;
-  }>({ open: false });
+
+  const paymentCountFor = (event: CalendarEvent): number => {
+    if (event.kind !== 'renewal') return 0;
+    const sub = snapshot.subscriptions.find((s) => s.id === event.subscriptionId);
+    const group = sub?.billingGroupId ?? null;
+    return snapshot.payments.filter(
+      (payment) =>
+        (payment.planDate === event.date || (payment.planDate == null && payment.paidOn === event.date)) &&
+        (payment.subscriptionId === event.subscriptionId ||
+          (group !== null && payment.billingGroupId === group)),
+    ).length;
+  };
 
   const lastScenarioRef = useRef<string>(snapshot.scenario);
 
@@ -184,16 +189,57 @@ export function CalendarPage({
     return map;
   }, [snapshot.subscriptions]);
 
+  /**
+   * A payment keeps pointing at the plan it paid, even after the plan advances.
+   * Those paid occurrences stay visible so history is traceable in the calendar.
+   */
+  const visibleEvents = useMemo(() => {
+    const result = [...events];
+    const seen = new Set(
+      events
+        .filter((event) => event.kind === 'renewal')
+        .map((event) => {
+          const sub = subscriptionMap.get(event.subscriptionId);
+          return `${sub?.billingGroupId ?? event.subscriptionId}:${event.date}`;
+        }),
+    );
+    for (const payment of snapshot.payments) {
+      if (!payment.planDate) continue;
+      const sub = payment.subscriptionId ? subscriptionMap.get(payment.subscriptionId) : undefined;
+      if (!sub) continue;
+      const subject = sub.billingGroupId ?? sub.id;
+      const key = `${payment.billingGroupId ?? subject}:${payment.planDate}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      result.push({
+        id: `paid:${payment.id}`,
+        subscriptionId: sub.id,
+        product: sub.product,
+        account: sub.account,
+        kind: 'renewal',
+        date: payment.planDate,
+        precision: 'day',
+        dateSemantic: 'billing_renewal',
+        timezone: sub.timezone,
+        expected: false,
+        source: '已记录付款',
+        revision: sub.revision,
+        dataOrigin: 'manual',
+      });
+    }
+    return result.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+  }, [events, snapshot.payments, subscriptionMap]);
+
   const productOptions = useMemo(() => {
     const set = new Set<string>();
     for (const s of snapshot.subscriptions) {
       if (s.product) set.add(s.product);
     }
-    for (const e of events) {
+    for (const e of visibleEvents) {
       if (e.product) set.add(e.product);
     }
     return [...set];
-  }, [snapshot.subscriptions, events]);
+  }, [snapshot.subscriptions, visibleEvents]);
 
   useEffect(() => {
     if (productFilter !== 'all' && !productOptions.includes(productFilter)) {
@@ -202,13 +248,13 @@ export function CalendarPage({
   }, [productFilter, productOptions]);
 
   const filteredEvents = useMemo(() => {
-    return events.filter((e) => {
+    return visibleEvents.filter((e) => {
       if (!includeReset && e.kind === 'reset') return false;
       if (kindFilter !== 'all' && e.kind !== kindFilter) return false;
       if (productFilter !== 'all' && e.product !== productFilter) return false;
       return true;
     });
-  }, [events, includeReset, kindFilter, productFilter]);
+  }, [visibleEvents, includeReset, kindFilter, productFilter]);
 
   const eventsByDate = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
@@ -236,24 +282,6 @@ export function CalendarPage({
   const agendaEvents =
     agendaScope === 'day' ? selectedDayEvents : monthEvents;
 
-  const targetSummary = useMemo(() => {
-    let conflictCount = 0;
-    let abnormalTargetCount = 0;
-    let firstConflictBackend: Backend | undefined;
-    for (const t of snapshot.targets) {
-      if (t.state !== 'ready') abnormalTargetCount++;
-      const c = t.remote.filter(
-        (r) =>
-          r.managed &&
-          !r.deleted &&
-          !r.suppressed &&
-          r.date !== r.baselineDate
-      ).length;
-      if (c > 0 && !firstConflictBackend) firstConflictBackend = t.id;
-      conflictCount += c;
-    }
-    return { conflictCount, abnormalTargetCount, firstConflictBackend };
-  }, [snapshot.targets]);
 
   function handleSelectMonth(nextYm: string) {
     setCurrentMonth(nextYm);
@@ -291,17 +319,17 @@ export function CalendarPage({
       if (isRenewalOverdue(e)) {
         return (
           <Badge variant="warning">
-            已到计划续费日 · 待确认（未记为已扣费）
+            续费待确认
           </Badge>
         );
       }
-      return <Badge variant="outline">预计续费安排（未扣费）</Badge>;
+      return <Badge variant="outline">预计续费</Badge>;
     }
     if (e.kind === 'reset') {
-      return <Badge variant="outline">仅本地展示 · 不计入扣费</Badge>;
+      return <Badge variant="outline">额度重置</Badge>;
     }
     if (e.kind === 'expiry') {
-      return <Badge variant="destructive">已记录有效期截止 / 到期</Badge>;
+      return <Badge variant="destructive">有效期截止</Badge>;
     }
     if (e.kind === 'trial') {
       return <Badge variant="warning">已记录试用结束日</Badge>;
@@ -309,80 +337,11 @@ export function CalendarPage({
     return <Badge variant="success">已记录开始日</Badge>;
   }
 
-  function renderEventTargetBadges(e: CalendarEvent) {
-    if (e.kind === 'reset') {
-      return (
-        <Badge variant="outline">仅本地展示（不向外日历发布）</Badge>
-      );
-    }
-
-    const badges: React.ReactNode[] = [];
-    for (const t of snapshot.targets) {
-      const r = t.remote.find((item) => item.id === e.id);
-      if (!r) continue;
-      const shortName =
-        t.id === 'google'
-          ? 'Google'
-          : t.id === 'eventkit'
-          ? 'macOS EventKit'
-          : 'iCloud CalDAV';
-
-      if (r.deleted || r.suppressed) {
-        badges.push(
-          <Badge key={t.id} variant="outline">
-            {shortName}：{r.managed ? '外部已删除·已抑制' : '已解除管理'}
-          </Badge>
-        );
-      } else if (r.date !== r.baselineDate) {
-        badges.push(
-          <Badge key={t.id} variant="warning">
-            {shortName}：外部改期至 {r.date}（冲突待处理）
-          </Badge>
-        );
-      } else if (
-        t.state !== 'ready' ||
-        r.date !== e.date ||
-        r.product !== e.product
-      ) {
-        badges.push(
-          <Badge key={t.id} variant="warning">
-            {shortName}：
-            {t.state !== 'ready'
-              ? '模拟目标暂停 / 待核对'
-              : '本地计划已更改 · 待模拟同步'}
-          </Badge>
-        );
-      } else if (t.stage === 'verified') {
-        badges.push(
-          <Badge key={t.id} variant="secondary">
-            {t.id === 'eventkit'
-              ? 'EventKit：模拟本机读回一致（iCloud 云端未验证）'
-              : `${shortName}：模拟远端读回一致`}
-          </Badge>
-        );
-      } else {
-        badges.push(
-          <Badge key={t.id} variant="outline">
-            {shortName}：{t.message}
-          </Badge>
-        );
-      }
-    }
-
-    if (badges.length === 0) {
-      return (
-        <Badge variant="outline">
-          仅本地日程 · 尚未同步至外部模拟目标
-        </Badge>
-      );
-    }
-    return <div className="row">{badges}</div>;
-  }
 
   const selectedDelta = daysBetween(demoToday, selectedDate);
   const selectedRelativeLabel =
     selectedDelta === 0
-      ? '演示今天'
+       ? '今天'
       : selectedDelta > 0
       ? `${selectedDelta} 天后`
       : `${Math.abs(selectedDelta)} 天前`;
@@ -394,13 +353,10 @@ export function CalendarPage({
         <div className="toolbar">
           <div className="cal-title-cluster">
             <h2 className="cal-page-title">
-              本地订阅日历 · {currentMonth.replace('-', ' 年 ')} 月
+              {currentMonth.replace('-', ' 年 ')} 月
             </h2>
-            <Badge variant="outline">
-              演示今天：{demoToday}（{userTz}）
-            </Badge>
             {loadingEvents && (
-              <span className="muted">正在同步本地日程投影…</span>
+              <span className="muted">读取中…</span>
             )}
           </div>
 
@@ -420,7 +376,7 @@ export function CalendarPage({
               size="sm"
               onClick={handleJumpToday}
             >
-              回到演示今天 ({demoToday})
+              今天
             </Button>
             <Button
               type="button"
@@ -431,63 +387,9 @@ export function CalendarPage({
               下个月
               <ChevronRight aria-hidden="true" />
             </Button>
-            <Button
-              type="button"
-              variant="default"
-              size="sm"
-              onClick={() =>
-                setSyncModalState({
-                  open: true,
-                  backend: targetSummary.firstConflictBackend || 'google',
-                })
-              }
-            >
-              <CalendarSync aria-hidden="true" />
-              管理外部日历同步 / 预演
-              {targetSummary.conflictCount > 0
-                ? `（${targetSummary.conflictCount} 项冲突）`
-                : ''}
-            </Button>
           </div>
         </div>
 
-        {/* Alert strip if there are calendar conflicts or paused/readonly targets */}
-        {(targetSummary.conflictCount > 0 ||
-          targetSummary.abnormalTargetCount > 0) && (
-          <div className="cal-conflict-strip" role="status">
-            <div>
-              <div className="cal-conflict-strip-title">
-                <AlertTriangle aria-hidden="true" />
-                <span>
-                  外部日历模拟目标存在待处理项：
-                  {targetSummary.conflictCount > 0 &&
-                    ` ${targetSummary.conflictCount} 项外部改期冲突`}
-                  {targetSummary.conflictCount > 0 &&
-                    targetSummary.abnormalTargetCount > 0 &&
-                    ' · '}
-                  {targetSummary.abnormalTargetCount > 0 &&
-                    ` ${targetSummary.abnormalTargetCount} 个目标处于非就绪保护状态`}
-                </span>
-              </div>
-              <div className="muted">
-                外部日历改动不会自动改写本地扣费事实；目标只读或移除时保持暂停，不会静默切到系统默认日历。
-              </div>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                setSyncModalState({
-                  open: true,
-                  backend: targetSummary.firstConflictBackend || 'google',
-                })
-              }
-            >
-              打开同步预演与冲突裁决
-            </Button>
-          </div>
-        )}
 
         {/* Filter Bar & Narrow Screen View Tabs */}
         <div className="cal-filter-bar">
@@ -542,10 +444,10 @@ export function CalendarPage({
                 onCheckedChange={(checked) =>
                   handleToggleIncludeReset(Boolean(checked))
                 }
-                aria-label="显示额度重置（仅本地展示 · 不计入扣费提醒 · 不向外同步）"
+                aria-label="显示额度重置"
               />
               <Label htmlFor={resetSwitchId} className="cal-switch-field">
-                显示额度重置（仅本地展示 · 不计入扣费提醒 · 不向外同步）
+                显示额度重置
               </Label>
             </div>
           </div>
@@ -568,9 +470,9 @@ export function CalendarPage({
 
       {snapshot.subscriptions.length === 0 ? (
         <section className="panel empty stack" style={{ alignItems: 'center' }}>
-          <strong>当前演示空间暂无订阅记录</strong>
+          <strong>暂无日程</strong>
           <p className="muted" style={{ margin: 0 }}>
-            添加第一条订阅并填写已知开始日、续费日或试用结束日后，本地月历与日程列表将自动投影对应安排；未知日期不会凭空制造假日程。
+            添加订阅日期后即可查看日程。
           </p>
           <div className="row">
             <Button type="button" variant="default" onClick={onCreate}>
@@ -588,9 +490,6 @@ export function CalendarPage({
                 <div className="cal-section-title">
                   {currentMonth.replace('-', ' 年 ')} 月 · 当月匹配日程{' '}
                   {monthEvents.length} 项
-                </div>
-                <div className="muted">
-                  点击日期查看当天安排；预计续费仍需与账单核对。
                 </div>
               </div>
               <div className="cal-legend" aria-label="事件类型图例">
@@ -725,7 +624,7 @@ export function CalendarPage({
                             data-overdue={overdue}
                             title={`${ev.product}（${ev.account}）· ${kMeta.label}${
                               natureText ? ` · ${natureText}` : ''
-                            } · 点击查看订阅详情`}
+                            }${paymentCountFor(ev) > 0 ? ` · 已记录 ${paymentCountFor(ev)} 笔付款` : ''} · 点击查看订阅详情`}
                             onClick={(clickEv) => {
                               clickEv.stopPropagation();
                               setSelectedDate(cell.date);
@@ -778,9 +677,6 @@ export function CalendarPage({
                   {agendaScope === 'day'
                     ? `选中日期：${selectedDate}（${selectedRelativeLabel}）`
                     : `当月日程汇总：${currentMonth}`}
-                </div>
-                <div className="muted">
-                  点击事件可在右侧抽屉查看或编辑详情，关闭后保留当前月份与选中日期。
                 </div>
               </div>
               <Tabs
@@ -835,16 +731,6 @@ export function CalendarPage({
                   const kMeta = KIND_META[ev.kind];
                   const sub = subscriptionMap.get(ev.subscriptionId);
                   const overdue = isRenewalOverdue(ev);
-                  const hasConflictTarget = snapshot.targets.find((t) =>
-                    t.remote.some(
-                      (r) =>
-                        r.id === ev.id &&
-                        r.managed &&
-                        !r.deleted &&
-                        !r.suppressed &&
-                        r.date !== r.baselineDate
-                    )
-                  );
 
                   return (
                     <article
@@ -862,6 +748,9 @@ export function CalendarPage({
                           <span className="muted">（{ev.account}）</span>
                         </div>
                         {renderEventNatureBadge(ev)}
+                        {ev.kind === 'renewal' && paymentCountFor(ev) > 0 ? (
+                          <Badge variant="secondary">已记录 {paymentCountFor(ev)} 笔付款</Badge>
+                        ) : null}
                       </div>
 
                       <div className="cal-agenda-meta">
@@ -905,20 +794,23 @@ export function CalendarPage({
                                 }${
                                   sub.plan.value ? ` · ${sub.plan.value}` : ''
                                 }`
-                              : '演示记录'}
+                               : '订阅记录'}
                           </span>
                         </div>
                       </div>
 
-                      <div className="cal-agenda-targets">
-                        <span className="muted">
-                          外部模拟日历确认状态（稳定 ID:{' '}
-                          <code className="sync-mono">{ev.id}</code>）：
-                        </span>
-                        {renderEventTargetBadges(ev)}
-                      </div>
 
                       <div className="cal-agenda-actions">
+                        {ev.kind === 'renewal' && paymentCountFor(ev) === 0 ? (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => onRecordPayment?.(ev.subscriptionId, ev.date)}
+                          >
+                            记录付款
+                          </Button>
+                        ) : null}
                         <Button
                           type="button"
                           variant="outline"
@@ -927,32 +819,6 @@ export function CalendarPage({
                         >
                           查看 / 编辑订阅详情
                         </Button>
-                        {hasConflictTarget ? (
-                          <Button
-                            type="button"
-                            variant="default"
-                            size="sm"
-                            onClick={() =>
-                              setSyncModalState({
-                                open: true,
-                                backend: hasConflictTarget.id,
-                              })
-                            }
-                          >
-                            处理 {hasConflictTarget.name} 冲突
-                          </Button>
-                        ) : (
-                          ev.kind !== 'reset' && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setSyncModalState({ open: true })}
-                            >
-                              同步预演
-                            </Button>
-                          )
-                        )}
                       </div>
                     </article>
                   );
@@ -963,22 +829,6 @@ export function CalendarPage({
         </div>
       )}
 
-      {/* SyncPreview Modal */}
-      {syncModalState.open && (
-        <Modal
-          title="外部日历同步预演与冲突处理（模拟）"
-          onClose={() => setSyncModalState({ open: false })}
-          wide
-        >
-          <SyncPreview
-            snapshot={snapshot}
-            client={client}
-            notify={notify}
-            initialBackend={syncModalState.backend}
-            modal={false}
-          />
-        </Modal>
-      )}
     </div>
   );
 }

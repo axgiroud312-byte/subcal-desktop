@@ -1,0 +1,3 @@
+/** Only providers with an integrated application-owned login flow belong here. */
+export const BROWSER_LOGIN_PROVIDERS: readonly string[] = ['cursor','devin','factory','claude-local','grok-build','kiro-us-east-1','kiro-eu-central-1','qoder','qoder-cn','workbuddy','workbuddy-ai','minimax-code','minimax-code-global','trae-cn','trae-global-sg','trae-global-us','codearts','cline','opendesign','commandcode','raccoon','zcode-gift','zcode-team-cn','zcode-team-global','mimo-app-sgp','mimo-app-ru','mimo-app-in','mimo-token-plan','autoclaw','zed','autoclaw-cn','gemini-cli','antigravity','stepfun-plan-com','stepfun-plan-ai'];
+export const canStartAccountLogin = (id: string) => ['codex-local','copilot-local',...BROWSER_LOGIN_PROVIDERS].includes(id);

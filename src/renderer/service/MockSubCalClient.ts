@@ -1,6 +1,7 @@
-import type { Backend, CalendarEvent, CalendarTarget, ConnectionState, ImportPreview, Preferences, PreviewController, Probe, RemoteEvent, ScenarioId, Snapshot, Space, Store, SubCalClient, Subscription, SubscriptionInput, SyncChange, SyncPreview } from '../../shared/types';
+import type { Backend, CalendarEvent, CalendarTarget, ConnectionState, ImportPreview, PaymentInput, PaymentRecord, Preferences, PreviewController, Probe, RemoteEvent, ScenarioId, Snapshot, Space, Store, SubCalClient, Subscription, SubscriptionInput, SyncChange, SyncPreview } from '../../shared/types';
 import { scenarioIds } from '../../shared/types';
 import { addDays, dateInZone, projectEvents, validateSubscription } from '../../shared/rules';
+import { nextPlanDate, planOccurrenceId } from '../../shared/spending';
 import { defaultPreferences, makeScenario, scenarioNames } from './scenarios';
 import { parseStore } from './validation';
 
@@ -20,7 +21,9 @@ export class MockSubCalClient implements SubCalClient {
   private probes=new Map<string,Probe>();
   private imports=new Map<string,{preview:ImportPreview;store:Store;epoch:number;revision:number}>();
   private created=new Map<string,string>();
+  private createdPayments=new Map<string,string>();
   private undoRecords=new Map<string,{subscription:Subscription;index:number;remote:Record<string,RemoteEvent[]>;expires:number;epoch:number}>();
+  private paymentUndo=new Map<string,{payment:PaymentRecord;expires:number;epoch:number}>();
   private activeSync=new Set<Backend>();
   constructor(private storage:DemoStorage,private delay=450,clock?:DemoClock){
     this.store={schemaVersion:1,active:'normal_mixed',spaces:{normal_mixed:makeScenario('normal_mixed')},preferences:clone(defaultPreferences),counter:100};
@@ -50,7 +53,7 @@ export class MockSubCalClient implements SubCalClient {
   private sub(id:string){const s=this.space.subscriptions.find(s=>s.id===id);if(!s)throw new ClientError('NOT_FOUND','记录已不在当前演示空间');return s;}
   private target(id:Backend){return this.space.targets.find(t=>t.id===id)!;}
   private history(s:Subscription,text:string){s.history.unshift({at:this.space.now,text,dataOrigin:'demo'});s.history=s.history.slice(0,100);}
-  async snapshot():Promise<Snapshot>{return clone({...this.space,scenario:this.store.active,preferences:this.store.preferences,storageError:this.storageError});}
+  async snapshot():Promise<Snapshot>{return clone({...this.space,payments:this.space.payments??[],scenario:this.store.active,preferences:this.store.preferences,storageError:this.storageError});}
   subscribe(listener:()=>void){this.listeners.add(listener);return ()=>{this.listeners.delete(listener);};}
   async create(input:SubscriptionInput,key:string){
     const existing=this.created.get(`${this.epoch}:${key}`);if(existing)return existing;
@@ -96,6 +99,54 @@ export class MockSubCalClient implements SubCalClient {
     });this.undoRecords.delete(token);
   }
   async reorder(ids:string[]){await this.setPreferences({order:[...new Set(ids)]});}
+  async createPayment(input:PaymentInput,key:string,advancePlan=false){
+    const existing=this.createdPayments.get(`${this.epoch}:${key}`);if(existing)return existing;
+    const sub=input.subscriptionId?this.sub(input.subscriptionId):null;
+    const today=dateInZone(this.space.now,this.store.preferences.timezone);
+    if(input.paidOn>today)throw new ClientError('FUTURE_PAYMENT','实际支付日不能晚于今天');
+    let id='';
+    this.commit(()=>{
+      const payment:PaymentRecord={...clone(input),id:this.token('payment'),revision:1,recordedAt:this.space.now,updatedAt:this.space.now,source:'manual'};
+      if(sub){
+        payment.billingGroupId=payment.billingGroupId||sub.billingGroupId||sub.id;
+        if(payment.planDate&&!payment.planOccurrenceId)payment.planOccurrenceId=planOccurrenceId(sub,payment.planDate);
+        if(advancePlan){
+          if(sub.management==='automatic'||sub.connectionId)throw new ClientError('AUTOMATIC_PLAN','自动来源的续费日期只能由来源确认');
+          if(!sub.renewalDate.value)throw new ClientError('NO_PLAN','此订阅没有可顺延的计划日期');
+          if(payment.planDate&&payment.planDate!==sub.renewalDate.value)throw new ClientError('PLAN_MISMATCH','这条计划已不是当前一期');
+          const next=nextPlanDate(sub,sub.renewalDate.value);
+          if(!next)throw new ClientError('NO_PLAN','该周期无法计算下一期');
+          payment.planDate=sub.renewalDate.value;
+          payment.planOccurrenceId=planOccurrenceId(sub,sub.renewalDate.value);
+          sub.anchorDate=sub.anchorDate||sub.renewalDate.value;
+          sub.renewalDate={...sub.renewalDate,value:next,observedAt:this.space.now,dataOrigin:'demo'};
+          sub.revision++;this.history(sub,`记录付款 ${input.amount} ${input.currency}，模拟计划顺延至 ${next}`);
+        }
+      }
+      this.space.payments=[...(this.space.payments??[]),payment];
+      id=payment.id;
+    });
+    this.createdPayments.set(`${this.epoch}:${key}`,id);return id;
+  }
+  async updatePayment(id:string,revision:number,patch:Partial<PaymentInput>){
+    const payment=(this.space.payments??[]).find(p=>p.id===id);if(!payment)throw new ClientError('NOT_FOUND','付款记录不存在');
+    if(payment.revision!==revision)throw new ClientError('REVISION_CONFLICT','付款记录已更新，请重新读取后编辑');
+    const today=dateInZone(this.space.now,this.store.preferences.timezone);
+    if((patch.paidOn??payment.paidOn)>today)throw new ClientError('FUTURE_PAYMENT','实际支付日不能晚于今天');
+    this.commit(()=>{Object.assign(payment,clone(patch),{source:payment.source,revision:payment.revision+1,updatedAt:this.space.now});});
+  }
+  async removePayment(id:string){
+    const payment=(this.space.payments??[]).find(p=>p.id===id);if(!payment)throw new ClientError('NOT_FOUND','付款记录不存在');
+    const token=this.token('undo-payment');
+    this.commit(()=>{this.space.payments=(this.space.payments??[]).filter(p=>p.id!==id);});
+    this.paymentUndo.set(token,{payment:clone(payment),epoch:this.epoch,expires:Date.now()+30000});
+    return token;
+  }
+  async undoPayment(token:string){
+    const record=this.paymentUndo.get(token);if(!record||record.epoch!==this.epoch||Date.now()>record.expires)throw new ClientError('UNDO_EXPIRED','撤销已过期');
+    this.commit(()=>{if((this.space.payments??[]).some(p=>p.id===record.payment.id))throw new ClientError('REVISION_CONFLICT','该付款记录已存在');this.space.payments=[...(this.space.payments??[]),record.payment];});
+    this.paymentUndo.delete(token);
+  }
   async setPreferences(patch:Partial<Preferences>){this.commit(()=>{Object.assign(this.store.preferences,clone(patch));},false);}
   async resolveField(id:string,field:'renewalDate'|'price'|'plan',accept:boolean){this.commit(()=>{const s=this.sub(id);const f=s[field];if(f.proposed===undefined)return;if(accept){f.value=f.proposed;f.observedAt=this.space.now;f.source='用户采纳模拟探测值';if(field==='renewalDate')s.anchorDate=f.value;}delete f.proposed;f.locked=true;s.revision++;
     if(accept&&field!=='plan'&&s.billingGroupId)for(const related of this.space.subscriptions.filter(x=>x.id!==id&&x.billingGroupId===s.billingGroupId)){related[field]=clone(f);if(field==='renewalDate')related.anchorDate=f.value;related.revision++;}
@@ -209,7 +260,8 @@ export class MockSubCalClient implements SubCalClient {
   async exportRawStorage(){return this.storage.getItem(NAMESPACE)||'';}
   async importPreview(text:string){
     this.imports.clear();const store=parseStore(text);const incoming=store.spaces[store.active]!.subscriptions;const current=this.space.subscriptions;
-    const p:ImportPreview={id:this.token('import'),count:incoming.length,currentCount:current.length,added:incoming.filter(s=>!current.some(c=>c.id===s.id)).length,overwritten:incoming.filter(s=>current.some(c=>c.id===s.id)).length,removed:current.filter(s=>!incoming.some(c=>c.id===s.id)).length,scenario:store.active,text};
+    const incomingPayments=store.spaces[store.active]!.payments??[];const currentPayments=this.space.payments??[];
+    const p:ImportPreview={id:this.token('import'),count:incoming.length,currentCount:current.length,added:incoming.filter(s=>!current.some(c=>c.id===s.id)).length,overwritten:incoming.filter(s=>current.some(c=>c.id===s.id)).length,removed:current.filter(s=>!incoming.some(c=>c.id===s.id)).length,scenario:store.active,text,paymentCount:incomingPayments.length,currentPaymentCount:currentPayments.length,removedPayments:currentPayments.filter(x=>!incomingPayments.some(p=>p.id===x.id)).length};
     this.imports.set(p.id,{preview:p,store,epoch:this.epoch,revision:this.space.revision});return clone(p);
   }
   async importCommit(id:string,text:string){

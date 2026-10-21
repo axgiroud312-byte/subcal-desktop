@@ -1,8 +1,24 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  rectSortingStrategy,
+  SortableContext,
+  sortableKeyboardCoordinates,
+} from '@dnd-kit/sortable';
 import type { PageProps } from '../contracts';
 import type { Subscription } from '../../shared/types';
 import { fieldText, freshness, money, renewalText } from '../../shared/rules';
 import { PRODUCT_CATALOG, SubscriptionForm } from '../components/SubscriptionForm';
+import { SubscriptionCard } from '../components/SubscriptionCard';
 import {
   BrandIcon,
   connectionStateMeta,
@@ -47,6 +63,8 @@ import {
   Archive,
   ArchiveRestore,
   ChevronDown,
+  LayoutGrid,
+  List,
   LockKeyhole,
   MoreHorizontal,
   Pencil,
@@ -66,6 +84,31 @@ export interface SubscriptionsPageProps extends PageProps {
 type ArchiveFilter = 'active' | 'archived' | 'all';
 type KindFilter = 'all' | 'window' | 'wallet' | 'manual';
 type TableSort = 'default' | 'product' | 'renewal' | 'price' | 'status';
+type ViewMode = 'table' | 'cards';
+
+type CardGroup = { groupKey: string; primary: Subscription; accounts: Subscription[] };
+
+function buildCardGroups(subscriptions: Subscription[]): CardGroup[] {
+  const groups: CardGroup[] = [];
+  const byKey = new Map<string, CardGroup>();
+  for (const sub of subscriptions) {
+    const groupKey = `${sub.brand}::${sub.product}::${sub.kind}`;
+    const existing = byKey.get(groupKey);
+    if (existing) existing.accounts.push(sub);
+    else {
+      const entry: CardGroup = { groupKey, primary: sub, accounts: [sub] };
+      byKey.set(groupKey, entry);
+      groups.push(entry);
+    }
+  }
+  for (const group of groups) {
+    group.accounts.sort(
+      (a, b) => (a.connectionId ?? a.id).localeCompare(b.connectionId ?? b.id) || a.id.localeCompare(b.id),
+    );
+    group.primary = group.accounts[0];
+  }
+  return groups;
+}
 
 export function SubscriptionsPage({
   snapshot,
@@ -81,6 +124,7 @@ export function SubscriptionsPage({
   const [archiveFilter, setArchiveFilter] = useState<ArchiveFilter>('active');
   const [kindFilter, setKindFilter] = useState<KindFilter>('all');
   const [sortBy, setSortBy] = useState<TableSort>('default');
+  const [view, setView] = useState<ViewMode>('table');
   const [showCatalogBar, setShowCatalogBar] = useState(false);
 
   // Fallback local modal state if parent doesn't supply onEdit / onCreateWithPreset
@@ -91,7 +135,6 @@ export function SubscriptionsPage({
   const [pendingAction, setPendingAction] = useState<{
     sub: Subscription;
     kind: 'archive' | 'delete';
-    removeFuture: boolean;
   } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -157,6 +200,67 @@ export function SubscriptionsPage({
     return list;
   }, [snapshot.subscriptions, snapshot.preferences.order, archiveFilter, kindFilter, query, sortBy]);
 
+  const groupedCards = useMemo(() => buildCardGroups(filteredRows), [filteredRows]);
+  const cardRefs = useRef<Record<string, HTMLElement | null>>({});
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  /**
+   * Persists whole product-card groups (all accounts) while keeping filtered-out
+   * and archived IDs in their prior relative order.
+   */
+  const persistGroupOrder = (fromPrimaryId: string, toPrimaryId: string) => {
+    if (fromPrimaryId === toPrimaryId) return;
+    const orderMap = new Map<string, number>();
+    snapshot.preferences.order.forEach((id, index) => orderMap.set(id, index));
+    const active = snapshot.subscriptions
+      .filter((s) => s.lifecycle !== 'archived')
+      .sort((a, b) => {
+        const ai = orderMap.get(a.id);
+        const bi = orderMap.get(b.id);
+        if (ai !== undefined && bi !== undefined) return ai - bi;
+        if (ai !== undefined) return -1;
+        if (bi !== undefined) return 1;
+        return 0;
+      });
+    const allGroups = buildCardGroups(active);
+    const fromIndex = allGroups.findIndex((g) => g.accounts.some((a) => a.id === fromPrimaryId));
+    const toIndex = allGroups.findIndex((g) => g.accounts.some((a) => a.id === toPrimaryId));
+    if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return;
+    const nextGroups = arrayMove(allGroups, fromIndex, toIndex);
+    const activeIds = nextGroups.flatMap((g) => g.accounts.map((a) => a.id));
+    const activeSet = new Set(activeIds);
+    const rest = snapshot.subscriptions.filter((s) => !activeSet.has(s.id)).map((s) => s.id);
+    void client.reorder([...activeIds, ...rest])
+      .then(() => setSortBy('default'))
+      .catch((error) => notify((error as Error).message));
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    if (!event.over || event.active.id === event.over.id) return;
+    persistGroupOrder(String(event.active.id), String(event.over.id));
+  };
+
+  const moveOrder = (id: string, direction: -1 | 1) => {
+    const ids = groupedCards.map((g) => g.primary.id);
+    const index = ids.indexOf(id);
+    const target = index + direction;
+    if (index < 0 || target < 0 || target >= ids.length) return;
+    persistGroupOrder(id, ids[target]);
+  };
+
+  const handleCardKeyNav = (currentId: string, key: string) => {
+    const ids = groupedCards.map((g) => g.primary.id);
+    const index = ids.indexOf(currentId);
+    if (index < 0) return;
+    let next = index;
+    if (key === 'ArrowRight' || key === 'ArrowDown') next = Math.min(ids.length - 1, index + 1);
+    else if (key === 'ArrowLeft' || key === 'ArrowUp') next = Math.max(0, index - 1);
+    if (next !== index) requestAnimationFrame(() => cardRefs.current[ids[next]]?.focus());
+  };
+
   const handleTriggerEdit = (sub: Subscription) => {
     if (onEdit) {
       onEdit(sub);
@@ -183,7 +287,7 @@ export function SubscriptionsPage({
     if (m.remaining.availability === 'unlimited') {
       return (
         <div className="table-metric-cell">
-          <strong className="table-cell-amount">{m.label}：无限量（示例）</strong>
+          <strong className="table-cell-amount">{m.label}：无限量</strong>
           <span className="muted">{m.remaining.source}</span>
         </div>
       );
@@ -206,12 +310,18 @@ export function SubscriptionsPage({
       );
     }
 
+    // Percentages display the recorded value as-is (only bars clamp); non-currency units render as "值 单位"
+    const remNum = Number(m.remaining.value);
+    const anomalous =
+      m.unit === '%' && (!Number.isFinite(remNum) || remNum < 0 || remNum > 100);
     const valDisplay =
       m.unit === '%'
         ? snapshot.preferences.quotaView === 'used'
-          ? `已用 ${Math.max(0, 100 - Number(m.remaining.value))}%（示例）`
-          : `剩余 ${m.remaining.value}%（示例）`
-        : `${money(m.remaining.value, m.unit)}（示例）`;
+          ? `已用 ${Number((100 - remNum).toFixed(6))}%${anomalous ? ' · 数据异常' : ''}`
+          : `剩余 ${m.remaining.value}%${anomalous ? ' · 数据异常' : ''}`
+        : /^[A-Z]{3}$/.test(m.unit)
+          ? `${money(m.remaining.value, m.unit)}`
+          : `${m.remaining.value} ${m.unit}`;
 
     return (
       <div className="table-metric-cell tabular">
@@ -230,31 +340,29 @@ export function SubscriptionsPage({
 
   const executePendingScope = async () => {
     if (!pendingAction) return;
-    const { sub, kind, removeFuture } = pendingAction;
+    const { sub, kind } = pendingAction;
     setBusyId(sub.id);
     try {
       if (kind === 'archive') {
         const targetArchived = sub.lifecycle !== 'archived';
-        await client.archive(sub.id, targetArchived, removeFuture);
+        await client.archive(sub.id, targetArchived, false);
         setPendingAction(null);
         notify(
           targetArchived
-            ? `已归档「${sub.product}」${
-                removeFuture ? '，并抑制模拟外部未来日程' : '（保留本地日程）'
-              }`
+            ? `已归档「${sub.product}」（保留本地日程）`
             : `已恢复「${sub.product}」活跃跟踪`
         );
       } else {
         const productName = sub.product;
-        const token = await client.remove(sub.id, removeFuture);
+        const token = await client.remove(sub.id, false);
         setPendingAction(null);
-        notify(`已从当前演示空间删除「${productName}」`, {
+        notify(`已删除「${productName}」`, {
           label: '撤销删除 (8s)',
           duration: 8000,
           run: () => {
             void client
               .undo(token)
-              .then(() => notify(`已恢复「${productName}」及关联模拟日程`))
+              .then(() => notify(`已恢复「${productName}」及关联日程`))
               .catch((e) => notify((e as Error).message));
           },
         });
@@ -345,6 +453,26 @@ export function SubscriptionsPage({
           </div>
 
           <div className="subscriptions-toolbar-actions">
+            <div className="segmented-group" role="group" aria-label="订阅显示方式">
+              <Button
+                type="button"
+                variant={view === 'cards' ? 'secondary' : 'ghost'}
+                size="sm"
+                aria-pressed={view === 'cards'}
+                onClick={() => setView('cards')}
+              >
+                <LayoutGrid /> 卡片
+              </Button>
+              <Button
+                type="button"
+                variant={view === 'table' ? 'secondary' : 'ghost'}
+                size="sm"
+                aria-pressed={view === 'table'}
+                onClick={() => setView('table')}
+              >
+                <List /> 表格
+              </Button>
+            </div>
             <CollapsibleTrigger
               render={
                 <Button
@@ -366,7 +494,7 @@ export function SubscriptionsPage({
 
         <CollapsibleContent className="brand-directory-panel stack">
           <div className="section-header">
-            <strong>内置品牌与规划适配等级目录（前端预览阶段外部服务均未连接）</strong>
+            <strong>内置品牌目录</strong>
             <span className="muted">点击任一品牌可快速带入模板新增记录</span>
           </div>
           <div className="catalog-grid">
@@ -419,32 +547,14 @@ export function SubscriptionsPage({
                 ? pendingAction.sub.lifecycle === 'archived'
                   ? `确认将「${pendingAction.sub.product}」恢复为活跃跟踪？`
                   : `确认归档「${pendingAction.sub.product}」？`
-                : `确认从演示空间删除「${pendingAction?.sub.product ?? ''}」？`}
+                : `确认删除「${pendingAction?.sub.product ?? ''}」？`}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {pendingAction?.kind === 'archive'
-                ? '归档后不再计入首屏活跃提醒与固定月费汇总，保留历史观察与已有日程。'
-                : '范围说明：此操作仅删除当前演示空间内的本地记录，不会代替你在外部官网退订。删除后可在 8 秒内点击底部提示撤销恢复。'}
+                ? '归档后不再计入首屏活跃提醒与固定月费汇总，保留历史记录与已有日程。'
+                : '此操作仅删除本地记录，不会代替你在外部官网退订。删除后 8 秒内可撤销。'}
             </AlertDialogDescription>
           </AlertDialogHeader>
-
-          {pendingAction &&
-          (pendingAction.kind === 'delete' || pendingAction.sub.lifecycle !== 'archived') ? (
-            <label className="checkbox-row">
-              <input
-                type="checkbox"
-                checked={pendingAction.removeFuture}
-                onChange={(e) =>
-                  setPendingAction((prev) =>
-                    prev ? { ...prev, removeFuture: e.target.checked } : null
-                  )
-                }
-              />
-              <span>
-                同时从模拟外部日历目标中移除未来受管事件（不影响过去事件与共用付款存活成员）
-              </span>
-            </label>
-          ) : null}
 
           <AlertDialogFooter>
             <AlertDialogCancel disabled={Boolean(busyId)}>取消</AlertDialogCancel>
@@ -469,7 +579,7 @@ export function SubscriptionsPage({
       {/* Management Table */}
       {snapshot.subscriptions.length === 0 ? (
         <div className="empty panel stack">
-          <h3>当前演示空间暂无订阅记录</h3>
+          <h3>暂无订阅记录</h3>
           <p className="muted">
             你可以直接新增第一条自定义或目录订阅（仅名称必填，价格和日期允许留空后补）。
           </p>
@@ -497,6 +607,50 @@ export function SubscriptionsPage({
             </Button>
           </div>
         </div>
+      ) : view === 'cards' ? (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={groupedCards.map((g) => g.primary.id)}
+            strategy={rectSortingStrategy}
+          >
+            <section
+              className={`cards-grid ${
+                snapshot.preferences.density === 'compact' ? 'density-compact' : 'density-comfortable'
+              }`}
+              aria-label="订阅卡片列表"
+            >
+              {groupedCards.map(({ primary, accounts }) => (
+                <SubscriptionCard
+                  key={primary.id}
+                  subscription={primary}
+                  accounts={accounts}
+                  allSubscriptions={snapshot.subscriptions}
+                  connections={snapshot.connections}
+                  now={snapshot.now}
+                  preferences={snapshot.preferences}
+                  onOpen={onOpen}
+                  onRefresh={(id) => {
+                    void client
+                      .refresh(id)
+                      .then((msg) => notify(msg))
+                      .catch((error) => notify((error as Error).message));
+                  }}
+                  onConnection={onConnection}
+                  onMoveOrder={moveOrder}
+                  onCardKeyNav={handleCardKeyNav}
+                  cardRef={(el) => {
+                    cardRefs.current[primary.id] = el;
+                  }}
+                  draggable
+                />
+              ))}
+            </section>
+          </SortableContext>
+        </DndContext>
       ) : (
         <div className="panel subscriptions-table-panel">
           <Table className="sub-table">
@@ -692,7 +846,7 @@ export function SubscriptionsPage({
                                   }}
                                 >
                                   <RefreshCw />
-                                  {cMeta?.needsRecovery ? '恢复连接' : '模拟刷新'}
+                                  {cMeta?.needsRecovery ? '恢复连接' : '刷新'}
                                 </DropdownMenuItem>
                               ) : null}
                               <DropdownMenuSeparator />
@@ -701,7 +855,6 @@ export function SubscriptionsPage({
                                   setPendingAction({
                                     sub,
                                     kind: 'archive',
-                                    removeFuture: false,
                                   })
                                 }
                               >
@@ -723,12 +876,11 @@ export function SubscriptionsPage({
                                   setPendingAction({
                                     sub,
                                     kind: 'delete',
-                                    removeFuture: true,
                                   })
                                 }
                               >
                                 <Trash2 />
-                                删除本地演示记录…
+                                删除记录…
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>

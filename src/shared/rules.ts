@@ -1,4 +1,5 @@
 import type { CalendarEvent, Field, Metric, Preferences, Subscription } from './types';
+import { isAutomatic } from './entitlements';
 
 export function dateValid(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -6,6 +7,7 @@ export function dateValid(value: string): boolean {
   return y >= 1900 && y <= 2200 && m >= 1 && m <= 12 && d >= 1 && d <= new Date(Date.UTC(y,m,0)).getUTCDate();
 }
 export function dateInZone(instant: string, zone = 'Asia/Shanghai'): string {
+  if(dateValid(instant))return instant;
   const parts = new Intl.DateTimeFormat('en-CA', {timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(instant));
   return ['year','month','day'].map(k => parts.find(p=>p.type===k)!.value).join('-');
 }
@@ -21,13 +23,13 @@ export function addDays(date: string, days: number): string {
 export function anchoredDate(anchor: string, cycle: Subscription['cycle'], index: number, intervalDays = 30): string {
   const [y,m,d] = anchor.split('-').map(Number);
   if (cycle === 'days') return addDays(anchor,index*intervalDays);
-  if (cycle !== 'monthly' && cycle !== 'yearly') return anchor;
-  const offset = cycle === 'monthly' ? index : index*12;
+  if (cycle !== 'monthly' && cycle !== 'quarterly' && cycle !== 'yearly') return anchor;
+  const offset = cycle === 'monthly' ? index : cycle === 'quarterly' ? index*3 : index*12;
   const target = new Date(Date.UTC(y,m-1+offset,1));
   const day = Math.min(d,new Date(Date.UTC(target.getUTCFullYear(),target.getUTCMonth()+1,0)).getUTCDate());
   return `${target.getUTCFullYear()}-${String(target.getUTCMonth()+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
 }
-export const fieldLabels: Record<Field<unknown>['availability'],string> = {known:'',unfetched:'尚未获取',unsupported:'当前读取方式未提供此项',na:'不适用',denied:'当前权限无法读取',unlimited:'无限量（示例）'};
+export const fieldLabels: Record<Field<unknown>['availability'],string> = {known:'',unfetched:'尚未获取',unsupported:'当前读取方式未提供此项',na:'不适用',denied:'当前权限无法读取',unlimited:'无限量'};
 export function fieldText(field: Field<string>): string { return field.availability === 'known' && field.value !== null ? field.value : fieldLabels[field.availability] || '尚未获取'; }
 export function money(value: string | null, currency: string): string {
   if (value === null) return '金额待补充';
@@ -39,25 +41,32 @@ export function decimal(value: string): bigint {
   return (BigInt(whole)*1000000n+BigInt(frac.padEnd(6,'0')))*(neg?-1n:1n);
 }
 export function decimalText(value: bigint): string { const sign=value<0n?'-':''; const n=value<0n?-value:value; return `${sign}${n/1000000n}.${String(n%1000000n).padStart(6,'0')}`; }
+export function compareMetricDecimal(a:string,b:string):number {
+  if(!/^-?\d{1,100}(\.\d{1,100})?$/.test(a)||! /^-?\d{1,100}(\.\d{1,100})?$/.test(b))throw new Error('指标数值格式无效');
+  const scale=Math.max(a.split('.')[1]?.length??0,b.split('.')[1]?.length??0);
+  const integer=(v:string)=>{const [whole,fraction='']=v.replace('-','').split('.');return BigInt(whole+fraction.padEnd(scale,'0'))*(v.startsWith('-')?-1n:1n);};
+  const x=integer(a),y=integer(b);return x<y?-1:x>y?1:0;
+}
 export function monthlySummary(subs: Subscription[]) {
   const seen=new Set<string>(); const sums:Record<string,bigint>={}; let unknown=0; let recurring=0;
   for (const s of subs) {
-    if (s.lifecycle==='archived' || s.lifecycle==='cancelled' || s.lifecycle==='expired' || !['monthly','yearly','days'].includes(s.cycle) || s.kind==='wallet') continue;
+    if (s.lifecycle==='archived' || s.lifecycle==='cancelled' || s.lifecycle==='expired' || !['monthly','quarterly','yearly','days'].includes(s.cycle) || s.kind==='wallet') continue;
     const key=s.billingGroupId||s.id; if(seen.has(key))continue; seen.add(key); recurring++;
     if(s.price.value===null || s.price.availability!=='known'){unknown++;continue;}
-    const value=decimal(s.price.value); const monthly=s.cycle==='yearly'?value/12n:s.cycle==='days'?value*365n/(12n*BigInt(s.intervalDays)):value;
+    const value=decimal(s.price.value); const monthly=s.cycle==='yearly'?value/12n:s.cycle==='quarterly'?value/3n:s.cycle==='days'?value*365n/(12n*BigInt(s.intervalDays)):value;
     sums[s.currency]=(sums[s.currency]||0n)+monthly;
   }
   return {totals:Object.entries(sums).map(([currency,n])=>({currency,amount:decimalText(n)})),unknown,recurring};
 }
 export function freshness(metric: Metric, now: string): 'fresh' | 'stale' | 'past_reset' {
-  if(metric.resetAt && metric.resetAt<=now)return 'past_reset';
+  const reset=metric.resetObservation?.availability==='known'?metric.resetObservation.value?.value??metric.resetAt:metric.resetAt;
+  if(reset && (dateValid(reset)?reset<now.slice(0,10):Date.parse(reset)<=Date.parse(now)))return 'past_reset';
   if(!metric.remaining.observedAt || (Date.parse(now)-Date.parse(metric.remaining.observedAt))/60000>metric.staleAfterMinutes)return 'stale';
   return 'fresh';
 }
 export function isLow(s: Subscription, now: string, prefs: Preferences): boolean {
   const metrics=s.kind==='wallet'?s.metrics.slice(0,1):s.metrics;
-  return metrics.some(m=>m.remaining.availability==='known' && m.remaining.value!==null && freshness(m,now)==='fresh' && (m.unit==='%' ? Number(m.remaining.value)<=20 : prefs.walletThresholds[m.unit]!==undefined && decimal(m.remaining.value)<=decimal(prefs.walletThresholds[m.unit])));
+  return metrics.some(m=>m.remaining.availability==='known' && m.remaining.value!==null && freshness(m,now)==='fresh' && (m.unit==='%' ? Number(m.remaining.value)<=20 : prefs.walletThresholds[m.unit]!==undefined && compareMetricDecimal(m.remaining.value,prefs.walletThresholds[m.unit])<=0));
 }
 export function renewalText(s: Subscription, now: string): string {
   if(s.kind==='wallet' && s.cycle==='none')return '不适用 · 按量余额/预算';
@@ -74,22 +83,32 @@ export function projectEvents(subs: Subscription[], now: string, includeReset=fa
     const push=(kind:CalendarEvent['kind'],date:string,field:Field<string>,index=0,instant?:string)=>{
       const id=`${kind==='renewal'?group:s.id}:${kind}:${index}`;
       if(seen.has(id))return; seen.add(id);
-      result.push({id,subscriptionId:s.id,product:s.product,account:s.account,kind,date:s.scheduleOverrides?.[id]||date,instant,timezone:s.timezone,expected:kind==='renewal',source:s.scheduleOverrides?.[id]?'用户逐次改期（演示记录）':field.source,revision:s.revision,dataOrigin:'demo'});
+      const overrideLabel=field.dataOrigin==='demo'?'用户逐次改期（演示记录）':'用户逐次改期';
+      result.push({id,subscriptionId:s.id,product:s.product,account:s.account,kind,date:s.scheduleOverrides?.[id]||date,instant,precision:instant?'instant':'day',dateSemantic:kind==='expiry'?'membership_expiry':kind==='reset'?'quota_reset':kind==='renewal'?'billing_renewal':kind,timezone:s.timezone,expected:kind==='renewal',source:s.scheduleOverrides?.[id]?overrideLabel:field.source,revision:s.revision,dataOrigin:field.dataOrigin||'manual'});
     };
     if(s.startDate.value)push('start',s.startDate.value,s.startDate);
-    if(s.paidThrough.value)push('expiry',s.paidThrough.value,s.paidThrough);
+    const membership=s.entitlements?.membershipExpiresAt;
+    if(membership?.availability==='known'&&membership.value) {
+      const value=membership.value;
+      push('expiry',dateInZone(value.value,s.timezone),{...membership,value:value.value,proposed:undefined},0,value.precision==='instant'?value.value:undefined);
+    } else if(s.paidThrough.value)push('expiry',s.paidThrough.value,s.paidThrough);
     if(s.trialEnd.value)push('trial',s.trialEnd.value,s.trialEnd);
-    if(s.renewalDate.value && s.autoRenew!=='off' && !['ending','cancelled','expired'].includes(s.lifecycle)){
+    const explicitlyNotRenewing=s.entitlements?.autoRenew?.availability==='known'?s.entitlements.autoRenew.value===false:s.autoRenew==='off';
+    if(s.renewalDate.value && !explicitlyNotRenewing && !['ending','cancelled','expired'].includes(s.lifecycle)){
       const first=s.renewalDate.value; const anchor=s.anchorDate||first; const horizon=anchoredDate(dateInZone(now,s.timezone),'yearly',1);
       let offset=0;
-      if(['monthly','yearly','days'].includes(s.cycle))while(offset<1000 && anchoredDate(anchor,s.cycle,offset,s.intervalDays)<first)offset++;
+      if(['monthly','quarterly','yearly','days'].includes(s.cycle))while(offset<1000 && anchoredDate(anchor,s.cycle,offset,s.intervalDays)<first)offset++;
       for(let i=0;i<400;i++){
         const date=i===0?first:anchoredDate(anchor,s.cycle,offset+i,s.intervalDays);
-        if(i>0 && (date>horizon || ['once','irregular','none'].includes(s.cycle)))break;
+        if(i>0 && (isAutomatic(s) || date>horizon || ['once','irregular','none'].includes(s.cycle)))break;
         push('renewal',date,s.renewalDate,i);
       }
     }
-    if(includeReset)s.metrics.forEach((m,i)=>{if(m.resetAt)push('reset',dateInZone(m.resetAt,s.timezone),m.remaining,i,m.resetAt);});
+    if(includeReset)s.metrics.forEach((m,i)=>{
+      const reset=m.resetObservation;
+      if(reset?.availability==='known'&&reset.value)push('reset',dateInZone(reset.value.value,s.timezone),{...reset,value:reset.value.value,proposed:undefined},i,reset.value.precision==='instant'?reset.value.value:undefined);
+      else if(m.resetAt)push('reset',dateInZone(m.resetAt,s.timezone),m.remaining,i,dateValid(m.resetAt)?undefined:m.resetAt);
+    });
   }
   return result.sort((a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id));
 }
@@ -112,12 +131,16 @@ export function validateSubscription(s: Partial<Subscription>): Record<string,st
   if(s.anchorDate && !dateValid(s.anchorDate))errors.anchorDate='账期锚点必须是有效日期';
   for(const key of ['billingGroupId','quotaPoolId'] as const)if(s[key]&&!/^[\w.:-]{1,160}$/.test(s[key]!))errors[key]='共享标识请使用字母、数字、短横线或下划线';
   for(const m of s.metrics??[]) {
-    if(m.unit!=='%'&&!/^[A-Z]{3}$/.test(m.unit))errors[`metric_${m.id}`]='指标单位请填写 % 或三位币种代码';
-    if(m.remaining.value!==null){try{decimal(m.remaining.value);if(m.unit==='%'&&(Number(m.remaining.value)<0||Number(m.remaining.value)>100))errors[`metric_${m.id}`]='百分比必须在 0 至 100 之间';}catch{errors[`metric_${m.id}`]='指标数值格式无效';}}
+    if(!m.unit.trim()||m.unit.length>80)errors[`metric_${m.id}`]='请填写有效计量单位';
+    if(m.remaining.value!==null){try{compareMetricDecimal(m.remaining.value,'0');if(m.unit==='%'&&(Number(m.remaining.value)<0||Number(m.remaining.value)>100))errors[`metric_${m.id}`]='百分比必须在 0 至 100 之间';}catch{errors[`metric_${m.id}`]='指标数值格式无效';}}
+    for(const value of [m.used?.value,m.total,m.totalObservation?.value])if(value!==null&&value!==undefined){try{compareMetricDecimal(value,'0');}catch{errors[`metric_${m.id}`]='指标数值格式无效';}}
   }
+  for(const b of s.balances??[])if(b.amount.value!==null){try{compareMetricDecimal(b.amount.value,'0');}catch{errors[`balance_${b.id}`]='余额数值格式无效';}}
   for(const key of ['startDate','renewalDate','paidThrough','trialEnd'] as const){const value=s[key]?.value; if(value && !dateValid(value))errors[key]='请填写 1900—2200 年间的有效日期';}
   for(const key of ['paidThrough','trialEnd','renewalDate'] as const){if(s.startDate?.value&&s[key]?.value&&s[key]!.value!<s.startDate.value)errors[key]='日期不能早于开始日';}
   if(s.timezone){try{new Intl.DateTimeFormat('zh-CN',{timeZone:s.timezone});}catch{errors.timezone='时区无效';}}
   if(s.website){try{const u=new URL(s.website);if(u.protocol!=='https:'||u.username||u.password)errors.website='官网地址仅接受不含凭据的 HTTPS 链接';}catch{errors.website='请填写完整 HTTPS 网址';}}
+  if(s.category!==undefined && s.category.length>80)errors.category='分类名称最多 80 个字符';
+  if(s.reminderLeadDays!==undefined && s.reminderLeadDays!==null && (!Number.isInteger(s.reminderLeadDays)||s.reminderLeadDays<1||s.reminderLeadDays>90))errors.reminderLeadDays='提前提醒天数请填写 1 至 90 的整数';
   return errors;
 }

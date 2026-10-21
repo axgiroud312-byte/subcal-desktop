@@ -1,0 +1,10 @@
+{
+  "at": "2026-10-21T03:35:42.089Z",
+  "platform": "win32",
+  "officialReadUi": "passed",
+  "userAcceptance": "pending",
+  "metricCount": 3,
+  "workerIsolation": "real collector child process",
+  "billingNotInferred": true,
+  "scope": "official local account read, probe, bind, scheduler enable, disconnect; no conversations"
+}
