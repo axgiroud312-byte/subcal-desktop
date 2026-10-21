@@ -1,8 +1,16 @@
 # SubCal 开发 Issue 索引
 
-## 新任务：账号自动发现与接入
+## 下一批：全服务自动权益与 Magpie 风格展示
 
-**当前执行入口：[BE-012](BE-012.md) / [GitHub #4](https://github.com/axgiroud312-byte/subcal-desktop/issues/4)**。优先移植 Magpie / CC Switch 的账号凭据、授权和查询实现，接替 BE-011 的候选方案任务；功能尚未实施。
+**总目标：[GitHub #5](https://github.com/axgiroud312-byte/subcal-desktop/issues/5) / [完整任务清单](full-service/overview.md)**。已发布 33 个子任务（#6—#38），状态为规划，尚未实施。
+
+入口：[全服务规格](../specs/full-service-entitlements.md)、[界面设计](../design/full-service-entitlements.md)、[内置能力清单](../references/magpie-builtins-inventory.md)、[社区插件清单](../references/magpie-plugins-inventory.md)。先稳定 #6 共享合同；服务任务与 #37 前端可独立推进。优先 #8 Codex、#11 Cursor/Grok Bot、#13 OpenCode、#9 Claude、#14 Devin。#35 覆盖无现成接口的服务，#38 逐服务真实验收收口。
+
+用户最新要求：自动接入订阅只补录实际支付金额及币种，其他信息按接口自动显示，未知不要求手填。BE-012 旧日期补录入口由 #37 调整。
+
+## 已交付基础：账号自动发现与接入
+
+**基础任务：[BE-012](BE-012.md) / [GitHub #4](https://github.com/axgiroud312-byte/subcal-desktop/issues/4)**。已移植并交付部分实现，Codex 已有登录真实流程通过；完整状态见 [验收记录](../evidence/BE-012/acceptance.md)，用户验收 pending。下一批接续缺口，不把新任务标为已实现。
 
 远端任务：[GitHub #3](https://github.com/axgiroud312-byte/subcal-desktop/issues/3)。
 

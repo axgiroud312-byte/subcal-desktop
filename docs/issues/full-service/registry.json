@@ -1,0 +1,241 @@
+{
+  "issues": [
+    {
+      "key": "overview",
+      "title": "全服务订阅自动识别：登录后自动展示权益、到期与重置，呈现接近 Magpie",
+      "number": 5,
+      "url": "https://github.com/axgiroud312-byte/subcal-desktop/issues/5"
+    },
+    {
+      "key": "contract",
+      "title": "BE-013 建立完整权益与日期合同，保留自动字段和真实来源",
+      "number": 6,
+      "url": "https://github.com/axgiroud312-byte/subcal-desktop/issues/6",
+      "linked": true
+    },
+    {
+      "key": "catalog",
+      "title": "BE-014 建立全服务能力目录与源码覆盖检查",
+      "number": 7,
+      "url": "https://github.com/axgiroud312-byte/subcal-desktop/issues/7",
+      "linked": true
+    },
+    {
+      "key": "codex",
+      "title": "BE-015 补齐 Codex 会员有效期与完整额度字段",
+      "number": 8,
+      "url": "https://github.com/axgiroud312-byte/subcal-desktop/issues/8",
+      "linked": true
+    },
+    {
+      "key": "claude",
+      "title": "BE-016 补齐 Claude Code 多账号权益与可靠重登恢复",
+      "number": 9,
+      "url": "https://github.com/axgiroud312-byte/subcal-desktop/issues/9",
+      "linked": true
+    },
+    {
+      "key": "copilot",
+      "title": "BE-017 补齐 Copilot 来源、企业主机与额度语义",
+      "number": 10,
+      "url": "https://github.com/axgiroud312-byte/subcal-desktop/issues/10",
+      "linked": true
+    },
+    {
+      "key": "cursor",
+      "title": "BE-018 优先接入 Cursor 与关联 Grok Bot 的独立权益",
+      "number": 11,
+      "url": "https://github.com/axgiroud312-byte/subcal-desktop/issues/11",
+      "linked": true
+    },
+    {
+      "key": "grok",
+      "title": "BE-019 接入 Grok Build 订阅配额，与 Grok Bot 分开",
+      "number": 12,
+      "url": "https://github.com/axgiroud312-byte/subcal-desktop/issues/12",
+      "linked": true
+    },
+    {
+      "key": "opencode",
+      "title": "BE-020 接入 OpenCode Go 并正确区分 Zen 与 Zen Free",
+      "number": 13,
+      "url": "https://github.com/axgiroud312-byte/subcal-desktop/issues/13",
+      "linked": true
+    },
+    {
+      "key": "devin",
+      "title": "BE-021 接入 Devin 订阅到期、日周额度及 ACU",
+      "number": 14,
+      "url": "https://github.com/axgiroud312-byte/subcal-desktop/issues/14",
+      "linked": true
+    },
+    {
+      "key": "google",
+      "title": "BE-022 接入 Gemini CLI 与 Antigravity 的独立模型和共享额度",
+      "number": 15,
+      "url": "https://github.com/axgiroud312-byte/subcal-desktop/issues/15",
+      "linked": true
+    },
+    {
+      "key": "kimi",
+      "title": "BE-023 接入 Kimi Code 与 Kimi Work，区分 API 钱包",
+      "number": 16,
+      "url": "https://github.com/axgiroud312-byte/subcal-desktop/issues/16",
+      "linked": true
+    },
+    {
+      "key": "factory",
+      "title": "BE-024 接入 Factory Standard/Core 多窗口与额外余额",
+      "number": 17,
+      "url": "https://github.com/axgiroud312-byte/subcal-desktop/issues/17",
+      "linked": true
+    },
+    {
+      "key": "kiro",
+      "title": "BE-025 接入 Kiro Credits、试用有效期及独立登录",
+      "number": 18,
+      "url": "https://github.com/axgiroud312-byte/subcal-desktop/issues/18",
+      "linked": true
+    },
+    {
+      "key": "glm",
+      "title": "BE-026 接入 GLM/ZCode 个人、团队与赠送权益",
+      "number": 19,
+      "url": "https://github.com/axgiroud312-byte/subcal-desktop/issues/19",
+      "linked": true
+    },
+    {
+      "key": "qoder",
+      "title": "BE-027 接入 Qoder 国际、国内及 VPC 权益",
+      "number": 20,
+      "url": "https://github.com/axgiroud312-byte/subcal-desktop/issues/20",
+      "linked": true
+    },
+    {
+      "key": "workbuddy",
+      "title": "BE-028 接入 WorkBuddy 国内/国际及企业积分",
+      "number": 21,
+      "url": "https://github.com/axgiroud312-byte/subcal-desktop/issues/21",
+      "linked": true
+    },
+    {
+      "key": "minimax",
+      "title": "BE-029 接入 MiniMax Code 与 API Token Plan 的地区权益",
+      "number": 22,
+      "url": "https://github.com/axgiroud312-byte/subcal-desktop/issues/22",
+      "linked": true
+    },
+    {
+      "key": "cline",
+      "title": "BE-030 接入 Cline/ClinePass 余额与多窗口套餐",
+      "number": 23,
+      "url": "https://github.com/axgiroud312-byte/subcal-desktop/issues/23",
+      "linked": true
+    },
+    {
+      "key": "commandcode",
+      "title": "BE-031 接入 Command Code 套餐、续费状态和余额",
+      "number": 24,
+      "url": "https://github.com/axgiroud312-byte/subcal-desktop/issues/24",
+      "linked": true
+    },
+    {
+      "key": "mimo",
+      "title": "BE-032 接入 MiMo App 与 Token Plan 双池权益",
+      "number": 25,
+      "url": "https://github.com/axgiroud312-byte/subcal-desktop/issues/25",
+      "linked": true
+    },
+    {
+      "key": "zed",
+      "title": "BE-033 接入 Zed 账号和组织套餐账期",
+      "number": 26,
+      "url": "https://github.com/axgiroud312-byte/subcal-desktop/issues/26",
+      "linked": true
+    },
+    {
+      "key": "trae",
+      "title": "BE-034 接入 Trae 国内 Credits 与国际额度包",
+      "number": 27,
+      "url": "https://github.com/axgiroud312-byte/subcal-desktop/issues/27",
+      "linked": true
+    },
+    {
+      "key": "opendesign",
+      "title": "BE-035 接入 Open Design 套餐、续费与钱包",
+      "number": 28,
+      "url": "https://github.com/axgiroud312-byte/subcal-desktop/issues/28",
+      "linked": true
+    },
+    {
+      "key": "raccoon",
+      "title": "BE-036 接入小浣熊套餐、积分与批次失效",
+      "number": 29,
+      "url": "https://github.com/axgiroud312-byte/subcal-desktop/issues/29",
+      "linked": true
+    },
+    {
+      "key": "autoclaw",
+      "title": "BE-037 接入 AutoClaw 国内/国际钱包并隔离签到",
+      "number": 30,
+      "url": "https://github.com/axgiroud312-byte/subcal-desktop/issues/30",
+      "linked": true
+    },
+    {
+      "key": "codearts",
+      "title": "BE-038 接入 CodeArts 积分、免费 Token 和批次到期",
+      "number": 31,
+      "url": "https://github.com/axgiroud312-byte/subcal-desktop/issues/31",
+      "linked": true
+    },
+    {
+      "key": "stepfun",
+      "title": "BE-039 接入 StepFun 套餐有效期、续费与独立钱包",
+      "number": 32,
+      "url": "https://github.com/axgiroud312-byte/subcal-desktop/issues/32",
+      "linked": true
+    },
+    {
+      "key": "cloud",
+      "title": "BE-040 接入火山与腾讯企业控制面套餐",
+      "number": 33,
+      "url": "https://github.com/axgiroud312-byte/subcal-desktop/issues/33",
+      "linked": true
+    },
+    {
+      "key": "wallets",
+      "title": "BE-041 扩展 API 钱包、Ollama Cloud 与 Relay 模板",
+      "number": 34,
+      "url": "https://github.com/axgiroud312-byte/subcal-desktop/issues/34",
+      "linked": true
+    },
+    {
+      "key": "gaps",
+      "title": "BE-042 调查尚无权益接口的全部服务并输出明确能力结论",
+      "number": 35,
+      "url": "https://github.com/axgiroud312-byte/subcal-desktop/issues/35",
+      "linked": true
+    },
+    {
+      "key": "remote",
+      "title": "BE-043 接入已有 Magpie 远端只读权益快照",
+      "number": 36,
+      "url": "https://github.com/axgiroud312-byte/subcal-desktop/issues/36",
+      "linked": true
+    },
+    {
+      "key": "ui",
+      "title": "FE-021 按 Magpie 信息结构展示全服务权益，只补录实际支付",
+      "number": 37,
+      "url": "https://github.com/axgiroud312-byte/subcal-desktop/issues/37",
+      "linked": true
+    },
+    {
+      "key": "acceptance",
+      "title": "QA-001 全服务真实账号验收与覆盖清单收口",
+      "number": 38,
+      "url": "https://github.com/axgiroud312-byte/subcal-desktop/issues/38",
+      "linked": true
+    }
+  ]
+}
