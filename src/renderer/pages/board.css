@@ -1,0 +1,255 @@
+@layer components {
+  .board-page {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  .board-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .board-toolbar-main {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  .board-toolbar-main h1 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .board-total {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 22px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--card);
+    color: var(--muted-foreground);
+    font-size: 14px;
+  }
+
+  .board-total strong {
+    color: var(--foreground);
+    font-size: clamp(26px, 3vw, 38px);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .board-total-values { display: flex; flex-wrap: wrap; gap: 12px 32px; }
+  .board-total-values strong { overflow-wrap: anywhere; }
+  .board-total-values small { font-size: 12px; color: var(--muted-foreground); font-weight: 400; white-space: nowrap; }
+  .board-total-note, .board-total-label { font-size: 12px; color: var(--muted-foreground); }
+  .board-view-switch { display: flex; gap: 6px; }
+  .board-account-select { min-width: 0; width: 100%; background: var(--card); color: var(--foreground); border: 1px solid var(--border); border-radius: 6px; padding: 6px; font: inherit; font-size: 12px; }
+
+  .board-toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .board-search {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 8px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--card);
+    color: var(--muted-foreground);
+  }
+
+  .board-search svg { width: 14px; height: 14px; flex: none; }
+  .board-search input {
+    width: 120px;
+    height: 28px;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    box-shadow: none;
+  }
+
+  .board-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+    gap: 10px;
+    align-items: start;
+  }
+
+  .board-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--foreground);
+  }
+
+  .board-card.is-dragging { opacity: 0.92; box-shadow: var(--shadow-popover); }
+
+  .board-card-head,
+  .board-card-sub,
+  .board-window-top,
+  .board-balance,
+  .board-card-tools {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .board-card-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .board-card-title span,
+  .board-card-sub span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .board-card-tools { flex: none; }
+  .board-price {
+    color: var(--foreground);
+    font-size: 24px;
+    font-weight: 650;
+    text-align: left;
+    overflow-wrap: anywhere;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    cursor: pointer;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .board-grip {
+    display: inline-grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--muted-foreground);
+    opacity: 0.65;
+    cursor: pointer;
+  }
+
+  .board-card:hover .board-grip,
+  .board-card:focus-within .board-grip { opacity: 1; }
+  .board-grip svg { width: 14px; height: 14px; }
+
+  .board-card-sub {
+    color: var(--muted-foreground);
+    font-size: 11px;
+  }
+
+  .board-windows {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 12px;
+  }
+
+  .board-windows > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+
+  .board-window { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .board-window-top { font-size: 11px; color: var(--secondary-foreground); }
+  .board-window-top { flex-wrap: wrap; overflow-wrap: anywhere; }
+  .board-window-top b {
+    color: var(--foreground);
+    font-size: 12px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .board-window-top b[data-low] { color: var(--destructive); }
+
+  .board-bar {
+    height: 4px;
+    border-radius: 99px;
+    background: var(--muted);
+    overflow: hidden;
+  }
+
+  .board-bar > i {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--primary);
+  }
+
+  .board-bar > i[data-low] { background: var(--destructive); }
+
+  .board-hint,
+  .board-more,
+  .board-alert {
+    color: var(--muted-foreground);
+    font-size: 10px;
+    line-height: 1.4;
+  }
+
+  .board-alert,
+  .board-more {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .board-alert { color: var(--destructive); }
+
+  .board-manual {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 13px;
+  }
+
+  .board-manual strong { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .board-manual span { color: var(--muted-foreground); font-size: 12px; }
+
+  .board-balances { display: flex; flex-direction: column; gap: 4px; padding-top: 6px; border-top: 1px solid var(--border); }
+  .board-balance { font-size: 11px; color: var(--muted-foreground); }
+  .board-balance strong { color: var(--foreground); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .board-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 48px 16px;
+    color: var(--muted-foreground);
+  }
+
+  .board-empty p { margin: 0; }
+}

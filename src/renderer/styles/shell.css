@@ -2,43 +2,89 @@
    Values come from tokens.css; subscription cards keep their own roles. */
 @layer components {
   .sc-shell {
+    --sc-canvas: var(--background);
+    --sc-surface: var(--card);
+    --sc-fg: var(--foreground);
+    --sc-fg-2: var(--secondary-foreground);
+    --sc-muted: var(--muted-foreground);
+    --sc-border: var(--border);
+    --sc-border-soft: var(--border);
+    --sc-neutral-soft: var(--muted);
+    --sc-accent: var(--foreground);
+    --sc-accent-ink: var(--foreground);
+    --sc-accent-soft: var(--muted);
+    --sc-accent-line: var(--border);
+    --sc-font: var(--font-sans);
+    --sc-radius-sm: var(--radius-md);
+    --sc-radius: var(--radius-lg);
+    --sc-radius-panel: var(--radius-lg);
+    --sc-sidebar: 196px;
+    --sc-topbar: 48px;
+    --sc-gutter: 20px;
     display: grid;
     grid-template-columns: var(--sc-sidebar) minmax(0, 1fr);
     height: 100dvh;
     overflow: hidden;
-    background: var(--sc-canvas);
-    color: var(--sc-fg);
-    font-family: var(--sc-font);
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+  }
+
+  .sc-shell[data-collapsed="true"] {
+    --sc-sidebar: 52px;
   }
 
   .sc-sidebar {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 8px;
     min-height: 0;
-    padding: 20px 14px 18px;
-    background: var(--sc-surface);
-    border-right: 1px solid var(--sc-border);
+    padding: 8px;
+    background: color-mix(in srgb, var(--foreground) 3%, var(--background));
+    border-right: 1px solid var(--border);
     overflow-y: auto;
     overscroll-behavior: contain;
   }
 
+  .sc-brand-row { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
   .sc-logo {
     display: inline-flex;
     align-items: center;
-    gap: 9px;
-    padding: 4px 8px;
+    gap: 8px;
+    min-width: 0;
+    padding: 4px 6px;
     border: 0;
     background: transparent;
-    color: var(--sc-fg);
-    font-size: 22px;
-    font-weight: 900;
-    letter-spacing: -0.02em;
+    color: var(--foreground);
+    font-size: 13px;
+    font-weight: 600;
     cursor: pointer;
     text-align: left;
   }
-  .sc-logo-mark { width: 34px; height: 34px; color: var(--sc-accent); flex: none; }
-  .sc-logo-dot { color: var(--sc-accent); }
+  .sc-logo-mark {
+    width: 22px; height: 22px; flex: none;
+    display: grid; place-items: center;
+    border-radius: 6px;
+    background: var(--foreground);
+    color: var(--background);
+    font-size: 12px;
+    font-weight: 650;
+  }
+  .sc-collapse,
+  .sc-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 0;
+    background: transparent;
+    color: var(--muted-foreground);
+    cursor: pointer;
+    border-radius: 6px;
+  }
+  .sc-collapse { width: 28px; height: 28px; justify-content: center; padding: 0; }
+  .sc-collapse:hover, .sc-back:hover { background: var(--muted); color: var(--foreground); }
+  .sc-collapse svg, .sc-back svg { width: 16px; height: 16px; }
+  .sc-back { width: 100%; min-height: 32px; padding: 6px 8px; font-size: 13px; font-weight: 500; }
 
   .sc-workspace {
     display: flex;
@@ -79,31 +125,31 @@
   .sc-nav button {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     width: 100%;
-    min-height: 40px;
-    padding: 7px 10px;
+    min-height: 32px;
+    padding: 6px 8px;
     border: 0;
-    border-radius: var(--sc-radius-sm);
+    border-radius: 6px;
     background: transparent;
-    color: var(--sc-fg-2);
-    font-family: var(--sc-font);
-    font-size: 14px;
-    font-weight: 800;
+    color: var(--secondary-foreground);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 500;
     text-align: left;
     text-decoration: none;
     cursor: pointer;
-    transition: background var(--sc-motion-fast) var(--sc-ease), color var(--sc-motion-fast) var(--sc-ease);
   }
   .sc-nav a:hover,
   .sc-nav button:hover { background: var(--sc-neutral-soft); color: var(--sc-fg); }
   .sc-nav a[aria-current="page"],
   .sc-nav button[aria-current="page"] {
-    background: var(--sc-accent-soft);
-    color: var(--sc-accent-ink);
+    background: var(--muted);
+    color: var(--foreground);
+    font-weight: 600;
   }
   .sc-nav a svg,
-  .sc-nav button svg { width: 20px; height: 20px; flex: none; }
+  .sc-nav button svg { width: 16px; height: 16px; flex: none; }
   .sc-nav-count {
     margin-left: auto;
     min-width: 22px;
@@ -128,7 +174,7 @@
   .sc-sidebar-note strong { display: block; font-size: 13px; margin-bottom: 3px; }
   .sc-sidebar-note p { margin: 0 0 8px; }
 
-  .sc-sidebar-bottom { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--sc-border-soft); }
+  .sc-sidebar-bottom { display: flex; flex-direction: column; gap: 2px; margin-top: auto; padding-top: 10px; border-top: 1px solid var(--border); }
   .sc-sidebar-bottom > button {
     display: flex;
     align-items: center;
@@ -142,13 +188,22 @@
     color: var(--sc-fg-2);
     font-family: var(--sc-font);
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 500;
     text-align: left;
     cursor: pointer;
   }
-  .sc-sidebar-bottom > button:hover { background: var(--sc-neutral-soft); color: var(--sc-fg); }
-  .sc-sidebar-bottom > button[aria-current="page"] { background: var(--sc-accent-soft); color: var(--sc-accent-ink); }
-  .sc-sidebar-bottom > button svg { width: 18px; height: 18px; flex: none; }
+  .sc-sidebar-bottom > button:hover { background: var(--muted); color: var(--foreground); }
+  .sc-sidebar-bottom > button[aria-current="page"] { background: var(--muted); color: var(--foreground); }
+  .sc-sidebar-bottom > button svg { width: 16px; height: 16px; flex: none; }
+
+  .sc-shell[data-collapsed="true"] .sc-brand-name,
+  .sc-shell[data-collapsed="true"] .sc-nav button span,
+  .sc-shell[data-collapsed="true"] .sc-sidebar-bottom span,
+  .sc-shell[data-collapsed="true"] .sc-back span { display: none; }
+  .sc-shell[data-collapsed="true"] .sc-brand-row { flex-direction: column; align-items: center; }
+  .sc-shell[data-collapsed="true"] .sc-nav button,
+  .sc-shell[data-collapsed="true"] .sc-sidebar-bottom > button,
+  .sc-shell[data-collapsed="true"] .sc-back { justify-content: center; padding-inline: 0; }
 
   .sc-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 
@@ -162,7 +217,7 @@
     background: var(--sc-surface);
     border-bottom: 1px solid var(--sc-border);
   }
-  .sc-mobile-menu { display: none; }
+  .sc-icon-btn.sc-mobile-menu { display: none; }
   .sc-crumbs { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--sc-muted); min-width: 0; }
   .sc-crumbs strong { color: var(--sc-fg); font-weight: 900; font-size: 15px; white-space: nowrap; }
   .sc-topbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
@@ -459,25 +514,16 @@
   .sc-footer-note { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: 4px; font-size: 11px; color: var(--sc-muted); }
 
   @media (max-width: 1199px) {
-    .sc-shell { grid-template-columns: var(--sc-sidebar-md) minmax(0, 1fr); }
-    .sc-page { padding: 24px var(--sc-gutter) 36px; }
+    .sc-page { padding: 20px 16px 32px; }
     .sc-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
   @media (max-width: 1023px) {
-    .sc-shell { grid-template-columns: var(--sc-sidebar-sm) minmax(0, 1fr); }
-    .sc-sidebar { padding: 18px 10px; align-items: center; }
-    .sc-logo span, .sc-workspace-copy, .sc-workspace > svg, .sc-nav-label,
-    .sc-nav a span, .sc-nav button span, .sc-nav-count, .sc-sidebar-note,
-    .sc-sidebar-bottom span { display: none; }
-    .sc-logo { padding: 4px; }
-    .sc-workspace { justify-content: center; padding: 7px; }
-    .sc-nav a, .sc-nav button { justify-content: center; padding: 9px; }
     .sc-grid-2, .sc-grid-2-even { grid-template-columns: minmax(0, 1fr); }
   }
   @media (max-width: 767px) {
     .sc-shell { grid-template-columns: minmax(0, 1fr); }
     .sc-sidebar { display: none; }
-    .sc-mobile-menu { display: inline-grid; }
+    .sc-icon-btn.sc-mobile-menu { display: inline-grid; }
     .sc-search-trigger { min-width: 40px; width: 40px; padding: 0; justify-content: center; }
     .sc-search-trigger span, .sc-search-trigger kbd { display: none; }
     .sc-crumbs span:first-child, .sc-crumbs svg { display: none; }

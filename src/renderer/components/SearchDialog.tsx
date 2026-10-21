@@ -68,13 +68,13 @@ export function SearchDialog({
           <DialogTitle className="flex items-center gap-2 text-lg font-extrabold">
             <Search className="size-5" /> 搜索订阅、页面
           </DialogTitle>
-          <DialogDescription>输入服务名、账号、分类或页面名称；↑↓ 选择，Enter 打开。</DialogDescription>
+          <DialogDescription>↑↓ 选择，Enter 打开。</DialogDescription>
         </DialogHeader>
         <input
           ref={inputRef}
           className="sc-input"
           value={query}
-          placeholder="例如 Claude、消费管理、账单…"
+          placeholder="搜索订阅或页面"
           onChange={(e) => { setQuery(e.target.value); setActive(0); }}
           onKeyDown={(e) => {
             if (e.key === 'ArrowDown') { e.preventDefault(); setActive((i) => Math.min(i + 1, results.length - 1)); }

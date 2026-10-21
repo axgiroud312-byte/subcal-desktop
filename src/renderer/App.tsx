@@ -1,20 +1,16 @@
 import React, { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
+  ArrowLeft,
   CalendarDays,
-  ChevronRight,
-  CircleHelp,
-  Home,
+  KeyRound,
   Layers,
-  LayoutDashboard,
   Menu,
   Moon,
-  Plus,
-  RefreshCw,
+  PanelLeft,
   Search,
   Settings2,
   Sun,
   TriangleAlert,
-  Wallet,
   WifiOff,
   X,
 } from 'lucide-react';
@@ -28,41 +24,27 @@ import type { Navigate, NavRoute, Notify, PageProps } from './contracts';
 import { scenarioIds, type ScenarioId, type Snapshot, type SubCalClient, type PreviewController } from '../shared/types';
 import type { TraySummary } from '../shared/bridge';
 import { dateInZone, daysBetween, freshness, money, renewalText } from '../shared/rules';
-import { upcomingEvents } from '../shared/spending';
-import { DashboardPage } from './pages/DashboardPage';
-import { ExpensesPage } from './pages/ExpensesPage';
-import { HomePage } from './pages/HomePage';
-import { SettingsPage } from './pages/SettingsPage';
-import { SubscriptionsPage } from './pages/SubscriptionsPage';
+import { BoardPage } from './pages/BoardPage';
+import { SettingsPage, SETTINGS_SECTIONS, type SettingsSectionId } from './pages/SettingsPage';
 import { CalendarPage } from './pages/CalendarPage';
-import { ConnectionsPage, PROVIDERS } from './pages/ConnectionsPage';
+import { ConnectionsPage } from './pages/ConnectionsPage';
 import { AddSubscription } from './components/AddSubscription';
 import { DetailDrawer } from './components/DetailDrawer';
 import { SubscriptionForm } from './components/SubscriptionForm';
 import { PaymentForm, type PaymentDraftContext } from './components/PaymentForm';
 import { SearchDialog, type SearchTarget } from './components/SearchDialog';
-import { StatusBadge } from './components/ui';
 import { NotificationContext, type Notice } from './components/notifications';
 
 const PreviewTools = lazy(() => import('./components/PreviewTools').then((module) => ({ default: module.PreviewTools })));
 const previewClient = client as SubCalClient & { preview?: PreviewController; exportRawStorage?: () => Promise<string> };
 
-const NAV: { route: NavRoute; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { route: 'dashboard', label: '仪表盘', icon: LayoutDashboard },
-  { route: 'subscriptions', label: '订阅管理', icon: Layers },
-  { route: 'expenses', label: '消费管理', icon: Wallet },
-  { route: 'calendar', label: '订阅日历', icon: CalendarDays },
-  { route: 'accounts', label: '账号管理', icon: RefreshCw },
+type WorkspaceRoute = 'subscriptions' | 'calendar' | 'accounts' | 'settings';
+
+const NAV: { route: Exclude<WorkspaceRoute, 'settings'>; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { route: 'subscriptions', label: '订阅', icon: Layers },
+  { route: 'calendar', label: '日历', icon: CalendarDays },
+  { route: 'accounts', label: '账号', icon: KeyRound },
 ];
-const PAGE_LABEL: Record<NavRoute, string> = {
-  home: '产品首页',
-  dashboard: '仪表盘',
-  subscriptions: '订阅管理',
-  expenses: '消费管理',
-  calendar: '订阅日历',
-  accounts: '账号管理',
-  settings: '偏好设置',
-};
 
 const DEFAULT_SCENARIO_LABELS: Record<ScenarioId, string> = {
   empty_first_run: '首次空白',
@@ -85,8 +67,10 @@ export function App() {
   const [scenarios, setScenarios] = useState<{ id: ScenarioId; name: string }[]>(() =>
     scenarioIds.map((id) => ({ id, name: DEFAULT_SCENARIO_LABELS[id] })),
   );
-  const [page, setPage] = useState<NavRoute>('dashboard');
-  const [visited, setVisited] = useState<Set<NavRoute>>(() => new Set<NavRoute>(['dashboard']));
+  const [page, setPage] = useState<WorkspaceRoute>('subscriptions');
+  const [visited, setVisited] = useState<Set<WorkspaceRoute>>(() => new Set<WorkspaceRoute>(['subscriptions']));
+  const [collapsed, setCollapsed] = useState(() => window.localStorage.getItem('subcal-sidebar') === '1');
+  const [settingsSection, setSettingsSection] = useState<SettingsSectionId>('appearance');
   const [detailId, setDetailId] = useState<string | null>(null);
   const [formState, setFormState] = useState<
     { mode: 'create'; presetProduct?: string } | { mode: 'edit'; subscriptionId: string } | null
@@ -95,12 +79,12 @@ export function App() {
   const [addProvider, setAddProvider] = useState<string | null>(null);
   const [connectionFocusId, setConnectionFocusId] = useState<string | undefined>(undefined);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [remindersOpen, setRemindersOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [paymentContext, setPaymentContext] = useState<PaymentDraftContext | null>(null);
   const [paymentSeq, setPaymentSeq] = useState(0);
-  const [expenseFocus, setExpenseFocus] = useState<string | null>(null);
-  const [refreshingAll, setRefreshingAll] = useState(false);
+  useEffect(() => {
+    window.localStorage.setItem('subcal-sidebar', collapsed ? '1' : '0');
+  }, [collapsed]);
   const [notice, setNotice] = useState<Notice | null>(null);
   const noticeTimer = useRef<number | null>(null);
   const [systemDark, setSystemDark] = useState<boolean>(() =>
@@ -148,10 +132,10 @@ export function App() {
     }
   }, []);
 
-  const navigate: Navigate = useCallback((route, options) => {
-    setPage(route);
-    setVisited((current) => (current.has(route) ? current : new Set([...current, route])));
-    if (route === 'expenses' && options?.month) setExpenseFocus(options.month);
+  const navigate: Navigate = useCallback((route) => {
+    const next: WorkspaceRoute = route === 'calendar' || route === 'accounts' || route === 'settings' ? route : 'subscriptions';
+    setPage(next);
+    setVisited((current) => (current.has(next) ? current : new Set([...current, next])));
     setMobileOpen(false);
   }, []);
 
@@ -193,13 +177,6 @@ export function App() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [mobileOpen]);
-
-  useEffect(() => {
-    if (!remindersOpen) return;
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setRemindersOpen(false); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [remindersOpen]);
 
   useEffect(() => {
     if (!snapshot || !window.subcal?.updateTray) return;
@@ -252,25 +229,16 @@ export function App() {
     });
   }, [resolvedTheme, snapshot?.preferences.density, snapshot?.preferences.reducedMotion]);
 
-  const handleGlobalRefresh = async () => {
-    setRefreshingAll(true);
-    try {
-      notify(await client.refresh());
-    } catch (err) {
-      notify((err as Error).message);
-    } finally {
-      setRefreshingAll(false);
-    }
-  };
+  const toggleCollapsed = () => setCollapsed((value) => !value);
 
   if (!snapshot) {
     return (
-      <div data-theme={resolvedTheme} className="app sc-shell sc-ui">
+      <div data-theme={resolvedTheme} data-collapsed={collapsed ? 'true' : 'false'} className="app sc-shell">
         <aside className="sc-sidebar" aria-label="工作台导航">
-          <div className="sc-logo"><CalendarDays className="sc-logo-mark" /><span>subcal<span className="sc-logo-dot">.</span></span></div>
+          <div className="sc-logo"><span className="sc-logo-mark">S</span><span className="sc-brand-name">SubCal</span></div>
         </aside>
         <div className="sc-main">
-          <header className="sc-topbar"><div className="sc-crumbs"><strong>工作空间</strong></div></header>
+          <header className="sc-topbar" />
           <main className="sc-scroll">
             <div className="sc-page"><div className="sc-page-inner">
               {loadError ? (
@@ -306,50 +274,58 @@ export function App() {
     onConnection: (connId: string) => { setConnectionFocusId(connId); navigate('accounts'); },
   };
 
-  const dueCount = upcomingEvents(snapshot.subscriptions, snapshot.now, 7).length;
-  const reminderItems = upcomingEvents(snapshot.subscriptions, snapshot.now, 45);
-  const reminderChannel = snapshot.preferences.reminder === 'local'
-    ? `本机系统通知 · 提前 ${snapshot.preferences.reminderLeadDays} 天`
-    : snapshot.preferences.reminder === 'external'
-      ? '外部日历通道尚未接入'
-      : '提醒通道已关闭';
-
-  const navList = (mobile = false) => (
-    <>
-      <p className="sc-nav-label">工作空间</p>
-      <nav className="sc-nav" aria-label="主导航">
-        {NAV.map((item) => {
-          const Icon = item.icon;
-          return (
-            <button
-              key={item.route}
-              type="button"
-              aria-label={item.label}
-              title={item.label}
-              aria-current={page === item.route ? 'page' : undefined}
-              onClick={() => { navigate(item.route); setMobileOpen(false); }}
-            >
-              <Icon />
-              <span>{item.label}</span>
-              {item.route === 'subscriptions' ? (
-                <span className="sc-nav-count">{snapshot.subscriptions.filter((s) => s.lifecycle !== 'archived').length}</span>
-              ) : null}
-            </button>
-          );
-        })}
-      </nav>
-      <div className="sc-sidebar-bottom">
-        <button type="button" aria-label="偏好设置" title="偏好设置" aria-current={page === 'settings' ? 'page' : undefined} onClick={() => { navigate('settings'); setMobileOpen(false); }}>
-          <Settings2 /> <span>偏好设置</span>
+  const navList = () => (
+    page === 'settings' ? (
+      <>
+        <button type="button" className="sc-back" onClick={() => navigate('subscriptions')}>
+          <ArrowLeft /> <span>返回</span>
         </button>
-        <button type="button" aria-label="产品首页" title="产品首页" aria-current={page === 'home' ? 'page' : undefined} onClick={() => { navigate('home'); setMobileOpen(false); }}>
-          <Home /> <span>产品首页</span>
-        </button>
-        <button type="button" aria-label="使用帮助" title="使用帮助" onClick={() => { navigate('home'); setMobileOpen(false); }}>
-          <CircleHelp /> <span>使用帮助</span>
-        </button>
-      </div>
-    </>
+        <nav className="sc-nav" aria-label="设置">
+          {SETTINGS_SECTIONS.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                aria-label={item.label}
+                title={item.label}
+                aria-current={settingsSection === item.id ? 'page' : undefined}
+                onClick={() => { setSettingsSection(item.id); setMobileOpen(false); }}
+              >
+                <Icon />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+      </>
+    ) : (
+      <>
+        <nav className="sc-nav" aria-label="主导航">
+          {NAV.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.route}
+                type="button"
+                aria-label={item.label}
+                title={item.label}
+                aria-current={page === item.route ? 'page' : undefined}
+                onClick={() => navigate(item.route)}
+              >
+                <Icon />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+        <div className="sc-sidebar-bottom">
+          <button type="button" aria-label="设置" title="设置" onClick={() => navigate('settings')}>
+            <Settings2 /> <span>设置</span>
+          </button>
+        </div>
+      </>
+    )
   );
 
   return (
@@ -359,30 +335,20 @@ export function App() {
         data-scenario={snapshot.scenario}
         data-density={snapshot.preferences.density}
         data-reduced-motion={snapshot.preferences.reducedMotion ? 'true' : 'false'}
-        className="app sc-shell sc-ui"
+        data-collapsed={collapsed ? 'true' : 'false'}
+        className="app sc-shell"
       >
         <aside className="sc-sidebar" aria-label="工作台导航">
-          <button type="button" className="sc-logo" onClick={() => navigate('home')} aria-label="SubCal 产品首页">
-            <CalendarDays className="sc-logo-mark" />
-            <span>subcal<span className="sc-logo-dot">.</span></span>
-          </button>
-          {previewClient.preview ? <StatusBadge>开发预览</StatusBadge> : null}
-          <button type="button" className="sc-workspace" onClick={() => navigate('settings')} aria-label="打开工作区设置">
-            <span className="sc-workspace-avatar">{snapshot.preferences.workspaceName.slice(0, 1) || 'S'}</span>
-            <span className="sc-workspace-copy">
-              <strong>{snapshot.preferences.workspaceName}</strong>
-              <small>个人空间 · 本地保存</small>
-            </span>
-            <ChevronRight className="size-4 text-(--sc-muted)" />
-          </button>
-          {navList()}
-          <div className="sc-sidebar-note">
-            <strong>少一点惦记，多一点从容</strong>
-            <p>提前看看接下来的续费，把时间留给更重要的事。</p>
-            <button type="button" className="sc-link" onClick={() => navigate('calendar')} style={{ color: 'var(--sc-accent-ink)' }}>
-              查看我的日历 <ChevronRight className="size-4" />
+          <div className="sc-brand-row">
+            <button type="button" className="sc-logo" onClick={() => navigate('subscriptions')} aria-label="订阅">
+              <span className="sc-logo-mark">S</span>
+              <span className="sc-brand-name">SubCal</span>
+            </button>
+            <button type="button" className="sc-collapse" aria-label={collapsed ? '展开侧栏' : '折叠侧栏'} onClick={toggleCollapsed}>
+              <PanelLeft />
             </button>
           </div>
+          {navList()}
         </aside>
 
         <div className="sc-main">
@@ -390,38 +356,14 @@ export function App() {
             <button type="button" className="sc-icon-btn sc-mobile-menu" aria-label="打开导航菜单" onClick={() => setMobileOpen(true)}>
               <Menu />
             </button>
-            <div className="sc-crumbs">
-              <span>工作空间</span>
-              <ChevronRight className="size-3.5" />
-              <strong>{PAGE_LABEL[page]}</strong>
-            </div>
             <div className="sc-topbar-right">
-              <button type="button" className="sc-search-trigger" onClick={() => setSearchOpen(true)} aria-label="搜索订阅和页面，快捷键 Ctrl K">
-                <Search className="size-4" />
-                <span>搜索订阅、页面…</span>
-                <kbd>Ctrl K</kbd>
+              <button type="button" className="sc-icon-btn" onClick={() => setSearchOpen(true)} aria-label="搜索订阅，快捷键 Ctrl K">
+                <Search />
               </button>
-              <label className="sc-currency">
-                <span>统计</span>
-                <select
-                  value={snapshot.preferences.statisticsCurrency}
-                  aria-label="统计币种"
-                  onChange={(e) => {
-                    void client.setPreferences({ statisticsCurrency: e.target.value })
-                      .then(() => notify(`统计币种已切换为 ${e.target.value}`))
-                      .catch((err) => notify((err as Error).message));
-                  }}
-                >
-                  {[...new Set([snapshot.preferences.statisticsCurrency, ...snapshot.payments.map((p) => p.currency), ...snapshot.subscriptions.map((s) => s.currency), 'CNY', 'USD'])].map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </label>
               <button
                 type="button"
                 className="sc-icon-btn"
                 aria-label="切换深浅色主题"
-                title={`当前主题：${resolvedTheme === 'dark' ? '深色' : '浅色'}（点击切换到${resolvedTheme === 'dark' ? '浅色' : '深色'}）`}
                 onClick={() => {
                   const next = resolvedTheme === 'dark' ? 'light' : 'dark';
                   void client.setPreferences({ theme: next }).catch((e) => notify((e as Error).message));
@@ -429,64 +371,6 @@ export function App() {
               >
                 {resolvedTheme === 'dark' ? <Sun /> : <Moon />}
               </button>
-              <div className="relative">
-                <button
-                  type="button"
-                  className="sc-icon-btn"
-                  data-alert={dueCount > 0}
-                  aria-label={`提醒中心${dueCount > 0 ? `，${dueCount} 项近期事项` : ''}`}
-                  aria-expanded={remindersOpen}
-                  onClick={() => setRemindersOpen((open) => !open)}
-                >
-                  <CalendarDays />
-                </button>
-                {remindersOpen ? (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setRemindersOpen(false)} />
-                    <div
-                      role="dialog"
-                      aria-label="提醒中心"
-                      className="absolute right-0 top-[46px] z-50 flex w-[340px] max-w-[calc(100vw-2rem)] flex-col gap-2 rounded-(--sc-radius-panel) border border-(--sc-border) bg-(--sc-surface) p-4 shadow-xl"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <strong className="text-base font-black">提醒中心</strong>
-                        <span className="sc-badge" data-tone="accent">{reminderItems.length} 项 · 45 天</span>
-                      </div>
-                      <p className="m-0 text-[11px] font-bold text-(--sc-muted)">{reminderChannel}</p>
-                      {reminderItems.length ? (
-                        <div className="sc-list max-h-72 overflow-y-auto">
-                          {reminderItems.slice(0, 8).map(({ event, sub, days }) => (
-                            <button
-                              key={event.id}
-                              type="button"
-                              className="sc-row border-0 bg-transparent p-0 text-left"
-                              onClick={() => { setRemindersOpen(false); setDetailId(sub.id); }}
-                            >
-                              <span className="sc-brand-icon" aria-hidden="true">{sub.brand.slice(0, 1).toUpperCase()}</span>
-                              <span className="sc-row-main">
-                                <strong>{sub.product}</strong>
-                                <small>{event.date} · {event.kind === 'renewal' ? '计划续费' : event.kind === 'expiry' ? '会员到期' : event.kind === 'trial' ? '试用结束' : '额度重置'}</small>
-                              </span>
-                              <span className="sc-row-end"><b>{days === 0 ? '今天' : `${days} 天后`}</b></span>
-                            </button>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="m-0 rounded-(--sc-radius-sm) bg-(--sc-canvas) px-3 py-4 text-center text-xs text-(--sc-muted)">
-                          未来 45 天没有已知的续费或到期事项。日期未知的订阅不会编造日期。
-                        </p>
-                      )}
-                      <div className="flex items-center justify-between border-t border-(--sc-border-soft) pt-2">
-                        <button type="button" className="sc-link" onClick={() => { setRemindersOpen(false); navigate('calendar'); }}>
-                          打开订阅日历 <ChevronRight className="size-4" />
-                        </button>
-                        <span className="text-[10px] text-(--sc-muted)">系统“已提交”不等于已送达</span>
-                      </div>
-                    </div>
-                  </>
-                ) : null}
-              </div>
-              <span className="sc-workspace-avatar" aria-label="个人工作区">{snapshot.preferences.workspaceName.slice(0, 1) || '我'}</span>
             </div>
           </header>
 
@@ -531,100 +415,27 @@ export function App() {
           ) : null}
 
           <main className="sc-scroll" id="main-content">
-            <div className="sc-page" hidden={page !== 'home'}>
-              {visited.has('home') ? <HomePage {...pageProps} onNavigate={navigate} /> : null}
+            <div className="sc-page" hidden={page !== 'subscriptions'}>
+              {visited.has('subscriptions') ? <BoardPage {...pageProps} /> : null}
             </div>
 
-            <div className="sc-page" hidden={page !== 'dashboard'}>
-              {visited.has('dashboard') ? (
-                <DashboardPage
+            <div className="sc-page" hidden={page !== 'calendar'}>
+              {visited.has('calendar') ? (
+                <CalendarPage
                   {...pageProps}
-                  onNavigate={navigate}
                   onRecordPayment={(subscriptionId, planDate) => openPayment({ subscriptionId, planDate })}
                 />
               ) : null}
             </div>
 
-            <div className="sc-page" hidden={page !== 'subscriptions'}>
-              {visited.has('subscriptions') ? (
-                <div className="sc-page-inner">
-                  <header className="sc-heading">
-                    <div className="sc-heading-copy">
-                      <p className="sc-eyebrow">SUBSCRIPTIONS</p>
-                      <h1>每项服务，各得其所。</h1>
-                      <p>保留原有订阅卡片的字号密度、额度条、账号分组与详情结构，只接入新的导航外壳。</p>
-                    </div>
-                    <div className="sc-heading-actions">
-                      <Button type="button" variant="tactile" size="tactile" onClick={() => setAddOpen(true)}><Plus /> 添加订阅</Button>
-                      <Button type="button" variant="tactile-soft" size="tactile" onClick={() => openPayment({})}>记录付款</Button>
-                    </div>
-                  </header>
-                  <div className="subcal-magpie">
-                    <SubscriptionsPage
-                      {...pageProps}
-                      onEdit={(sub) => setFormState({ mode: 'edit', subscriptionId: sub.id })}
-                      onCreateWithPreset={(presetProduct) => {
-                        const provider = PROVIDERS.find((p) => p.name === presetProduct || (p.id === 'deepseek-balance' && presetProduct === 'DeepSeek API'));
-                        if (provider) setAddProvider(provider.id);
-                        else setFormState({ mode: 'create', presetProduct });
-                      }}
-                    />
-                  </div>
-                </div>
-              ) : null}
-            </div>
-
-            <div className="sc-page" hidden={page !== 'expenses'}>
-              {visited.has('expenses') ? (
-                <ExpensesPage
-                  {...pageProps}
-                  focusMonth={expenseFocus}
-                  onFocusMonthHandled={() => setExpenseFocus(null)}
-                />
-              ) : null}
-            </div>
-
-            <div className="sc-page" hidden={page !== 'calendar'}>
-              {visited.has('calendar') ? (
-                <div className="sc-page-inner">
-                  <header className="sc-heading">
-                    <div className="sc-heading-copy">
-                      <p className="sc-eyebrow">SUBSCRIPTION CALENDAR</p>
-                      <h1>让每次续费，都在计划里。</h1>
-                      <p>续费、到期、试用和额度重置分开显示；已记录的付款会标在对应计划上。</p>
-                    </div>
-                    <div className="sc-heading-actions">
-                      <Button type="button" variant="tactile" size="tactile" onClick={() => setAddOpen(true)}><Plus /> 添加订阅</Button>
-                    </div>
-                  </header>
-                  <CalendarPage
-                    {...pageProps}
-                    onRecordPayment={(subscriptionId, planDate) => openPayment({ subscriptionId, planDate })}
-                  />
-                </div>
-              ) : null}
-            </div>
-
             <div className="sc-page" hidden={page !== 'accounts'}>
-              {visited.has('accounts') ? (
-                <div className="sc-page-inner">
-                  <header className="sc-heading">
-                    <div className="sc-heading-copy">
-                      <p className="sc-eyebrow">YOUR ACCOUNTS</p>
-                      <h1>常用账号，集中整理。</h1>
-                      <p>发现本机已登录账号，或主动登录 / 填写 Key。真实状态优先于“未连接”的统一文案。</p>
-                    </div>
-                    <div className="sc-heading-actions">
-                      <Button type="button" variant="tactile" size="tactile" onClick={() => setAddProvider('')}><Plus /> 添加账号</Button>
-                    </div>
-                  </header>
-                  <ConnectionsPage {...pageProps} focusId={connectionFocusId} />
-                </div>
-              ) : null}
+              {visited.has('accounts') ? <ConnectionsPage {...pageProps} focusId={connectionFocusId} /> : null}
             </div>
 
             <div className="sc-page" hidden={page !== 'settings'}>
-              {visited.has('settings') ? <SettingsPage {...pageProps} /> : null}
+              {visited.has('settings') ? (
+                <SettingsPage {...pageProps} section={settingsSection} onSectionChange={setSettingsSection} bare />
+              ) : null}
             </div>
 
             {previewClient.preview && previewClient.exportRawStorage ? (
@@ -649,12 +460,12 @@ export function App() {
         {mobileOpen ? (
           <div className="fixed inset-0 z-50 flex" role="dialog" aria-modal="true" aria-label="导航菜单">
             <div className="absolute inset-0 bg-black/45" onClick={() => setMobileOpen(false)} />
-            <div className="relative z-10 flex w-64 flex-col gap-3 overflow-y-auto bg-(--sc-surface) p-4 shadow-xl">
+            <div className="relative z-10 flex w-64 flex-col gap-3 overflow-y-auto bg-card p-3 shadow-xl">
               <div className="flex items-center justify-between">
-                <span className="text-lg font-black">subcal<span className="text-(--sc-accent)">.</span></span>
+                <span className="text-sm font-semibold">SubCal</span>
                 <Button type="button" variant="ghost" size="icon-sm" aria-label="关闭导航菜单" onClick={() => setMobileOpen(false)}><X /></Button>
               </div>
-              {navList(true)}
+              {navList()}
             </div>
           </div>
         ) : null}
@@ -710,10 +521,10 @@ export function App() {
         <SearchDialog
           open={searchOpen}
           snapshot={snapshot}
-          pages={NAV.map((item) => ({ route: item.route, label: item.label, hint: `${PAGE_LABEL[item.route]}页面` })).concat([
-            { route: 'home', label: '产品首页', hint: 'SubCal 介绍与真实订阅概览' },
-            { route: 'settings', label: '偏好设置', hint: '主题、提醒、预算与备份' },
-          ])}
+          pages={[
+            ...NAV.map((item) => ({ route: item.route, label: item.label, hint: item.label })),
+            { route: 'settings', label: '设置', hint: '外观、提醒与备份' },
+          ]}
           onClose={() => setSearchOpen(false)}
           onPick={(target: SearchTarget) => {
             if (target.kind === 'page') navigate(target.route as NavRoute);

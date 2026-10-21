@@ -98,7 +98,7 @@ try {
   await check('四页、连接步骤、设置与最小窗口', async () => {
     for (const [width, height] of [[1280, 820], [960, 640]]) {
       await app.evaluate(({ BrowserWindow }, size) => BrowserWindow.getAllWindows()[0].setSize(...size), [width, height]);
-      for (const name of ['仪表盘', '订阅管理', '订阅日历', '账号管理']) {
+      for (const name of ['订阅', '日历', '账号']) {
         await nav(name); await assertClean();
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `${name} overflow`);
         await shot(`${name}-${width}.png`);
@@ -122,12 +122,12 @@ try {
     await page.getByRole('option', { name: '腾讯企业套餐广州', exact: true }).click();
     assert.equal(await page.getByLabel('团队 ID（可选）').getAttribute('required'), null);
     await shot('tencent-auth.png'); await closeModal();
-    await nav('订阅管理');
+    await nav('订阅');
     await page.getByRole('searchbox', { name: '搜索订阅' }).fill('本地持久化验证');
     await page.waitForTimeout(200);
     await shot('subscriptions-search.png');
     await page.getByRole('searchbox', { name: '搜索订阅' }).fill('');
-    await page.locator('.sc-sidebar').getByRole('button', { name: '偏好设置', exact: true }).click();
+    await page.locator('.sc-sidebar').getByRole('button', { name: '设置', exact: true }).click();
     await assertClean(); await shot('settings.png');
     await page.getByRole('checkbox', { name: '减少动效' }).check();
     await page.getByRole('button', { name: '保存设置', exact: true }).first().click();

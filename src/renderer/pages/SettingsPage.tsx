@@ -18,13 +18,15 @@ import type { ImportPreview, Preferences } from '../../shared/types';
 import { Button } from '../components/ui/button';
 import { exactMoney } from '../../shared/spending';
 
-const SECTIONS = [
-  { id: 'appearance', label: '外观与密度', icon: Palette },
-  { id: 'workspace', label: '工作区与统计', icon: Wallet },
-  { id: 'reminders', label: '提醒与托盘', icon: Bell },
-  { id: 'categories', label: '本地分类', icon: Archive },
-  { id: 'backup', label: '备份与恢复', icon: Database },
+export const SETTINGS_SECTIONS = [
+  { id: 'appearance', label: '外观', icon: Palette },
+  { id: 'workspace', label: '工作区', icon: Wallet },
+  { id: 'reminders', label: '提醒', icon: Bell },
+  { id: 'categories', label: '分类', icon: Archive },
+  { id: 'backup', label: '备份', icon: Database },
 ] as const;
+
+export type SettingsSectionId = (typeof SETTINGS_SECTIONS)[number]['id'];
 
 const ZONES = [
   'Asia/Shanghai', 'Asia/Tokyo', 'Asia/Singapore', 'Asia/Hong_Kong',
@@ -50,9 +52,25 @@ type Draft = {
   categories: string[];
 };
 
-export function SettingsPage({ snapshot, client, notify }: PageProps) {
+export function SettingsPage({
+  snapshot,
+  client,
+  notify,
+  section: controlledSection,
+  onSectionChange,
+  bare = false,
+}: PageProps & {
+  section?: SettingsSectionId;
+  onSectionChange?: (id: SettingsSectionId) => void;
+  bare?: boolean;
+}) {
   const prefs = snapshot.preferences;
-  const [section, setSection] = useState<(typeof SECTIONS)[number]['id']>('appearance');
+  const [localSection, setLocalSection] = useState<SettingsSectionId>('appearance');
+  const section = controlledSection ?? localSection;
+  const setSection = (id: SettingsSectionId) => {
+    setLocalSection(id);
+    onSectionChange?.(id);
+  };
   const [draft, setDraft] = useState<Draft>(() => ({
     density: prefs.density,
     quotaView: prefs.quotaView,
@@ -235,40 +253,42 @@ export function SettingsPage({ snapshot, client, notify }: PageProps) {
 
   return (
     <div className="sc-page-inner">
-      <header className="sc-heading">
-        <div className="sc-heading-copy">
-          <p className="sc-eyebrow">PREFERENCES</p>
-          <h1>把工作台调成你的样子。</h1>
-          <p>主题、提醒、预算和备份都在这里。敏感凭据不会进入普通备份。</p>
-        </div>
-        <div className="sc-heading-actions">
-          <Button type="button" variant="tactile" size="tactile" onClick={() => void save()} disabled={saving}>
-            <Save /> {saving ? '正在保存…' : '保存设置'}
-          </Button>
-        </div>
-      </header>
+      {bare ? null : (
+        <header className="sc-heading">
+          <div className="sc-heading-copy">
+            <h1>设置</h1>
+          </div>
+          <div className="sc-heading-actions">
+            <Button type="button" onClick={() => void save()} disabled={saving}>
+              <Save /> {saving ? '正在保存…' : '保存设置'}
+            </Button>
+          </div>
+        </header>
+      )}
 
-      {error ? <p role="alert" className="m-0 rounded-(--sc-radius-sm) bg-(--sc-red-soft) px-4 py-3 text-sm font-bold text-(--sc-red-ink)">{error}</p> : null}
+      {error ? <p role="alert" className="m-0 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p> : null}
 
-      <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,680px)] lg:items-start">
-        <nav className="sc-panel flex flex-row gap-1 overflow-x-auto p-2 lg:flex-col" aria-label="设置分区">
-          {SECTIONS.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                className={`flex min-h-10 items-center gap-2 rounded-(--sc-radius-sm) px-3 text-left text-sm font-extrabold whitespace-nowrap ${
-                  section === item.id ? 'bg-(--sc-accent-soft) text-(--sc-accent-ink)' : 'text-(--sc-fg-2) hover:bg-(--sc-neutral-soft)'
-                }`}
-                aria-pressed={section === item.id}
-                onClick={() => setSection(item.id)}
-              >
-                <Icon className="size-[18px]" /> {item.label}
-              </button>
-            );
-          })}
-        </nav>
+      <div className={bare ? 'flex max-w-[680px] flex-col gap-4' : 'grid gap-4 lg:grid-cols-[220px_minmax(0,680px)] lg:items-start'}>
+        {bare ? null : (
+          <nav className="sc-panel flex flex-row gap-1 overflow-x-auto p-2 lg:flex-col" aria-label="设置分区">
+            {SETTINGS_SECTIONS.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`flex min-h-10 items-center gap-2 rounded-md px-3 text-left text-sm font-medium whitespace-nowrap ${
+                    section === item.id ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted'
+                  }`}
+                  aria-pressed={section === item.id}
+                  onClick={() => setSection(item.id)}
+                >
+                  <Icon className="size-[18px]" /> {item.label}
+                </button>
+              );
+            })}
+          </nav>
+        )}
 
         <div className="flex flex-col gap-4">
           {section === 'appearance' ? (
@@ -384,7 +404,7 @@ export function SettingsPage({ snapshot, client, notify }: PageProps) {
                       <option value="">选择币种</option>
                       {currencies.filter((c) => draft.budgets[c] === undefined).map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
-                    <Button type="button" variant="tactile-soft" size="tactile-sm" disabled={!newBudgetCurrency} onClick={() => { patch({ budgets: { ...draft.budgets, [newBudgetCurrency]: '' } }); setNewBudgetCurrency(''); }}>
+                    <Button type="button" variant="outline" size="sm" disabled={!newBudgetCurrency} onClick={() => { patch({ budgets: { ...draft.budgets, [newBudgetCurrency]: '' } }); setNewBudgetCurrency(''); }}>
                       <Plus /> 添加币种预算
                     </Button>
                   </div>
@@ -433,7 +453,7 @@ export function SettingsPage({ snapshot, client, notify }: PageProps) {
                     <input type="checkbox" checked={draft.muted} onChange={(e) => patch({ muted: e.target.checked })} />
                     暂停全部通知（勿扰与静音仍保留设置）
                   </label>
-                  <Button type="button" variant="tactile-soft" size="tactile-sm" className="self-start" onClick={() => patch({ dndStart: '', dndEnd: '' })}>
+                  <Button type="button" variant="outline" size="sm" className="self-start" onClick={() => patch({ dndStart: '', dndEnd: '' })}>
                     清空勿扰时段
                   </Button>
                 </div>
@@ -474,7 +494,7 @@ export function SettingsPage({ snapshot, client, notify }: PageProps) {
                 ))}
                 <div className="flex items-center gap-2 pt-1">
                   <input className="sc-input" value={newCategory} maxLength={80} placeholder="新分类名称" onChange={(e) => setNewCategory(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addCategory(); }} />
-                  <Button type="button" variant="tactile-soft" size="tactile-sm" onClick={addCategory}><Plus /> 添加</Button>
+                  <Button type="button" variant="outline" size="sm" onClick={addCategory}><Plus /> 添加</Button>
                 </div>
                 <p className="m-0 text-xs text-(--sc-muted)">“其他”是默认分类，不能删除。删除分类不会改写历史付款的分类快照。</p>
               </div>
@@ -488,14 +508,14 @@ export function SettingsPage({ snapshot, client, notify }: PageProps) {
                 <p className="m-0 text-sm leading-relaxed text-(--sc-muted)">
                   JSON 备份可跨版本恢复，旧版 v1/v2 仍可读取。导入不会伪造历史付款，也不会把供应商数据带回。
                 </p>
-                <Button type="button" variant="tactile" size="tactile" className="mt-3" disabled={busy} onClick={() => void exportBackup()}>
+                <Button type="button" variant="default" className="mt-3" disabled={busy} onClick={() => void exportBackup()}>
                   <Download /> 导出 JSON 备份
                 </Button>
               </section>
 
               <section className="sc-panel" aria-label="导入恢复">
                 <div className="sc-panel-head"><div><h2>导入与恢复</h2><p>整体替换当前资料；先预览影响，再确认</p></div><Upload className="size-5 text-(--sc-muted)" /></div>
-                <Button type="button" variant="tactile-soft" size="tactile" disabled={busy} onClick={() => void chooseFile()}>
+                <Button type="button" variant="outline" disabled={busy} onClick={() => void chooseFile()}>
                   <Upload /> 选择备份文件并预览
                 </Button>
                 {preview ? (
@@ -506,8 +526,8 @@ export function SettingsPage({ snapshot, client, notify }: PageProps) {
                     </div>
                     <p className="m-0 mt-1 text-[11px] text-(--sc-muted)">恢复会覆盖预算、分类、统计币种和提醒设置。取消不会改动现有资料。</p>
                     <div className="mt-2 flex gap-2">
-                      <Button type="button" variant="destructive" size="tactile-sm" disabled={busy} onClick={() => void restore()}>确认恢复</Button>
-                      <Button type="button" variant="tactile-soft" size="tactile-sm" onClick={() => { setPreview(null); setPreviewText(null); }}>取消</Button>
+                      <Button type="button" variant="destructive" size="sm" disabled={busy} onClick={() => void restore()}>确认恢复</Button>
+                      <Button type="button" variant="outline" size="sm" onClick={() => { setPreview(null); setPreviewText(null); }}>取消</Button>
                     </div>
                   </div>
                 ) : null}
@@ -524,8 +544,8 @@ export function SettingsPage({ snapshot, client, notify }: PageProps) {
           ) : null}
 
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] text-(--sc-muted)">修改主题会立即保存；其余设置点击“保存设置”后生效。</span>
-            <Button type="button" variant="tactile" size="tactile-sm" onClick={() => void save()} disabled={saving}>
+            <span className="text-xs text-muted-foreground">主题立即生效，其余需保存。</span>
+            <Button type="button" onClick={() => void save()} disabled={saving}>
               <Save /> {saving ? '保存中…' : '保存设置'}
             </Button>
           </div>

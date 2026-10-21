@@ -1101,7 +1101,7 @@ export function DetailDrawer({
           ) : (
             <p className="muted">还没有记录真实付款。预测扣费不会自动变成已付金额。</p>
           )}
-          <p className="muted">完整账本、筛选和预算在「消费管理」页查看；删除订阅后这些付款仍会保留。</p>
+          <p className="muted">删除订阅后，已记录的付款仍会保留。</p>
         </div>
 
         {/* Scoped Archive & Delete Footer with Controlled AlertDialog */}

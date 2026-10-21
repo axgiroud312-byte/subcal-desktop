@@ -8,7 +8,7 @@ function isDevEnvironment(): boolean {
   try {
     const metaEnv = (
       import.meta as unknown as { env?: { DEV?: boolean; MODE?: string; VITE_SUBCAL_MODE?: string } }
-    )?.env;
+    ).env;
     if (metaEnv?.DEV === true || metaEnv?.MODE === 'development') return true;
   } catch {
     /* ignore */
@@ -30,7 +30,7 @@ export function isPreviewMode(): boolean {
   try {
     const metaEnv = (
       import.meta as unknown as { env?: Record<string, string | boolean | undefined> }
-    )?.env;
+    ).env;
     if (metaEnv?.VITE_SUBCAL_MODE === 'preview') return true;
   } catch {
     /* ignore */
