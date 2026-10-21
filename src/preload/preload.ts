@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { DesktopBridge, TraySummary } from '../shared/bridge';
+import { parseRequest } from '../shared/schema';
 
 /**
  * Preload：在 contextIsolation + sandbox 下只暴露 src/shared/bridge.ts 定义的
@@ -66,6 +67,13 @@ function detectPlatform(): string {
 
 const bridge: DesktopBridge = {
   platform: detectPlatform(),
+  mode: 'ipc',
+  invoke(request) { return ipcRenderer.invoke('subcal:invoke', parseRequest(request)); },
+  onStateChanged(callback) {
+    if(typeof callback!=='function')throw new Error('callback 必须是函数');
+    const listener=()=>callback();ipcRenderer.on('subcal:state-changed',listener);
+    return ()=>{ipcRenderer.removeListener('subcal:state-changed',listener);};
+  },
   openExternal(url: string) {
     needString(url, 'url', 2048);
     return ipcRenderer.invoke('subcal:open-external', url) as Promise<void>;

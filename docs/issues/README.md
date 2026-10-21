@@ -1,8 +1,20 @@
-# SubCal 前端开发 Issue 索引
+# SubCal 开发 Issue 索引
+
+## 当前批次：真实后端与前端收尾
+
+本地 Issue 已先于实施建立，沿用本项目本地 Issue 约定。BE-001 汇总目标并交付 IPC 接缝，依次实施 BE-002 → BE-003 → BE-004 → BE-005 → BE-006 → BE-007 / BE-008 → BE-009 → BE-010；前端最后优化单列 FE-019，纳入整体交付与回归。
+
+远端汇总追踪：[GitHub #1：真实后端接入与前端最后优化](https://github.com/axgiroud312-byte/subcal-desktop/issues/1)。BE/FE 编号仍指本地任务，不是远端编号。
+
+入口：[BE-001](BE-001.md)、[BE-002](BE-002.md)、[BE-003](BE-003.md)、[BE-004](BE-004.md)、[BE-005](BE-005.md)、[BE-006](BE-006.md)、[BE-007](BE-007.md)、[BE-008](BE-008.md)、[BE-009](BE-009.md)、[BE-010](BE-010.md)、[FE-019](FE-019.md)。本批代码已实施并通过整合检查，用户验收 pending；真实账号/系统环境验证边界见[验收记录](../evidence/backend-v1/acceptance.md)。交付 [PR #2](https://github.com/axgiroud312-byte/subcal-desktop/pull/2)。
+
+---
 
 这批任务交付可交互的 Electron 桌面前端预览，采用本地 Issue 文件；下列 FE 编号不是 GitHub Issue 编号，也没有发布为远端 Issue。2026-10-21 已建立 [私有代码仓库 axgiroud312-byte/subcal-desktop](https://github.com/axgiroud312-byte/subcal-desktop)，本地 Issue 管理方式保持不变。
 
 当前开发依据：[视觉基础与组件约定](../design/visual-foundation.md)、[前端执行规格](../specs/frontend-first.md)、[完整 PRD](../../SubCal-Desktop-V1-PRD.md)。第一版设计来源：[Gemini 原始方案](../design/gemini-frontend-proposal.md)及[调用回执](../design/gemini-call-receipt.json)。启动整批工作的指令见[前端开发指令](../../前端开发指令.md)。
+
+下一批（已制定、尚未实施）：真实后端 BE-001 至 BE-010，把演示数据替换为本地 SQLite 服务与五个正式适配器的真实查询，启动指令见[后端开发指令](../../后端开发指令.md)。
 
 ## 当前批次：视觉重做 FE-011 至 FE-018
 

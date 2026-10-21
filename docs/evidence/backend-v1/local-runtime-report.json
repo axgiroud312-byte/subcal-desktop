@@ -1,0 +1,20 @@
+{
+  "at": "2026-10-21T03:15:51.242Z",
+  "containsCredentials": false,
+  "userAcceptance": "pending",
+  "codex": {
+    "officialRead": "passed",
+    "runtimeVersion": "0.163.0",
+    "bucketCount": 1,
+    "comparedWindows": 1,
+    "normalizedMetricCount": 3,
+    "percentageDirection": "passed",
+    "timestamps": "passed",
+    "identityAndValues": "not exported",
+    "uiAccountComparison": "pending"
+  },
+  "copilot": {
+    "officialRead": "not_verified",
+    "code": "RUNTIME_MISSING"
+  }
+}

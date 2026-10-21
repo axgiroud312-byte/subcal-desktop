@@ -1,13 +1,13 @@
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDays, LayoutDashboard, List, Plug, Plus, RefreshCw, Settings2, Sun, Moon, WifiOff, TriangleAlert } from 'lucide-react';
 import { toast as showToast } from 'sonner';
 import { Button } from './components/ui/button';
 import { Toaster } from './components/ui/sonner';
 import { Skeleton } from './components/ui/skeleton';
 import { syncDocumentTheme } from './lib/utils';
-import { client } from './service/MockSubCalClient';
+import { client } from './service/client';
 import type { Notify, PageProps } from './contracts';
-import { scenarioIds, type ScenarioId, type Snapshot } from '../shared/types';
+import { scenarioIds, type ScenarioId, type Snapshot, type SubCalClient, type PreviewController } from '../shared/types';
 import type { TraySummary } from '../shared/bridge';
 import { dateInZone, daysBetween, freshness, money, renewalText } from '../shared/rules';
 import { OverviewPage } from './pages/OverviewPage';
@@ -18,10 +18,11 @@ import { Settings } from './components/Settings';
 import { DetailDrawer } from './components/DetailDrawer';
 import { SubscriptionForm } from './components/SubscriptionForm';
 import { StatusBadge } from './components/ui';
-import { PreviewTools } from './components/PreviewTools';
 import { NotificationContext, type Notice } from './components/notifications';
 
 const NAV_PAGES = ['概览', '订阅', '日历', '连接'] as const;
+const PreviewTools = lazy(() => import('./components/PreviewTools').then(module => ({ default: module.PreviewTools })));
+const previewClient = client as SubCalClient & { preview?: PreviewController; exportRawStorage?: () => Promise<string> };
 type NavPage = (typeof NAV_PAGES)[number];
 
 const DEFAULT_SCENARIO_LABELS: Record<ScenarioId, string> = {
@@ -41,6 +42,7 @@ const DEFAULT_SCENARIO_LABELS: Record<ScenarioId, string> = {
 
 export function App() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [scenarios, setScenarios] = useState<{ id: ScenarioId; name: string }[]>(() =>
     scenarioIds.map((id) => ({ id, name: DEFAULT_SCENARIO_LABELS[id] }))
   );
@@ -102,20 +104,23 @@ export function App() {
       const next = await client.snapshot();
       if (reqId === reqGuardRef.current) {
         setSnapshot(next);
+        setLoadError(null);
       }
     } catch (err) {
       if (reqId === reqGuardRef.current) {
-        notify((err as Error).message || '读取本地演示空间快照失败');
+        setLoadError((err as Error).message || '读取资料失败');
       }
     }
   }, [notify]);
 
   useEffect(() => {
     void loadSnapshot();
-    void client.preview.scenarios().then(setScenarios).catch(() => {});
-    return client.subscribe(() => {
+    void previewClient.preview?.scenarios().then(setScenarios).catch(() => {});
+    const unsubscribe = client.subscribe(() => {
       void loadSnapshot();
     });
+    const timer = window.setInterval(() => void loadSnapshot(), 60000);
+    return () => { unsubscribe(); window.clearInterval(timer); };
   }, [loadSnapshot]);
 
   useEffect(() => {
@@ -141,7 +146,7 @@ export function App() {
     const nextRenewal =
       withRenewal.length > 0
         ? `${withRenewal[0].sub.product} · ${renewalText(withRenewal[0].sub, snapshot.now)}`
-        : '当前演示空间无近期续费';
+        : '暂无近期续费';
 
     const pinned = activeSubs
       .filter((s) => s.pinned)
@@ -151,9 +156,9 @@ export function App() {
           m && m.remaining.availability === 'known' && m.remaining.value !== null
             ? m.unit === '%'
               ? `剩余 ${m.remaining.value}%`
-              : money(m.remaining.value, m.unit)
+              : /^[A-Z]{3}$/.test(m.unit) ? money(m.remaining.value, m.unit) : `${m.remaining.value} ${m.unit}`
             : renewalText(s, snapshot.now);
-        return `${s.product}：${mText}${m && freshness(m,snapshot.now)!=='fresh' ? ' · 旧观察/待更新' : ''}（示例）`;
+        return `${s.product}：${mText}${m && freshness(m,snapshot.now)!=='fresh' ? ' · 待更新' : ''}`;
       });
 
     const reconnectCount = snapshot.connections.filter((c) =>
@@ -186,7 +191,7 @@ export function App() {
       } else if (action === 'toggle-pause') {
         void client
           .pause()
-          .then(() => notify('已切换全部模拟连接暂停/恢复状态'))
+          .then(() => notify('已更新采集状态'))
           .catch((e) => notify((e as Error).message));
       } else if (action === 'settings') {
         setSettingsOpen(true);
@@ -241,7 +246,7 @@ export function App() {
 
   const handleExportRawRecovery = async () => {
     try {
-      const raw = await client.exportRawStorage();
+      const raw = await previewClient.exportRawStorage?.();
       if (!raw) {
         notify('当前没有可导出的原始存储内容');
         return;
@@ -266,11 +271,11 @@ export function App() {
         <header className="top-nav">
           <div className="brand-cluster">
             <strong className="app-logo"><CalendarDays /> SubCal</strong>
-            <StatusBadge>本地预览</StatusBadge>
+            {previewClient.preview && <StatusBadge>开发预览</StatusBadge>}
           </div>
         </header>
         <main className="main-content">
-          <div className="panel stack" role="status"><span className="muted">正在载入本地演示空间快照…</span><Skeleton className="h-8 w-48" /><Skeleton className="h-24 w-full" /></div>
+          {loadError ? <div className="panel stack" role="alert"><span>{loadError}</span><Button variant="outline" onClick={() => void loadSnapshot()}>重试</Button></div> : <div className="panel stack" role="status"><span className="muted">正在读取资料…</span><Skeleton className="h-8 w-48" /><Skeleton className="h-24 w-full" /></div>}
         </main>
         <Toaster theme={resolvedTheme} position="bottom-left" visibleToasts={1} closeButton />
       </div>
@@ -310,15 +315,10 @@ export function App() {
       {/* Top Navigation Bar (Magpie style, native window frame compatible) */}
       <header className="top-nav">
         <div className="brand-cluster">
-          <strong className="app-logo" title="SubCal Desktop 前端预览">
+          <strong className="app-logo">
             <CalendarDays className="app-logo-mark" /> SubCal
           </strong>
-          <StatusBadge
-            className="preview-global-pill"
-            title="当前为前端先行预览阶段，所有刷新、连接与日历同步均为本地模拟，不连接外部服务器"
-          >
-            本地预览
-          </StatusBadge>
+          {previewClient.preview && <StatusBadge>开发预览</StatusBadge>}
         </div>
 
         <nav className="top-segmented-nav" aria-label="主导航">
@@ -355,9 +355,9 @@ export function App() {
             variant="outline"
             disabled={refreshingAll}
             onClick={() => void handleGlobalRefresh()}
-            title="对当前场景中的所有模拟连接执行一次模拟刷新"
+            title="刷新连接"
           >
-            <RefreshCw className={refreshingAll ? 'animate-spin' : undefined} />{refreshingAll ? '模拟刷新中…' : '模拟刷新'}
+            <RefreshCw className={refreshingAll ? 'animate-spin' : undefined} />{refreshingAll ? '刷新中…' : '刷新'}
           </Button>
           <Button
             type="button"
@@ -365,7 +365,7 @@ export function App() {
             size="icon"
             onClick={() => {
               const nextTheme = resolvedTheme === 'dark' ? 'light' : 'dark';
-              void client.setPreferences({ theme: nextTheme });
+              void client.setPreferences({ theme: nextTheme }).catch(e => notify((e as Error).message));
             }}
             aria-label="切换深浅色主题"
             title={`当前主题：${resolvedTheme === 'dark' ? '深色' : '浅色'}（点击切换）`}
@@ -385,20 +385,21 @@ export function App() {
       </header>
 
       {/* Global Storage Error Banner */}
+      {loadError && <div className="global-alert-banner danger-banner" role="alert"><span>{loadError}</span><Button variant="outline" onClick={() => void loadSnapshot()}>重试</Button></div>}
       {snapshot.storageError ? (
         <div className="global-alert-banner danger-banner" role="alert">
           <div className="alert-banner-text">
             <strong><TriangleAlert /> 本地存储读取异常：</strong>
             <span>{snapshot.storageError}</span>
           </div>
-          <div className="row">
+          {previewClient.preview && <div className="row">
             <Button variant="outline" type="button" onClick={() => void handleExportRawRecovery()}>
               导出原始损坏副本
             </Button>
             <Button
               type="button"
               onClick={() =>
-                void client.preview
+                void previewClient.preview!
                   .recoverStorage()
                   .then(() => notify('已将损坏存储另存为恢复副本并重置当前空间'))
                   .catch((e) => notify((e as Error).message))
@@ -406,7 +407,7 @@ export function App() {
             >
               备份并恢复存储
             </Button>
-          </div>
+          </div>}
         </div>
       ) : null}
 
@@ -414,16 +415,16 @@ export function App() {
       {snapshot.offline ? (
         <div className="global-alert-banner warning-banner" role="status">
           <div className="alert-banner-text">
-            <strong><WifiOff /> 当前处于模拟离线状态：</strong>
+            <strong><WifiOff /> 网络不可用</strong>
             <span>
-              自动采集已暂停并保留离线前快照；你仍可正常浏览卡片、手动新增与修改本地记录。
+              已保留上次数据，可继续编辑订阅。
             </span>
           </div>
-          <div className="row">
+          {previewClient.preview && <div className="row">
             <Button
               type="button"
               onClick={() =>
-                void client.preview
+                void previewClient.preview!
                   .recoverOffline()
                   .then(() => notify('已模拟恢复联网并合并补查一次'))
                   .catch((e) => notify((e as Error).message))
@@ -431,7 +432,7 @@ export function App() {
             >
               模拟恢复联网（合并补查一次）
             </Button>
-          </div>
+          </div>}
         </div>
       ) : null}
 
@@ -452,7 +453,7 @@ export function App() {
           <ConnectionsPage {...pageProps} focusId={connectionFocusId} />
         ) : null}
 
-        <PreviewTools snapshot={snapshot} scenarios={scenarios} client={client} notify={notify} editing={formState !== null} onScenarioChange={() => setDetailId(null)} />
+        {previewClient.preview && previewClient.exportRawStorage && <Suspense fallback={null}><PreviewTools snapshot={snapshot} scenarios={scenarios} client={previewClient as SubCalClient & { preview: PreviewController; exportRawStorage: () => Promise<string> }} notify={notify} editing={formState !== null} onScenarioChange={() => setDetailId(null)} /></Suspense>}
       </main>
 
       {/* Shared Right Detail Drawer */}

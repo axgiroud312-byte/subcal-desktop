@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import type { MockSubCalClient } from '../service/MockSubCalClient';
 import type { Notify } from '../contracts';
-import type { Snapshot, Subscription } from '../../shared/types';
+import type { Snapshot, SubCalClient, Subscription } from '../../shared/types';
 import {
   anchoredDate,
   dateInZone,
@@ -60,7 +59,7 @@ import './subscription-details.css';
 export interface DetailDrawerProps {
   subscription: Subscription;
   snapshot: Snapshot;
-  client: MockSubCalClient;
+  client: SubCalClient;
   notify: Notify;
   onClose: () => void;
   onEdit: (subscription: Subscription) => void;
@@ -89,7 +88,6 @@ export function DetailDrawer({
   const [cancelError, setCancelError] = useState<string | null>(null);
 
   const [confirmScope, setConfirmScope] = useState<'archive' | 'delete' | null>(null);
-  const [removeFutureEvents, setRemoveFutureEvents] = useState(false);
 
   const connection = subscription.connectionId
     ? snapshot.connections.find((c) => c.id === subscription.connectionId) || null
@@ -151,7 +149,7 @@ export function DetailDrawer({
         ? `${money(subscription.price.value, subscription.currency)} / ${cycleLabel(
             subscription.cycle,
             subscription.intervalDays
-          )}（示例）`
+          )}`
         : fieldText(subscription.price);
 
   const handleOpenWebsite = async () => {
@@ -169,7 +167,7 @@ export function DetailDrawer({
         await window.subcal.openExternal(subscription.website);
         notify(`已请求系统浏览器打开 ${u.hostname}`);
       } else {
-        notify(`已在预览环境核验安全链接：${subscription.website}`);
+        notify('当前环境无法调用系统浏览器，请手动复制链接打开');
       }
     } catch {
       notify('官网链接格式无效，请检查是否为有效 HTTPS 网址');
@@ -185,7 +183,7 @@ export function DetailDrawer({
       await client.resolveField(subscription.id, field, accept);
       notify(
         accept
-          ? `已采纳「${fieldTitle[field]}」的模拟探测新值`
+          ? `已采纳「${fieldTitle[field]}」的探测新值`
           : `已保留「${fieldTitle[field]}」的手动锁定值`
       );
     } catch (err) {
@@ -224,9 +222,9 @@ export function DetailDrawer({
         renewalDate: {
           value: nextDate,
           availability: 'known',
-          source: '用户人工核对确认续费',
+          source: '用户确认续费',
           observedAt: snapshot.now,
-          dataOrigin: 'demo',
+          dataOrigin: 'manual',
           locked: true,
         },
         anchorDate: anchor,
@@ -263,9 +261,9 @@ export function DetailDrawer({
           ? {
               value: cancelPaidThrough.trim(),
               availability: 'known' as const,
-              source: '用户确认已付有效期（示例）',
+              source: '用户确认已付有效期',
               observedAt: snapshot.now,
-              dataOrigin: 'demo' as const,
+              dataOrigin: 'manual' as const,
               locked: true,
             }
           : {
@@ -273,7 +271,7 @@ export function DetailDrawer({
               availability: 'unfetched' as const,
               source: '已记录关闭自动续费 · 有效期待补充',
               observedAt: snapshot.now,
-              dataOrigin: 'demo' as const,
+              dataOrigin: 'manual' as const,
             };
 
       await client.update(subscription.id, subscription.revision, {
@@ -284,7 +282,7 @@ export function DetailDrawer({
       setShowCancelPanel(false);
       notify(
         cancelMode === 'known'
-          ? `已记录关闭自动续费，已付有效期保留至 ${cancelPaidThrough.trim()}（仅更新本地演示记录）`
+          ? `已记录关闭自动续费，已付有效期保留至 ${cancelPaidThrough.trim()}`
           : '已记录关闭自动续费，已付有效期待后续补充（未从扣费日自动推断）'
       );
     } catch (err) {
@@ -324,13 +322,11 @@ export function DetailDrawer({
     setBusy(true);
     try {
       const targetArchived = subscription.lifecycle !== 'archived';
-      await client.archive(subscription.id, targetArchived, removeFutureEvents);
+      await client.archive(subscription.id, targetArchived, false);
       setConfirmScope(null);
       notify(
         targetArchived
-          ? `已归档「${subscription.product}」演示记录${
-              removeFutureEvents ? '，并抑制模拟外部未来日程' : '（保留已有日程）'
-            }`
+          ? `已归档「${subscription.product}」（保留已有日程）`
           : `已恢复「${subscription.product}」活跃跟踪`
       );
     } catch (err) {
@@ -344,16 +340,16 @@ export function DetailDrawer({
     setBusy(true);
     try {
       const productName = subscription.product;
-      const token = await client.remove(subscription.id, removeFutureEvents);
+      const token = await client.remove(subscription.id, false);
       setConfirmScope(null);
       onClose();
-      notify(`已从当前演示空间删除「${productName}」`, {
+      notify(`已删除「${productName}」`, {
         label: '撤销删除 (8s)',
         duration: 8000,
         run: () => {
           void client
             .undo(token)
-            .then(() => notify(`已恢复「${productName}」及关联模拟日程`))
+            .then(() => notify(`已恢复「${productName}」及关联日程`))
             .catch((e) => notify((e as Error).message));
         },
       });
@@ -442,7 +438,7 @@ export function DetailDrawer({
                 }}
               >
                 <RefreshCw />
-                {connection?.state === 'refreshing' ? '模拟刷新中…' : '模拟刷新'}
+                {connection?.state === 'refreshing' ? '刷新中…' : '刷新'}
               </Button>
             ) : null}
             {connection ? (
@@ -458,8 +454,8 @@ export function DetailDrawer({
                     .then(() =>
                       notify(
                         connection.state === 'paused'
-                          ? '已恢复模拟连接并触发刷新'
-                          : '已暂停该模拟连接'
+                          ? '已恢复连接并触发刷新'
+                          : '已暂停该连接'
                       )
                     )
                     .catch((e) => notify((e as Error).message))
@@ -469,12 +465,12 @@ export function DetailDrawer({
                 {connection.state === 'paused' ? (
                   <>
                     <Play />
-                    恢复模拟采集
+                    恢复采集
                   </>
                 ) : (
                   <>
                     <Pause />
-                    暂停模拟采集
+                    暂停采集
                   </>
                 )}
               </Button>
@@ -508,12 +504,12 @@ export function DetailDrawer({
           <div className="drawer-conflict-box">
             <div className="row spread">
               <strong>
-                <LockKeyhole className="inline-icon" /> 发现人工锁定字段与模拟探测值差异
+                <LockKeyhole className="inline-icon" /> 发现人工锁定字段与探测值差异
               </strong>
               <StatusBadge tone="warning">未静默覆盖</StatusBadge>
             </div>
             <p className="muted">
-              以下字段已被你手动锁定。模拟采集探测到了不同的示例值，请选择保留手动锁定值或采纳模拟探测值：
+              以下字段已被你手动锁定。自动采集探测到了不同的值，请选择保留手动锁定值或采纳探测值：
             </p>
             {proposedFields.map((fieldKey) => {
               const fieldObj = subscription[fieldKey];
@@ -528,9 +524,9 @@ export function DetailDrawer({
                       </strong>
                     </div>
                     <div>
-                      <span className="muted">模拟探测新值（演示数据）：</span>
+                      <span className="muted">探测新值：</span>
                       <strong className="tabular highlight-proposed">
-                        {fieldObj.proposed}（示例）
+                        {fieldObj.proposed}
                       </strong>
                     </div>
                   </div>
@@ -550,7 +546,7 @@ export function DetailDrawer({
                       disabled={busy}
                       onClick={() => void handleResolveField(fieldKey, true)}
                     >
-                      采纳模拟探测值 ({fieldObj.proposed})
+                      采纳探测值 ({fieldObj.proposed})
                     </Button>
                   </div>
                 </div>
@@ -689,14 +685,14 @@ export function DetailDrawer({
             </div>
 
             {/* Shared Billing vs Shared Quota Pool Explanation */}
-            <div className="detail-relationship-card">
+            {(subscription.billingGroupId || quotaPeers.length > 0 || subscription.possibleSharedWallet) && <div className="detail-relationship-card">
               <div className="relationship-line">
-                <strong>共用付款关系（billingGroupId）：</strong>
+                <strong>共用付款：</strong>
                 {subscription.billingGroupId ? (
                   <span>
                     <code className="relationship-code">{subscription.billingGroupId}</code>
                     {billingPeers.length > 0
-                      ? ` · 与 ${billingPeers.map((p) => p.product).join('、')} 共用同一笔周期费用（月均汇总与续费日程不重复计算）`
+                      ? ` · ${billingPeers.map((p) => p.product).join('、')}`
                       : ' · 已设置分组标识'}
                   </span>
                 ) : (
@@ -704,13 +700,13 @@ export function DetailDrawer({
                 )}
               </div>
               <div className="relationship-line">
-                <strong>共享额度池（quotaPoolId）：</strong>
+                <strong>共享额度：</strong>
                 {subscription.quotaPoolId ? (
                   <span>
                     <code className="relationship-code">{subscription.quotaPoolId}</code>
                     {quotaPeers.length > 0
                       ? ` · 与 ${quotaPeers.map((p) => `${p.product}(${p.account})`).join('、')} 共享同一额度池`
-                      : ' · 独立额度池（共用付款不等于共享聊天/编程额度）'}
+                      : ' · 独立额度池'}
                   </span>
                 ) : (
                   <span className="muted">无自动额度池标识</span>
@@ -722,11 +718,11 @@ export function DetailDrawer({
                     <TriangleAlert className="inline-icon" /> 疑似共享账户余额：
                   </strong>
                   <span>
-                    当前 Key 与同供应商其他记录可能指向同一账户总余额，SubCal 不会将它们相加伪造总资产。
+                    可能与其他 Key 共用余额，暂不计入汇总。
                   </span>
                 </div>
               ) : null}
-            </div>
+            </div>}
 
             {subscription.notes ? (
               <div className="drawer-notes-card">
@@ -754,11 +750,9 @@ export function DetailDrawer({
                   </Button>
                 ) : (
                   <div className="cancel-renew-panel stack">
-                    <strong>记录“已在官网关闭自动续费”（仅更新本地演示记录）</strong>
+                    <strong>记录“已在官网关闭自动续费”（仅更新本地记录）</strong>
                     <p className="muted">
-                      此操作不会代替你在供应商官网退订。为保证诚实性，系统
-                      <strong>绝不自动把下次扣费日推断为已付有效期结束日</strong>
-                      ，请明确选择有效期依据：
+                      请填写官网确认的有效期；不确定时可留空。
                     </p>
                     <label className="radio-row">
                       <input
@@ -885,7 +879,7 @@ export function DetailDrawer({
           </CollapsibleContent>
         </Collapsible>
 
-        {/* Group 3: 来源、模拟连接与历史记录 (Collapsible on demand) */}
+        {/* Group 3: 来源、连接与历史 (Collapsible on demand) */}
         <Collapsible
           open={openHistory}
           onOpenChange={setOpenHistory}
@@ -895,7 +889,7 @@ export function DetailDrawer({
             className="drawer-collapsible-trigger"
             data-testid="drawer-section-history"
           >
-            <span>3. 来源、模拟连接与历史快照</span>
+            <span>3. 来源、连接与历史</span>
             <span className="drawer-trigger-meta">
               {connection ? connMeta?.label : '纯手动记录'} · 历史 {subscription.history.length} 条
               <ChevronDown className="drawer-chevron" />
@@ -940,20 +934,19 @@ export function DetailDrawer({
                       onConnection(connection.id);
                     }}
                   >
-                    前往「连接」页核对 / 模拟恢复
+                    前往「连接」页核对 / 恢复
                   </Button>
                 </div>
               </div>
             ) : (
               <div className="muted">
-                此订阅未绑定自动采集连接，所有字段由用户手动维护（一等公民状态，不计为连接错误）。
+                此订阅未绑定自动采集连接，所有字段由你手动维护。
               </div>
             )}
 
             <div className="drawer-history-block">
               <div className="section-header">
-                <strong>模拟观察与本地编辑记录</strong>
-                <span className="muted">不生成无数据源的消费曲线</span>
+                <strong>观察与编辑记录</strong>
               </div>
               {subscription.history.length > 0 ? (
                 <ul className="history-list">
@@ -961,13 +954,12 @@ export function DetailDrawer({
                     <li key={`${item.at}-${idx}`} className="history-item">
                       <span className="history-time tabular">{formatDateTime(item.at)}</span>
                       <span className="history-text">{item.text}</span>
-                      <StatusBadge tone="neutral">演示</StatusBadge>
                     </li>
                   ))}
                 </ul>
               ) : (
                 <div className="muted">
-                  当前演示记录自初始载入以来暂无新增变更或模拟刷新历史。
+                  暂无变更或刷新历史。
                 </div>
               )}
             </div>
@@ -990,7 +982,7 @@ export function DetailDrawer({
               {subscription.reminder === 'local'
                 ? '本地桌面提醒'
                 : subscription.reminder === 'external'
-                  ? '本地 + 外部受管日历'
+                  ? '本地 + 外部日历'
                   : '关闭'}
               <ChevronDown className="drawer-chevron" />
             </span>
@@ -1007,13 +999,13 @@ export function DetailDrawer({
                 }
               >
                 <option value="local">仅本地日程与桌面提醒</option>
-                <option value="external">允许纳入外部受管日历预演</option>
+                <option value="external">本地 + 外部日历提醒（待接入）</option>
                 <option value="none">关闭提醒</option>
               </FormSelect>
             </Field>
 
             <div className="drawer-events-preview">
-              <strong>近期日程投影预览（与日历页同源计算）：</strong>
+              <strong>近期日程投影（本地计算）：</strong>
               {projectedEvents.length > 0 ? (
                 <ul className="mini-event-list">
                   {projectedEvents.slice(0, 6).map((ev) => (
@@ -1036,7 +1028,7 @@ export function DetailDrawer({
                 </ul>
               ) : (
                 <p className="muted">
-                  暂无可生成的日程事件（按量钱包或未填日期不伪造续费事件）。
+                  暂无可生成的日程事件（按量钱包或未填写日期）。
                 </p>
               )}
             </div>
@@ -1051,7 +1043,6 @@ export function DetailDrawer({
               variant="outline"
               disabled={busy}
               onClick={() => {
-                setRemoveFutureEvents(false);
                 setConfirmScope('archive');
               }}
             >
@@ -1072,12 +1063,11 @@ export function DetailDrawer({
               variant="destructive"
               disabled={busy}
               onClick={() => {
-                setRemoveFutureEvents(true);
                 setConfirmScope('delete');
               }}
             >
               <Trash2 />
-              删除本地演示记录…
+              删除记录…
             </Button>
           </div>
 
@@ -1096,38 +1086,14 @@ export function DetailDrawer({
                     ? subscription.lifecycle === 'archived'
                       ? `确认恢复「${subscription.product}」活跃跟踪？`
                       : `确认归档「${subscription.product}」？`
-                    : `确认删除演示记录「${subscription.product}」？`}
+                    : `确认删除「${subscription.product}」？`}
                 </AlertDialogTitle>
                 <AlertDialogDescription>
                   {confirmScope === 'archive'
-                    ? '归档默认仅在本地演示空间停止活跃提醒与月费统计，保留历史观察与已有日程。'
-                    : '范围说明：此操作仅删除当前演示空间内的本地记录，不会退订任何外部服务。删除后可在 8 秒内点击底部提示撤销恢复本次演示事务。'}
+                    ? '归档后停止活跃提醒与月费统计，保留历史记录与已有日程。'
+                    : '此操作仅删除本地记录，不会退订任何外部服务。删除后 8 秒内可撤销。'}
                 </AlertDialogDescription>
               </AlertDialogHeader>
-
-              {confirmScope === 'archive' && subscription.lifecycle !== 'archived' ? (
-                <label className="checkbox-row">
-                  <input
-                    type="checkbox"
-                    checked={removeFutureEvents}
-                    onChange={(e) => setRemoveFutureEvents(e.target.checked)}
-                  />
-                  <span>同时抑制/移除模拟外部日历中的未来受管日程</span>
-                </label>
-              ) : null}
-
-              {confirmScope === 'delete' ? (
-                <label className="checkbox-row">
-                  <input
-                    type="checkbox"
-                    checked={removeFutureEvents}
-                    onChange={(e) => setRemoveFutureEvents(e.target.checked)}
-                  />
-                  <span>
-                    同时从模拟外部日历目标中清理未来受管日程（保留过去事件与非受管日程；共用付款成员仍在时不误删共享日程）
-                  </span>
-                </label>
-              ) : null}
 
               <AlertDialogFooter>
                 <AlertDialogCancel disabled={busy}>取消</AlertDialogCancel>

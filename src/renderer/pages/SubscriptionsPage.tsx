@@ -91,7 +91,6 @@ export function SubscriptionsPage({
   const [pendingAction, setPendingAction] = useState<{
     sub: Subscription;
     kind: 'archive' | 'delete';
-    removeFuture: boolean;
   } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -183,7 +182,7 @@ export function SubscriptionsPage({
     if (m.remaining.availability === 'unlimited') {
       return (
         <div className="table-metric-cell">
-          <strong className="table-cell-amount">{m.label}：无限量（示例）</strong>
+          <strong className="table-cell-amount">{m.label}：无限量</strong>
           <span className="muted">{m.remaining.source}</span>
         </div>
       );
@@ -206,12 +205,18 @@ export function SubscriptionsPage({
       );
     }
 
+    // Percentages display the recorded value as-is (only bars clamp); non-currency units render as "值 单位"
+    const remNum = Number(m.remaining.value);
+    const anomalous =
+      m.unit === '%' && (!Number.isFinite(remNum) || remNum < 0 || remNum > 100);
     const valDisplay =
       m.unit === '%'
         ? snapshot.preferences.quotaView === 'used'
-          ? `已用 ${Math.max(0, 100 - Number(m.remaining.value))}%（示例）`
-          : `剩余 ${m.remaining.value}%（示例）`
-        : `${money(m.remaining.value, m.unit)}（示例）`;
+          ? `已用 ${Number((100 - remNum).toFixed(6))}%${anomalous ? ' · 数据异常' : ''}`
+          : `剩余 ${m.remaining.value}%${anomalous ? ' · 数据异常' : ''}`
+        : /^[A-Z]{3}$/.test(m.unit)
+          ? `${money(m.remaining.value, m.unit)}`
+          : `${m.remaining.value} ${m.unit}`;
 
     return (
       <div className="table-metric-cell tabular">
@@ -230,31 +235,29 @@ export function SubscriptionsPage({
 
   const executePendingScope = async () => {
     if (!pendingAction) return;
-    const { sub, kind, removeFuture } = pendingAction;
+    const { sub, kind } = pendingAction;
     setBusyId(sub.id);
     try {
       if (kind === 'archive') {
         const targetArchived = sub.lifecycle !== 'archived';
-        await client.archive(sub.id, targetArchived, removeFuture);
+        await client.archive(sub.id, targetArchived, false);
         setPendingAction(null);
         notify(
           targetArchived
-            ? `已归档「${sub.product}」${
-                removeFuture ? '，并抑制模拟外部未来日程' : '（保留本地日程）'
-              }`
+            ? `已归档「${sub.product}」（保留本地日程）`
             : `已恢复「${sub.product}」活跃跟踪`
         );
       } else {
         const productName = sub.product;
-        const token = await client.remove(sub.id, removeFuture);
+        const token = await client.remove(sub.id, false);
         setPendingAction(null);
-        notify(`已从当前演示空间删除「${productName}」`, {
+        notify(`已删除「${productName}」`, {
           label: '撤销删除 (8s)',
           duration: 8000,
           run: () => {
             void client
               .undo(token)
-              .then(() => notify(`已恢复「${productName}」及关联模拟日程`))
+              .then(() => notify(`已恢复「${productName}」及关联日程`))
               .catch((e) => notify((e as Error).message));
           },
         });
@@ -366,7 +369,7 @@ export function SubscriptionsPage({
 
         <CollapsibleContent className="brand-directory-panel stack">
           <div className="section-header">
-            <strong>内置品牌与规划适配等级目录（前端预览阶段外部服务均未连接）</strong>
+            <strong>内置品牌目录</strong>
             <span className="muted">点击任一品牌可快速带入模板新增记录</span>
           </div>
           <div className="catalog-grid">
@@ -419,32 +422,14 @@ export function SubscriptionsPage({
                 ? pendingAction.sub.lifecycle === 'archived'
                   ? `确认将「${pendingAction.sub.product}」恢复为活跃跟踪？`
                   : `确认归档「${pendingAction.sub.product}」？`
-                : `确认从演示空间删除「${pendingAction?.sub.product ?? ''}」？`}
+                : `确认删除「${pendingAction?.sub.product ?? ''}」？`}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {pendingAction?.kind === 'archive'
-                ? '归档后不再计入首屏活跃提醒与固定月费汇总，保留历史观察与已有日程。'
-                : '范围说明：此操作仅删除当前演示空间内的本地记录，不会代替你在外部官网退订。删除后可在 8 秒内点击底部提示撤销恢复。'}
+                ? '归档后不再计入首屏活跃提醒与固定月费汇总，保留历史记录与已有日程。'
+                : '此操作仅删除本地记录，不会代替你在外部官网退订。删除后 8 秒内可撤销。'}
             </AlertDialogDescription>
           </AlertDialogHeader>
-
-          {pendingAction &&
-          (pendingAction.kind === 'delete' || pendingAction.sub.lifecycle !== 'archived') ? (
-            <label className="checkbox-row">
-              <input
-                type="checkbox"
-                checked={pendingAction.removeFuture}
-                onChange={(e) =>
-                  setPendingAction((prev) =>
-                    prev ? { ...prev, removeFuture: e.target.checked } : null
-                  )
-                }
-              />
-              <span>
-                同时从模拟外部日历目标中移除未来受管事件（不影响过去事件与共用付款存活成员）
-              </span>
-            </label>
-          ) : null}
 
           <AlertDialogFooter>
             <AlertDialogCancel disabled={Boolean(busyId)}>取消</AlertDialogCancel>
@@ -469,7 +454,7 @@ export function SubscriptionsPage({
       {/* Management Table */}
       {snapshot.subscriptions.length === 0 ? (
         <div className="empty panel stack">
-          <h3>当前演示空间暂无订阅记录</h3>
+          <h3>暂无订阅记录</h3>
           <p className="muted">
             你可以直接新增第一条自定义或目录订阅（仅名称必填，价格和日期允许留空后补）。
           </p>
@@ -692,7 +677,7 @@ export function SubscriptionsPage({
                                   }}
                                 >
                                   <RefreshCw />
-                                  {cMeta?.needsRecovery ? '恢复连接' : '模拟刷新'}
+                                  {cMeta?.needsRecovery ? '恢复连接' : '刷新'}
                                 </DropdownMenuItem>
                               ) : null}
                               <DropdownMenuSeparator />
@@ -701,7 +686,6 @@ export function SubscriptionsPage({
                                   setPendingAction({
                                     sub,
                                     kind: 'archive',
-                                    removeFuture: false,
                                   })
                                 }
                               >
@@ -723,12 +707,11 @@ export function SubscriptionsPage({
                                   setPendingAction({
                                     sub,
                                     kind: 'delete',
-                                    removeFuture: true,
                                   })
                                 }
                               >
                                 <Trash2 />
-                                删除本地演示记录…
+                                删除记录…
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>

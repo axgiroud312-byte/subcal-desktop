@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ClientError, type MockSubCalClient } from '../service/MockSubCalClient';
+import { ClientError } from '../service/client';
 import type { Notify } from '../contracts';
 import type {
   Availability,
@@ -8,6 +8,7 @@ import type {
   Lifecycle,
   Metric,
   Snapshot,
+  SubCalClient,
   Subscription,
   SubscriptionInput,
 } from '../../shared/types';
@@ -45,7 +46,7 @@ export const PRODUCT_CATALOG: CatalogPreset[] = [
     product: 'Codex',
     brand: 'OpenAI',
     tier: 'auto',
-    tierLabel: '正式自动目标',
+    tierLabel: '自动采集 · 待验证',
     kind: 'window',
     currency: 'USD',
     cycle: 'monthly',
@@ -63,7 +64,7 @@ export const PRODUCT_CATALOG: CatalogPreset[] = [
     product: 'GitHub Copilot',
     brand: 'GitHub',
     tier: 'auto',
-    tierLabel: '正式自动目标',
+    tierLabel: '自动采集 · 待验证',
     kind: 'window',
     currency: 'USD',
     cycle: 'monthly',
@@ -81,7 +82,7 @@ export const PRODUCT_CATALOG: CatalogPreset[] = [
     product: 'DeepSeek API',
     brand: 'DeepSeek',
     tier: 'auto',
-    tierLabel: '正式自动目标',
+    tierLabel: '自动采集 · 待验证',
     kind: 'wallet',
     currency: 'CNY',
     cycle: 'none',
@@ -100,7 +101,7 @@ export const PRODUCT_CATALOG: CatalogPreset[] = [
     product: 'Kimi API',
     brand: 'Kimi',
     tier: 'auto',
-    tierLabel: '正式自动目标',
+    tierLabel: '自动采集 · 待验证',
     kind: 'wallet',
     currency: 'CNY',
     cycle: 'none',
@@ -117,7 +118,7 @@ export const PRODUCT_CATALOG: CatalogPreset[] = [
     product: 'OpenRouter',
     brand: 'OpenRouter',
     tier: 'auto',
-    tierLabel: '正式自动目标',
+    tierLabel: '自动采集 · 待验证',
     kind: 'wallet',
     currency: 'USD',
     cycle: 'none',
@@ -134,7 +135,7 @@ export const PRODUCT_CATALOG: CatalogPreset[] = [
     product: 'Kimi Code',
     brand: 'Kimi',
     tier: 'experimental',
-    tierLabel: '实验适配',
+    tierLabel: '待接入',
     kind: 'window',
     currency: 'CNY',
     cycle: 'monthly',
@@ -151,7 +152,7 @@ export const PRODUCT_CATALOG: CatalogPreset[] = [
     product: 'Cursor Pro',
     brand: 'Cursor',
     tier: 'experimental',
-    tierLabel: '实验/手动',
+    tierLabel: '待接入',
     kind: 'manual',
     currency: 'USD',
     cycle: 'monthly',
@@ -219,7 +220,7 @@ function makeFormField(
   now: string,
   locked = false,
   availability?: Availability,
-  source = '手动记录（示例）'
+  source = '用户填写'
 ): FieldType<string> {
   const trimmed = value && value.trim() ? value.trim() : null;
   const resolvedAvail: Availability =
@@ -229,7 +230,7 @@ function makeFormField(
     availability: resolvedAvail,
     source,
     observedAt: resolvedAvail === 'known' ? now : null,
-    dataOrigin: 'demo',
+    dataOrigin: 'manual',
     ...(locked ? { locked: true } : {}),
   };
 }
@@ -250,7 +251,7 @@ function presetMetricDrafts(preset: CatalogPreset): MetricDraft[] {
   return preset.defaultMetrics.map((metric, index) => ({
     id: `m-${index + 1}`, label: metric.label, unit: metric.unit, value: '', total: metric.total ?? '',
     availability: metric.availability, resetDate: '', staleAfterMinutes: metric.unit === '%' ? 30 : 120,
-    source: '手动记录（示例）',
+    source: '用户填写',
   }));
 }
 
@@ -259,7 +260,7 @@ export interface SubscriptionFormProps {
   initial?: Subscription;
   presetProduct?: string;
   snapshot: Snapshot;
-  client: MockSubCalClient;
+  client: SubCalClient;
   notify: Notify;
   onClose: () => void;
   onSaved?: (id: string) => void;
@@ -290,7 +291,7 @@ export function SubscriptionForm({
   const [product, setProduct] = useState(initial?.product ?? presetProduct ?? '');
   const [brand, setBrand] = useState(initial?.brand ?? catalogPreset?.brand ?? presetProduct ?? '');
   const [kind, setKind] = useState<Subscription['kind']>(initial?.kind ?? catalogPreset?.kind ?? 'manual');
-  const [account, setAccount] = useState(initial?.account ?? '个人示例账号');
+  const [account, setAccount] = useState(initial?.account ?? '个人账号');
   const [region, setRegion] = useState(initial?.region ?? '未指定');
   const [organization, setOrganization] = useState(initial?.organization ?? '个人');
 
@@ -346,7 +347,7 @@ export function SubscriptionForm({
       availability: m.remaining.availability,
       resetDate: m.resetAt ? m.resetAt.slice(0, 10) : '',
       staleAfterMinutes: m.staleAfterMinutes,
-      source: m.remaining.source || '手动记录（示例）',
+      source: m.remaining.source || '用户填写',
     })) : catalogPreset ? presetMetricDrafts(catalogPreset) : []
   );
 
@@ -442,9 +443,9 @@ export function SubscriptionForm({
         remaining: {
           value: avail === 'known' && valTrim !== '' ? valTrim : null,
           availability: avail,
-          source: '手动记录（示例）',
+          source: '用户填写',
           observedAt: avail === 'known' && valTrim !== '' ? now : null,
-          dataOrigin: 'demo',
+          dataOrigin: 'manual',
         },
         total: totalTrim !== '' ? totalTrim : null,
         resetAt: m.resetDate.trim() ? `${m.resetDate.trim()}T00:00:00.000Z` : null,
@@ -471,7 +472,7 @@ export function SubscriptionForm({
               undefined,
               initial?.renewalDate.value === renewalDate.trim() && initial?.renewalDate.source
                 ? initial.renewalDate.source
-                : '手动记录（示例）'
+                : '用户填写'
             ),
             ...(initial?.renewalDate.proposed !== undefined
               ? { proposed: initial.renewalDate.proposed }
@@ -482,7 +483,7 @@ export function SubscriptionForm({
       product: trimmedProduct,
       brand: trimmedBrand,
       kind,
-      account: account.trim() || '个人示例账号',
+      account: account.trim() || '个人账号',
       region: region.trim() || '未指定',
       organization: organization.trim() || '个人',
       plan: makeFormField(planValue, now, planLocked),
@@ -535,7 +536,7 @@ export function SubscriptionForm({
       if (mode === 'create') {
         const createdId = await client.create(input, idempotencyKey);
         setDirty(false);
-        notify(`已新增订阅「${input.product}」（演示空间）`);
+        notify(`已新增订阅「${input.product}」`);
         onSaved?.(createdId);
         onClose();
       } else if (initial) {
@@ -579,7 +580,7 @@ export function SubscriptionForm({
 
   return (
     <Modal
-      title={mode === 'create' ? '新增订阅（演示空间）' : `编辑订阅 · ${initial?.product}`}
+      title={mode === 'create' ? '新增订阅' : `编辑订阅 · ${initial?.product}`}
       onClose={handleRequestClose}
     >
       <form
@@ -590,8 +591,6 @@ export function SubscriptionForm({
         }}
         noValidate
       >
-        {/* Preview Notice */}
-        <p className="form-preview-banner">只保存本地演示记录，不收集真实密钥或密码。</p>
 
         <AlertDialog open={confirmDiscard} onOpenChange={(open, details) => {
           if (!open && (details.reason === 'escape-key' || details.reason === 'outside-press')) { details.cancel(); return; }
@@ -646,7 +645,7 @@ export function SubscriptionForm({
               <Input
                 type="search"
                 className="catalog-search-input"
-                placeholder="搜索品牌或规划等级（如 Codex、DeepSeek、手动）…"
+                placeholder="搜索品牌或类型（如 Codex、DeepSeek、手动）…"
                 value={catalogQuery}
                 onChange={(e) => setCatalogQuery(e.target.value)}
               />
@@ -749,11 +748,11 @@ export function SubscriptionForm({
             </Field>
 
             <Field className="field">
-              <FieldLabel htmlFor="sub-account">示例账号标识（请勿输入真实密钥）</FieldLabel>
+              <FieldLabel htmlFor="sub-account">账号标识（请勿输入真实密钥）</FieldLabel>
               <Input
                 id="sub-account"
                 type="text"
-                placeholder="个人示例账号"
+                placeholder="个人账号"
                 value={account}
                 onChange={(e) => {
                   markDirty();
@@ -783,7 +782,7 @@ export function SubscriptionForm({
                     setPlanLocked(e.target.checked);
                   }}
                 />
-                <span><LockKeyhole className="inline-icon" /> 手动锁定套餐，防模拟刷新覆盖</span>
+                <span><LockKeyhole className="inline-icon" /> 手动锁定套餐，刷新时不覆盖</span>
               </label>
             </Field>
 
@@ -929,7 +928,7 @@ export function SubscriptionForm({
                     setRenewalLocked(e.target.checked);
                   }}
                 />
-                <span><LockKeyhole className="inline-icon" /> 手动锁定续费日，防模拟刷新覆盖</span>
+                <span><LockKeyhole className="inline-icon" /> 手动锁定续费日，刷新时不覆盖</span>
               </label>
             </Field>
 
@@ -1066,10 +1065,10 @@ export function SubscriptionForm({
           </label>
         </section>
 
-        {/* Section 2: 可选额度记录与模拟连接 */}
+        {/* Section 2: 可选额度记录与自动采集连接 */}
         <section className="form-section stack">
           <div className="section-header">
-            <h3 className="form-section-title">可选额度与模拟连接</h3>
+            <h3 className="form-section-title">可选额度与自动采集</h3>
             <Button
               type="button"
               variant="outline"
@@ -1086,7 +1085,7 @@ export function SubscriptionForm({
                     availability: 'known',
                     resetDate: '',
                     staleAfterMinutes: kind === 'wallet' ? 120 : 30,
-                    source: '用户手动录入（示例）',
+                    source: '用户填写',
                   },
                 ]);
               }}
@@ -1096,7 +1095,7 @@ export function SubscriptionForm({
           </div>
 
           <Field className="field">
-            <FieldLabel htmlFor="sub-connection">绑定模拟采集连接（无真实凭据输入）</FieldLabel>
+            <FieldLabel htmlFor="sub-connection">绑定自动采集连接（凭据在「连接」页管理）</FieldLabel>
             <FormSelect
               id="sub-connection"
               value={connectionId}
@@ -1243,7 +1242,7 @@ export function SubscriptionForm({
                 }}
               >
                 <option value="local">本地日历与桌面提醒</option>
-                <option value="external">本地 + 外部受管日历同步</option>
+                <option value="external">本地 + 外部日历提醒（待接入）</option>
                 <option value="none">不提醒</option>
               </FormSelect>
             </Field>

@@ -73,12 +73,22 @@ function summarizeAccountMetric(
   if (freshState === 'past_reset') {
     return `${firstMetric.label}：预计已重置，尚待核实`;
   }
+  const staleSuffix =
+    freshState === 'stale'
+      ? ` · 已过时（${formatRelativeTime(firstMetric.remaining.observedAt, now)}）`
+      : '';
   if (firstMetric.unit === '%') {
-    const rem = Math.max(0, Math.min(100, Number(firstMetric.remaining.value)));
-    const val = quotaView === 'used' ? 100 - rem : rem;
-    return `${firstMetric.label} ${quotaView === 'used' ? '已用' : '剩余'} ${val}%${freshState === 'stale' ? ` · 已过时（${formatRelativeTime(firstMetric.remaining.observedAt, now)}）` : ''}`;
+    // Display the recorded value as-is; anomalous percentages stay visible (only bars clamp)
+    const remNum = Number(firstMetric.remaining.value);
+    const usedNum = Number((100 - remNum).toFixed(6));
+    const anomalous = !Number.isFinite(remNum) || remNum < 0 || remNum > 100;
+    const val = quotaView === 'used' ? usedNum : remNum;
+    return `${firstMetric.label} ${quotaView === 'used' ? '已用' : '剩余'} ${val}%${anomalous ? ' · 数据异常' : ''}${staleSuffix}`;
   }
-  return `${firstMetric.label} ${money(firstMetric.remaining.value, firstMetric.unit)}${freshState === 'stale' ? ` · 已过时（${formatRelativeTime(firstMetric.remaining.observedAt, now)}）` : ''}`;
+  const amountText = /^[A-Z]{3}$/.test(firstMetric.unit)
+    ? money(firstMetric.remaining.value, firstMetric.unit)
+    : `${firstMetric.remaining.value} ${firstMetric.unit}`;
+  return `${firstMetric.label} ${amountText}${staleSuffix}`;
 }
 
 export function SubscriptionCard({
@@ -411,7 +421,7 @@ export function SubscriptionCard({
             {hasProposed ? (
               <StatusBadge
                 tone="warning"
-                title="手动锁定值与模拟探测值不一致，请在详情中保留或采纳"
+                title="手动锁定值与探测值不一致，请在详情中保留或采纳"
               >
                 待核对
               </StatusBadge>
@@ -434,7 +444,7 @@ export function SubscriptionCard({
                 onConnection(conn.id);
               }}
             >
-              {conn.error.action || '处理模拟连接'}
+              {conn.error.action || '处理连接'}
             </Button>
           </div>
         ) : null}
@@ -614,7 +624,7 @@ export function SubscriptionCard({
               type="button"
               variant="outline"
               size="xs"
-              title="前往模拟连接恢复"
+              title="前往连接恢复"
               onClick={() => onConnection(primaryConn.id)}
             >
               恢复连接
@@ -625,13 +635,13 @@ export function SubscriptionCard({
               variant="ghost"
               size="xs"
               className="card-hover-reveal"
-              title="模拟刷新此卡片额度（不覆盖锁定续费日）"
+              title="刷新此卡片额度（不覆盖锁定续费日）"
               disabled={primaryConn?.state === 'refreshing'}
               onClick={() => onRefresh(subscription.id)}
-              aria-label={`模拟刷新 ${subscription.product}`}
+              aria-label={`刷新 ${subscription.product}`}
             >
               <RefreshCw {...LUCIDE_ICON_SM} />
-              {primaryConn?.state === 'refreshing' ? '刷新中…' : '模拟'}
+              {primaryConn?.state === 'refreshing' ? '刷新中…' : '刷新'}
             </Button>
           ) : null}
 

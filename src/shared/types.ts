@@ -1,38 +1,239 @@
 export type Availability = 'known' | 'unfetched' | 'unsupported' | 'na' | 'denied' | 'unlimited';
-export type Field<T> = { value: T | null; availability: Availability; source: string; observedAt: string | null; dataOrigin: 'demo'; locked?: boolean; proposed?: T };
+export type DataOrigin =
+  | 'demo'
+  | 'manual'
+  | 'official_api'
+  | 'local_client'
+  | 'calendar'
+  | 'imported'
+  | 'computed';
+export type Field<T> = {
+  value: T | null;
+  availability: Availability;
+  source: string;
+  observedAt: string | null;
+  dataOrigin: DataOrigin;
+  locked?: boolean;
+  proposed?: T;
+};
 export type Cycle = 'monthly' | 'yearly' | 'days' | 'once' | 'irregular' | 'none';
 export type Lifecycle = 'active' | 'trial' | 'ending' | 'expired' | 'cancelled' | 'pending' | 'archived';
-export type Metric = { id: string; label: string; unit: string; remaining: Field<string>; total: string | null; resetAt: string | null; staleAfterMinutes: number };
+export type Metric = {
+  id: string;
+  label: string;
+  unit: string;
+  remaining: Field<string>;
+  total: string | null;
+  resetAt: string | null;
+  staleAfterMinutes: number;
+};
 export type Subscription = {
-  id: string; revision: number; product: string; brand: string; kind: 'window' | 'wallet' | 'manual';
-  account: string; region: string; organization: string; plan: Field<string>; price: Field<string>; currency: string;
-  cycle: Cycle; intervalDays: number; anchorDate: string | null; timezone: string;
-  startDate: Field<string>; renewalDate: Field<string>; paidThrough: Field<string>; trialEnd: Field<string>;
-  lifecycle: Lifecycle; autoRenew: 'on' | 'off' | 'unknown'; billingGroupId: string | null; quotaPoolId: string | null;
-  possibleSharedWallet: boolean; metrics: Metric[]; connectionId: string | null; website: string;
-  reminder: 'none' | 'local' | 'external'; pinned: boolean; notes: string;
+  id: string;
+  revision: number;
+  product: string;
+  brand: string;
+  kind: 'window' | 'wallet' | 'manual';
+  account: string;
+  region: string;
+  organization: string;
+  plan: Field<string>;
+  price: Field<string>;
+  currency: string;
+  cycle: Cycle;
+  intervalDays: number;
+  anchorDate: string | null;
+  timezone: string;
+  startDate: Field<string>;
+  renewalDate: Field<string>;
+  paidThrough: Field<string>;
+  trialEnd: Field<string>;
+  lifecycle: Lifecycle;
+  autoRenew: 'on' | 'off' | 'unknown';
+  billingGroupId: string | null;
+  quotaPoolId: string | null;
+  possibleSharedWallet: boolean;
+  metrics: Metric[];
+  connectionId: string | null;
+  website: string;
+  reminder: 'none' | 'local' | 'external';
+  pinned: boolean;
+  notes: string;
   scheduleOverrides?: Record<string, string>;
   archivedFrom?: Exclude<Lifecycle, 'archived'>;
-  history: { at: string; text: string; dataOrigin: 'demo' }[];
+  history: { at: string; text: string; dataOrigin: DataOrigin }[];
 };
-export type ConnectionState = 'ready' | 'refreshing' | 'partial' | 'auth' | 'denied' | 'rate_limited' | 'offline' | 'runtime_missing' | 'schema_changed' | 'paused' | 'disconnected';
-export type Connection = { id: string; provider: string; account: string; region: string; state: ConnectionState; generation: number; fields: string[]; unsupported: string[]; version: string; lastAttempt: string | null; lastSuccess: string | null; nextAllowed: string | null; error: { code: string; message: string; action: string } | null; runs: number };
+export type ConnectionState =
+  | 'ready'
+  | 'refreshing'
+  | 'partial'
+  | 'auth'
+  | 'denied'
+  | 'rate_limited'
+  | 'offline'
+  | 'runtime_missing'
+  | 'schema_changed'
+  | 'paused'
+  | 'disconnected';
+export type Connection = {
+  id: string;
+  provider: string;
+  account: string;
+  region: string;
+  state: ConnectionState;
+  generation: number;
+  fields: string[];
+  unsupported: string[];
+  version: string;
+  lastAttempt: string | null;
+  lastSuccess: string | null;
+  nextAllowed: string | null;
+  error: { code: string; message: string; action: string } | null;
+  runs: number;
+  credentialMask?: string;
+  verification?: 'pending' | 'verified';
+  adapterId?: string;
+};
+export type AuthSession = {
+  connectionId: string;
+  fields: string[];
+  unsupported: string[];
+  permissions: string;
+  credentialLocation: string;
+  authMode: 'api_key' | 'local_client';
+  runtimeStatus?: string;
+  verification?: 'pending' | 'verified';
+};
 export type EventKind = 'renewal' | 'start' | 'expiry' | 'trial' | 'reset';
-export type CalendarEvent = { id: string; subscriptionId: string; product: string; account: string; kind: EventKind; date: string; instant?: string; timezone: string; expected: boolean; source: string; revision: number; dataOrigin: 'demo' };
+export type CalendarEvent = {
+  id: string;
+  subscriptionId: string;
+  product: string;
+  account: string;
+  kind: EventKind;
+  date: string;
+  instant?: string;
+  timezone: string;
+  expected: boolean;
+  source: string;
+  revision: number;
+  dataOrigin: DataOrigin;
+};
 export type Backend = 'google' | 'eventkit' | 'icloud-caldav';
-export type RemoteEvent = CalendarEvent & { managed: boolean; baselineDate: string; suppressed: boolean; deleted: boolean };
-export type CalendarTarget = { id: Backend; name: string; account: string; location: string; state: 'ready' | 'paused' | 'readonly' | 'missing' | 'auth'; stage: 'idle' | 'queued' | 'written' | 'verified' | 'failed'; revision: number; remote: RemoteEvent[]; message: string };
-export type SyncChange = { action: 'add' | 'update' | 'remove' | 'conflict' | 'suppressed'; event: CalendarEvent; remote?: RemoteEvent };
-export type SyncPreview = { id: string; backend: Backend; revision: number; changes: SyncChange[] };
-export type Preferences = { theme: 'light' | 'dark' | 'system'; density: 'comfortable' | 'compact'; quotaView: 'remaining' | 'used'; timezone: string; reducedMotion: boolean; closeToTray: boolean; reminder: 'none' | 'local' | 'external'; walletThresholds: Record<string, string>; order: string[] };
-export const scenarioIds = ['empty_first_run','normal_mixed','multi_account_shared','unknown_and_na','zero_vs_unfetched','stale_and_past_reset','partial_success','auth_and_locked_fields','rate_limited','offline_recovery','date_boundaries','calendar_conflicts'] as const;
-export type ScenarioId = typeof scenarioIds[number];
-export type Space = { revision: number; now: string; subscriptions: Subscription[]; connections: Connection[]; targets: CalendarTarget[]; offline: boolean };
-export type Snapshot = Space & { scenario: ScenarioId; preferences: Preferences; storageError: string | null };
-export type Store = { schemaVersion: 1; active: ScenarioId; spaces: Partial<Record<ScenarioId, Space>>; preferences: Preferences; counter: number };
+export type RemoteEvent = CalendarEvent & {
+  managed: boolean;
+  baselineDate: string;
+  suppressed: boolean;
+  deleted: boolean;
+};
+export type CalendarTarget = {
+  id: Backend;
+  name: string;
+  account: string;
+  location: string;
+  state: 'ready' | 'paused' | 'readonly' | 'missing' | 'auth';
+  stage: 'idle' | 'queued' | 'written' | 'verified' | 'failed';
+  revision: number;
+  remote: RemoteEvent[];
+  message: string;
+};
+export type SyncChange = {
+  action: 'add' | 'update' | 'remove' | 'conflict' | 'suppressed';
+  event: CalendarEvent;
+  remote?: RemoteEvent;
+};
+export type SyncPreview = {
+  id: string;
+  backend: Backend;
+  revision: number;
+  changes: SyncChange[];
+};
+export type Preferences = {
+  theme: 'light' | 'dark' | 'system';
+  density: 'comfortable' | 'compact';
+  quotaView: 'remaining' | 'used';
+  timezone: string;
+  reducedMotion: boolean;
+  closeToTray: boolean;
+  reminder: 'none' | 'local' | 'external';
+  dndStart?: string;
+  dndEnd?: string;
+  notificationsMuted?: boolean;
+  walletThresholds: Record<string, string>;
+  order: string[];
+};
+export const scenarioIds = [
+  'empty_first_run',
+  'normal_mixed',
+  'multi_account_shared',
+  'unknown_and_na',
+  'zero_vs_unfetched',
+  'stale_and_past_reset',
+  'partial_success',
+  'auth_and_locked_fields',
+  'rate_limited',
+  'offline_recovery',
+  'date_boundaries',
+  'calendar_conflicts',
+] as const;
+export type ScenarioId = (typeof scenarioIds)[number];
+export type Space = {
+  revision: number;
+  now: string;
+  subscriptions: Subscription[];
+  connections: Connection[];
+  targets: CalendarTarget[];
+  offline: boolean;
+};
+export type Snapshot = Space & {
+  scenario: ScenarioId;
+  preferences: Preferences;
+  storageError: string | null;
+};
+export type Store = {
+  schemaVersion: 1;
+  active: ScenarioId;
+  spaces: Partial<Record<ScenarioId, Space>>;
+  preferences: Preferences;
+  counter: number;
+};
 export type SubscriptionInput = Omit<Subscription, 'id' | 'revision' | 'history'>;
-export type ImportPreview = { id: string; count: number; currentCount: number; added: number; overwritten: number; removed: number; scenario: ScenarioId; text: string };
-export type Probe = { id: string; connectionId: string; generation: number; account: string; fields: string[]; samples: string[] };
+export type ImportPreview = {
+  id: string;
+  count: number;
+  currentCount: number;
+  added: number;
+  overwritten: number;
+  removed: number;
+  scenario: ScenarioId;
+  text: string;
+};
+export type Probe = {
+  id: string;
+  connectionId: string;
+  generation: number;
+  account: string;
+  fields: string[];
+  samples: string[];
+};
+export type AdapterSupportTier = 'official_auto' | 'official_next' | 'experimental' | 'manual';
+export type AdapterCatalogEntry = {
+  adapterId: 'codex-local' | 'copilot-local' | 'deepseek-balance' | 'kimi-platform-cn' | 'openrouter-key';
+  provider: string;
+  brand: string;
+  region: string;
+  authMode: 'api_key' | 'local_client';
+  supportTier: AdapterSupportTier;
+  verification: 'pending' | 'verified';
+  version: string;
+  endpointSummary: string;
+  minIntervalSeconds: number;
+  defaultForegroundSeconds: number;
+  defaultBackgroundSeconds: number;
+  fields: string[];
+  unsupported: string[];
+  permissions: string;
+  credentialLocation: string;
+};
 export interface SubCalClient {
   snapshot(): Promise<Snapshot>;
   subscribe(listener: () => void): () => void;
@@ -46,7 +247,10 @@ export interface SubCalClient {
   resolveField(id: string, field: 'renewalDate' | 'price' | 'plan', accept: boolean): Promise<void>;
   refresh(id?: string): Promise<string>;
   pause(id?: string): Promise<void>;
-  disconnect(id: string): Promise<void>;
+  disconnect(id: string, removeCredential?: boolean): Promise<void>;
+  beginAuth?(provider: string, subscriptionId?: string): Promise<AuthSession>;
+  saveCredential?(connectionId: string, secret: string): Promise<{ mask: string }>;
+  deleteCredential?(connectionId: string): Promise<void>;
   probe(id: string, profile: string): Promise<Probe>;
   bind(probe: Probe): Promise<void>;
   diagnose(id?: string): Promise<string>;
@@ -68,3 +272,100 @@ export interface PreviewController {
   recoverOffline(): Promise<void>;
   recoverStorage(): Promise<void>;
 }
+export type AppClient = SubCalClient & {
+  preview?: PreviewController;
+  exportRawStorage?: () => Promise<string>;
+};
+
+export const OFFICIAL_ADAPTER_CATALOG: readonly AdapterCatalogEntry[] = [
+  {
+    adapterId: 'codex-local',
+    provider: 'Codex',
+    brand: 'OpenAI',
+    region: '本机官方客户端',
+    authMode: 'local_client',
+    supportTier: 'official_auto',
+    verification: 'pending',
+    version: '1.0.0',
+    endpointSummary: '官方 Codex App Server · account/read 与 account/rateLimits/read',
+    minIntervalSeconds: 60,
+    defaultForegroundSeconds: 300,
+    defaultBackgroundSeconds: 900,
+    fields: ['额度桶（动态识别）', '剩余/已用百分比', '窗口长度（分钟）', '重置时间'],
+    unsupported: ['ChatGPT 全功能消费者聊天总额度', '会员真实扣费日期与账单历史'],
+    permissions: '仅调用官方 App Server 只读查询方法（account/read、account/rateLimits/read），禁止创建会话或消耗额度。',
+    credentialLocation: '由本机官方 Codex 客户端自行管理；SubCal 不复制或导出其认证文件。',
+  },
+  {
+    adapterId: 'copilot-local',
+    provider: 'GitHub Copilot',
+    brand: 'GitHub',
+    region: '本机官方运行时',
+    authMode: 'local_client',
+    supportTier: 'official_auto',
+    verification: 'pending',
+    version: '1.0.0',
+    endpointSummary: '官方 Copilot SDK / CLI 运行时 · account.getQuota',
+    minIntervalSeconds: 300,
+    defaultForegroundSeconds: 600,
+    defaultBackgroundSeconds: 1800,
+    fields: ['quotaSnapshots（全键遍历）', '剩余百分比/次数', '无限量标记', 'resetDate（返回时）'],
+    unsupported: ['个人或组织会员真实扣费日期', '历史账单发票明细'],
+    permissions: '仅调用官方运行时 account.getQuota 只读方法，禁止发起补全或聊天请求。',
+    credentialLocation: '由本机 GitHub / Copilot 官方运行时管理；SubCal 不读取或备份其登录凭据。',
+  },
+  {
+    adapterId: 'deepseek-balance',
+    provider: 'DeepSeek API',
+    brand: 'DeepSeek',
+    region: 'api.deepseek.com',
+    authMode: 'api_key',
+    supportTier: 'official_auto',
+    verification: 'pending',
+    version: '1.0.0',
+    endpointSummary: 'GET https://api.deepseek.com/user/balance',
+    minIntervalSeconds: 300,
+    defaultForegroundSeconds: 1800,
+    defaultBackgroundSeconds: 1800,
+    fields: ['可用总余额（total_balance）', '充值余额（topped_up_balance）', '赠送余额（granted_balance）', '币种（CNY/USD）'],
+    unsupported: ['消费者会员周期与自动续费日期'],
+    permissions: '仅向 api.deepseek.com 发起 GET /user/balance 只读请求（注意：平台 API Key 本身可能具备模型调用权限，SubCal 承诺仅用于余额查询）。',
+    credentialLocation: '经系统凭据保护（Electron safeStorage / Windows DPAPI / macOS Keychain）加密后保存在本机，数据库仅存引用 ID，不回显明文。',
+  },
+  {
+    adapterId: 'kimi-platform-cn',
+    provider: 'Kimi API',
+    brand: 'Kimi',
+    region: '中国大陆（api.moonshot.cn）',
+    authMode: 'api_key',
+    supportTier: 'official_auto',
+    verification: 'pending',
+    version: '1.0.0',
+    endpointSummary: 'GET https://api.moonshot.cn/v1/users/me/balance',
+    minIntervalSeconds: 300,
+    defaultForegroundSeconds: 1800,
+    defaultBackgroundSeconds: 1800,
+    fields: ['可用余额（available_balance）', '现金余额（cash_balance）', '代金券余额（voucher_balance）'],
+    unsupported: ['Kimi Code 会员额度窗口', '国际站钱包（不跨区重试）', '会员续费日期'],
+    permissions: '仅向 api.moonshot.cn 发起 GET /v1/users/me/balance 只读请求，不跨区发送凭据。',
+    credentialLocation: '经系统凭据保护（Electron safeStorage）加密后保存在本机，数据库仅存引用 ID，不回显明文。',
+  },
+  {
+    adapterId: 'openrouter-key',
+    provider: 'OpenRouter',
+    brand: 'OpenRouter',
+    region: 'openrouter.ai',
+    authMode: 'api_key',
+    supportTier: 'official_auto',
+    verification: 'pending',
+    version: '1.0.0',
+    endpointSummary: 'GET https://openrouter.ai/api/v1/key',
+    minIntervalSeconds: 300,
+    defaultForegroundSeconds: 1800,
+    defaultBackgroundSeconds: 1800,
+    fields: ['当前 Key 剩余预算（limit_remaining）', 'Key 限额（limit）', '当前用量（usage）', '重置规则（limit_reset）'],
+    unsupported: ['账户总资金池（需 Management Key 查 /api/v1/credits）', '订阅扣费日期'],
+    permissions: '仅使用当前普通 API Key 调用 GET /api/v1/key 查询该 Key 范围预算，不要求 Management Key。',
+    credentialLocation: '经系统凭据保护（Electron safeStorage）加密后保存在本机，数据库仅存引用 ID，不回显明文。',
+  },
+] as const;

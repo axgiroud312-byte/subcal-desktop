@@ -27,7 +27,7 @@ export function anchoredDate(anchor: string, cycle: Subscription['cycle'], index
   const day = Math.min(d,new Date(Date.UTC(target.getUTCFullYear(),target.getUTCMonth()+1,0)).getUTCDate());
   return `${target.getUTCFullYear()}-${String(target.getUTCMonth()+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
 }
-export const fieldLabels: Record<Field<unknown>['availability'],string> = {known:'',unfetched:'尚未获取',unsupported:'当前读取方式未提供此项',na:'不适用',denied:'当前权限无法读取',unlimited:'无限量（示例）'};
+export const fieldLabels: Record<Field<unknown>['availability'],string> = {known:'',unfetched:'尚未获取',unsupported:'当前读取方式未提供此项',na:'不适用',denied:'当前权限无法读取',unlimited:'无限量'};
 export function fieldText(field: Field<string>): string { return field.availability === 'known' && field.value !== null ? field.value : fieldLabels[field.availability] || '尚未获取'; }
 export function money(value: string | null, currency: string): string {
   if (value === null) return '金额待补充';
@@ -39,6 +39,12 @@ export function decimal(value: string): bigint {
   return (BigInt(whole)*1000000n+BigInt(frac.padEnd(6,'0')))*(neg?-1n:1n);
 }
 export function decimalText(value: bigint): string { const sign=value<0n?'-':''; const n=value<0n?-value:value; return `${sign}${n/1000000n}.${String(n%1000000n).padStart(6,'0')}`; }
+export function compareMetricDecimal(a:string,b:string):number {
+  if(!/^-?\d{1,100}(\.\d{1,100})?$/.test(a)||! /^-?\d{1,100}(\.\d{1,100})?$/.test(b))throw new Error('指标数值格式无效');
+  const scale=Math.max(a.split('.')[1]?.length??0,b.split('.')[1]?.length??0);
+  const integer=(v:string)=>{const [whole,fraction='']=v.replace('-','').split('.');return BigInt(whole+fraction.padEnd(scale,'0'))*(v.startsWith('-')?-1n:1n);};
+  const x=integer(a),y=integer(b);return x<y?-1:x>y?1:0;
+}
 export function monthlySummary(subs: Subscription[]) {
   const seen=new Set<string>(); const sums:Record<string,bigint>={}; let unknown=0; let recurring=0;
   for (const s of subs) {
@@ -57,7 +63,7 @@ export function freshness(metric: Metric, now: string): 'fresh' | 'stale' | 'pas
 }
 export function isLow(s: Subscription, now: string, prefs: Preferences): boolean {
   const metrics=s.kind==='wallet'?s.metrics.slice(0,1):s.metrics;
-  return metrics.some(m=>m.remaining.availability==='known' && m.remaining.value!==null && freshness(m,now)==='fresh' && (m.unit==='%' ? Number(m.remaining.value)<=20 : prefs.walletThresholds[m.unit]!==undefined && decimal(m.remaining.value)<=decimal(prefs.walletThresholds[m.unit])));
+  return metrics.some(m=>m.remaining.availability==='known' && m.remaining.value!==null && freshness(m,now)==='fresh' && (m.unit==='%' ? Number(m.remaining.value)<=20 : prefs.walletThresholds[m.unit]!==undefined && compareMetricDecimal(m.remaining.value,prefs.walletThresholds[m.unit])<=0));
 }
 export function renewalText(s: Subscription, now: string): string {
   if(s.kind==='wallet' && s.cycle==='none')return '不适用 · 按量余额/预算';
@@ -74,7 +80,8 @@ export function projectEvents(subs: Subscription[], now: string, includeReset=fa
     const push=(kind:CalendarEvent['kind'],date:string,field:Field<string>,index=0,instant?:string)=>{
       const id=`${kind==='renewal'?group:s.id}:${kind}:${index}`;
       if(seen.has(id))return; seen.add(id);
-      result.push({id,subscriptionId:s.id,product:s.product,account:s.account,kind,date:s.scheduleOverrides?.[id]||date,instant,timezone:s.timezone,expected:kind==='renewal',source:s.scheduleOverrides?.[id]?'用户逐次改期（演示记录）':field.source,revision:s.revision,dataOrigin:'demo'});
+      const overrideLabel=field.dataOrigin==='demo'?'用户逐次改期（演示记录）':'用户逐次改期';
+      result.push({id,subscriptionId:s.id,product:s.product,account:s.account,kind,date:s.scheduleOverrides?.[id]||date,instant,timezone:s.timezone,expected:kind==='renewal',source:s.scheduleOverrides?.[id]?overrideLabel:field.source,revision:s.revision,dataOrigin:field.dataOrigin||'manual'});
     };
     if(s.startDate.value)push('start',s.startDate.value,s.startDate);
     if(s.paidThrough.value)push('expiry',s.paidThrough.value,s.paidThrough);
@@ -112,8 +119,8 @@ export function validateSubscription(s: Partial<Subscription>): Record<string,st
   if(s.anchorDate && !dateValid(s.anchorDate))errors.anchorDate='账期锚点必须是有效日期';
   for(const key of ['billingGroupId','quotaPoolId'] as const)if(s[key]&&!/^[\w.:-]{1,160}$/.test(s[key]!))errors[key]='共享标识请使用字母、数字、短横线或下划线';
   for(const m of s.metrics??[]) {
-    if(m.unit!=='%'&&!/^[A-Z]{3}$/.test(m.unit))errors[`metric_${m.id}`]='指标单位请填写 % 或三位币种代码';
-    if(m.remaining.value!==null){try{decimal(m.remaining.value);if(m.unit==='%'&&(Number(m.remaining.value)<0||Number(m.remaining.value)>100))errors[`metric_${m.id}`]='百分比必须在 0 至 100 之间';}catch{errors[`metric_${m.id}`]='指标数值格式无效';}}
+    if(!m.unit.trim()||m.unit.length>80)errors[`metric_${m.id}`]='请填写有效计量单位';
+    if(m.remaining.value!==null){try{compareMetricDecimal(m.remaining.value,'0');if(m.unit==='%'&&(Number(m.remaining.value)<0||Number(m.remaining.value)>100))errors[`metric_${m.id}`]='百分比必须在 0 至 100 之间';}catch{errors[`metric_${m.id}`]='指标数值格式无效';}}
   }
   for(const key of ['startDate','renewalDate','paidThrough','trialEnd'] as const){const value=s[key]?.value; if(value && !dateValid(value))errors[key]='请填写 1900—2200 年间的有效日期';}
   for(const key of ['paidThrough','trialEnd','renewalDate'] as const){if(s.startDate?.value&&s[key]?.value&&s[key]!.value!<s.startDate.value)errors[key]='日期不能早于开始日';}

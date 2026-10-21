@@ -6,6 +6,10 @@ import {
   screen,
   session,
   shell,
+  safeStorage,
+  powerMonitor,
+  Notification,
+  net,
 } from 'electron';
 import type { IpcMainInvokeEvent } from 'electron';
 import fs from 'node:fs/promises';
@@ -24,6 +28,12 @@ import type { ShellPrefs } from './settings';
 import { createTrayIcon, createWindowIcon } from './tray-icon';
 import { createPreviewTray } from './tray';
 import type { PreviewTray, TrayRendererAction } from './tray';
+import { SubCalDatabase } from './db/database';
+import { CredentialVault } from './credentials';
+import { SubCalService } from './service';
+import { Collector } from './collector';
+import { manifests } from './adapters';
+import { NotificationService } from './notifications';
 
 /** 渲染层动作通道（主 → 渲染），合同见 src/shared/bridge.ts。 */
 const ACTION_CHANNEL = 'subcal:action';
@@ -39,6 +49,8 @@ let prefsFile = '';
 let devServerUrl = DEFAULT_DEV_URL;
 let isQuitting = false;
 let selectedImport: { id: string; path: string } | null = null;
+let service:SubCalService;
+let notifications:NotificationService;
 
 /* —— 启动路径与用户数据目录 —— */
 
@@ -52,10 +64,10 @@ function setupUserDataPath(): void {
     console.warn('[SubCal] SUBCAL_USER_DATA 必须是绝对路径，已忽略:', override);
   }
   // 开发期独立目录，避免与任何未来正式安装共用 userData。
-  app.setPath('userData', path.join(app.getPath('appData'), 'SubCal-Preview'));
+  app.setPath('userData', path.join(app.getPath('appData'), app.isPackaged?'SubCal':'SubCal-Development'));
 }
 
-app.setName('SubCal-Preview');
+app.setName('SubCal');
 setupUserDataPath();
 if (!app.requestSingleInstanceLock()) app.exit(0);
 app.on('second-instance', () => showMainWindow());
@@ -92,7 +104,7 @@ function createMainWindow(): void {
     ...bounds,
     show: false,
     // 原生带框标题栏：不使用 overlay/titleBarStyle，安全区交给系统
-    title: 'SubCal 预览',
+    title: 'SubCal',
     backgroundColor: '#ffffff',
     autoHideMenuBar: true,
     icon: createWindowIcon(),
@@ -121,11 +133,10 @@ function createMainWindow(): void {
     if (!prefs.closeToTrayExplained) {
       dialog.showMessageBoxSync(win, {
         type: 'info',
-        title: 'SubCal 预览',
-        message: 'SubCal 预览已最小化到系统托盘',
+        title: 'SubCal',
+        message: 'SubCal 已最小化到系统托盘',
         detail:
-          '关闭窗口不会结束本次预览：预览仍在运行，可通过托盘图标重新打开窗口、暂停模拟刷新或完全退出。\n' +
-          '这只是前端预览，不会进行真实后台采集或真实心跳。',
+          '已启用的连接会继续按允许频率查询。可通过托盘暂停采集或完全退出；完全退出后不再查询或发送本地提醒。',
         buttons: ['知道了'],
         defaultId: 0,
         noLink: true,
@@ -138,6 +149,8 @@ function createMainWindow(): void {
   win.on('closed', () => {
     mainWindow = null;
   });
+  win.on('show',()=>{service.scheduler.foreground=true;});
+  win.on('hide',()=>{service.scheduler.foreground=false;});
 
   if (app.isPackaged) {
     void win.loadFile(path.join(__dirname, '../dist/index.html'));
@@ -155,6 +168,10 @@ function showMainWindow(): void {
 }
 
 function sendRendererAction(action: TrayRendererAction): void {
+  if(action!=='settings') {
+    void service.handle({version:1,requestId:randomUUID(),idempotencyKey:randomUUID(),method:action==='refresh'?'collections.refresh':'connections.pause',params:{}});
+    return;
+  }
   showMainWindow();
   const wc = mainWindow?.webContents;
   if (!wc) return;
@@ -177,6 +194,7 @@ function assertMainWindowSender(event: IpcMainInvokeEvent): void {
   if (!win || win.isDestroyed() || event.sender !== win.webContents) {
     throw new Error('拒绝：调用来源不是主窗口');
   }
+  if(event.senderFrame!==win.webContents.mainFrame)throw new Error('拒绝：不允许子框架调用');
   const frameUrl = event.senderFrame?.url ?? '';
   if (frameUrl && !isAllowedNavigation(frameUrl)) {
     throw new Error('拒绝：页面来源不受信任');
@@ -184,6 +202,7 @@ function assertMainWindowSender(event: IpcMainInvokeEvent): void {
 }
 
 function registerIpc(): void {
+  ipcMain.handle('subcal:invoke',(event,request:unknown)=>{assertMainWindowSender(event);return service.handle(request);});
   ipcMain.handle('subcal:open-external', async (event, rawUrl: unknown) => {
     assertMainWindowSender(event);
     const url = assertOfficialHttpsUrl(rawUrl);
@@ -201,7 +220,7 @@ function registerIpc(): void {
     const win = mainWindow;
     if (!win) throw new Error('主窗口不可用');
     const result = await dialog.showSaveDialog(win, {
-      title: '导出演示资料备份',
+      title: '导出资料备份',
       defaultPath: path.join(app.getPath('documents'), sanitizeExportFileName(rawName)),
       filters: [{ name: 'JSON 文件', extensions: ['json'] }],
     });
@@ -215,7 +234,7 @@ function registerIpc(): void {
     const win = mainWindow;
     if (!win) throw new Error('主窗口不可用');
     const result = await dialog.showOpenDialog(win, {
-      title: '导入演示资料备份',
+      title: '导入资料备份',
       defaultPath: app.getPath('documents'),
       properties: ['openFile'],
       filters: [{ name: 'JSON 文件', extensions: ['json'] }],
@@ -269,6 +288,15 @@ void app.whenReady().then(async () => {
 
   prefsFile = path.join(app.getPath('userData'), 'preview-shell.json');
   prefs = await loadShellPrefs(prefsFile);
+  const db=new SubCalDatabase(app.getPath('userData'));
+  service=new SubCalService(db,new CredentialVault(app.getPath('userData'),safeStorage),new Collector(),manifests);
+  prefs.closeToTray=db.getPreferences().closeToTray;
+  notifications=new NotificationService(db,{available:()=>Notification.isSupported(),show:(title,body)=>{new Notification({title,body}).show();}});
+  service.subscribe(()=>{mainWindow?.webContents.send('subcal:state-changed');prefs.closeToTray=db.getPreferences().closeToTray;});
+  if(!db.getStorageError()){service.scheduler.start();notifications.start();}
+  powerMonitor.on('suspend',()=>service.scheduler.suspend());
+  powerMonitor.on('resume',()=>{service.scheduler.resume();notifications.tick();});
+  const networkTimer=setInterval(()=>service.scheduler.setOnline(net.isOnline()),5000);networkTimer.unref();
 
   // 预览不需要任何系统权限（通知、摄像头等），全部拒绝
   session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) => {
@@ -296,6 +324,7 @@ app.on('before-quit', () => {
 });
 
 app.on('will-quit', () => {
+  notifications?.close();service?.close();
   trayHandle?.destroy();
   trayHandle = null;
 });
