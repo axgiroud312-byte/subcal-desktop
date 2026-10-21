@@ -845,7 +845,7 @@ export function DetailDrawer({
           </CollapsibleContent>
         </Collapsible>
 
-        {/* Group 2: 全部额度窗口与余额明细 (Default Expanded) */}
+        {/* Group 2: 额度与余额明细 (Default Expanded) */}
         <Collapsible
           open={openQuota}
           onOpenChange={setOpenQuota}
@@ -855,7 +855,7 @@ export function DetailDrawer({
             className="drawer-collapsible-trigger"
             data-testid="drawer-section-quota"
           >
-            <span>2. 全部额度窗口与余额明细</span>
+            <span>2. 额度与余额明细</span>
             <span className="drawer-trigger-meta">
               共 {subscription.metrics.length} 项指标
               <ChevronDown className="drawer-chevron" />

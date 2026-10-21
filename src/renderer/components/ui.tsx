@@ -246,9 +246,6 @@ export function QuotaMeter({ metric, now = '2026-10-20T01:00:00.000Z', view = 'r
           <span className="quota-label">{label}</span>
           <strong className="quota-value unlimited-text">无限量</strong>
         </div>
-        <div className="quota-sub">
-          <span>{remaining.source}</span>
-        </div>
       </div>
     );
   }
@@ -262,8 +259,7 @@ export function QuotaMeter({ metric, now = '2026-10-20T01:00:00.000Z', view = 'r
           <span className="quota-value unavailable-text">{statusText}</span>
         </div>
         <div className="quota-sub">
-          <span>来源：{remaining.source || '手动记录（示例）'}</span>
-          {remaining.observedAt ? <span>{relTime}</span> : <span>不等于 0%</span>}
+          <span>{remaining.observedAt ? `${relTime} · 不等于 0%` : '不等于 0%'}</span>
         </div>
       </div>
     );
@@ -307,16 +303,16 @@ export function QuotaMeter({ metric, now = '2026-10-20T01:00:00.000Z', view = 'r
           value={displayNum}
           aria-label={`${label} ${modePrefix}百分比`}
         /> : null}
-        <div className="quota-sub">
-          <span>
-            {freshState === 'past_reset'
-              ? `原记录剩余 ${remNum}% · ${relTime}观察`
-              : freshState === 'stale'
-                ? `${relTime} · 已过时 · ${remaining.source}`
-                : `${relTime} · ${remaining.source}`}
-          </span>
-          {resetText ? <span className="quota-reset-tag">额度重置：{resetText}（非续费日）</span> : null}
-        </div>
+        {freshState !== 'fresh' || resetText ? (
+          <div className="quota-sub">
+            {freshState === 'past_reset' ? (
+              <span>原记录剩余 {remNum}% · {relTime}观察</span>
+            ) : freshState === 'stale' ? (
+              <span>{relTime} · 已过时</span>
+            ) : null}
+            {resetText ? <span className="quota-reset-tag">重置 {resetText}</span> : null}
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -357,16 +353,16 @@ export function QuotaMeter({ metric, now = '2026-10-20T01:00:00.000Z', view = 'r
         )}
       </div>
       {pctWidth !== null && freshState !== 'past_reset' ? <Progress value={pctWidth} aria-label={`${label} ${view === 'used' ? '已用' : '剩余'}比例`} className="quota-progress" /> : null}
-      <div className="quota-sub">
-        <span>
-          {freshState === 'past_reset'
-            ? `原观察值 ${money(remaining.value, unit)}（${relTime}），已过重置时间待复查`
-            : freshState === 'stale'
-              ? `${relTime} · 已过时 · ${remaining.source}`
-              : `${relTime} · ${remaining.source}`}
-        </span>
-        {resetText ? <span className="quota-reset-tag">限额重置：{resetText}（非续费日）</span> : null}
-      </div>
+      {freshState !== 'fresh' || resetText ? (
+        <div className="quota-sub">
+          {freshState === 'past_reset' ? (
+            <span>原观察值 {money(remaining.value, unit)}（{relTime}），已过重置时间待复查</span>
+          ) : freshState === 'stale' ? (
+            <span>{relTime} · 已过时</span>
+          ) : null}
+          {resetText ? <span className="quota-reset-tag">重置 {resetText}</span> : null}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -325,8 +325,8 @@ export function SubscriptionsPage({
               onChange={(e) => setKindFilter(e.target.value as KindFilter)}
             >
               <option value="all">全部卡片类型</option>
-              <option value="window">窗口额度</option>
-              <option value="wallet">API 钱包与预算</option>
+              <option value="window">订阅额度</option>
+              <option value="wallet">API 余额与预算</option>
               <option value="manual">手动会员</option>
             </FormSelect>
 
@@ -552,9 +552,9 @@ export function SubscriptionsPage({
                             <span>
                               {sub.brand} ·{' '}
                               {sub.kind === 'window'
-                                ? '窗口额度'
+                                ? '订阅额度'
                                 : sub.kind === 'wallet'
-                                  ? '按量钱包/预算'
+                                  ? '按量余额/预算'
                                   : '手动会员'}
                             </span>
                             {sub.billingGroupId ? (

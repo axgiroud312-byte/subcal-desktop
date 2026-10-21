@@ -169,8 +169,6 @@ export function SubscriptionCard({
     index: number,
     options?: { hideSubtitleRow?: boolean }
   ) => {
-    const billingPeers = sub.billingGroupId ? allSubscriptions.filter((item) => item.id !== sub.id && item.billingGroupId === sub.billingGroupId) : [];
-    const quotaPeers = sub.quotaPoolId ? allSubscriptions.filter((item) => item.id !== sub.id && item.quotaPoolId === sub.quotaPoolId) : [];
     const conn = sub.connectionId
       ? connections.find((c) => c.id === sub.connectionId) || null
       : null;
@@ -198,7 +196,7 @@ export function SubscriptionCard({
 
     const priceDisplay =
       sub.kind === 'wallet' && sub.cycle === 'none'
-        ? '按量预付 · 无固定月费'
+        ? '按量预付'
         : sub.price.availability === 'known' && sub.price.value !== null
           ? `${money(sub.price.value, sub.currency)} / ${cycleLabel(sub.cycle, sub.intervalDays)}`
           : '价格待补充';
@@ -223,12 +221,20 @@ export function SubscriptionCard({
     // A source and its timestamp must refer to the same field. In particular,
     // an unfetched short window must not borrow the known weekly observation.
     const metricObservedAt = firstMetric?.remaining.observedAt ?? null;
-    const hasTrackedMetric =
-      sub.kind !== 'manual' ? Boolean(firstMetric) : meaningfulManualMetrics.length > 0;
-    const metricFreshness =
-      firstMetric?.remaining.availability === 'known'
-        ? freshness(firstMetric, now)
-        : 'fresh';
+    // Card footer keeps only the freshest observation time; per-field sources
+    // and full history stay in the detail drawer's 来源与历史 group.
+    const latestObserved =
+      [sub.renewalDate.observedAt, metricObservedAt]
+        .filter((t): t is string => Boolean(t))
+        .sort()
+        .reverse()[0] ?? null;
+    const freshnessFooter = latestObserved
+      ? `${formatRelativeTime(latestObserved, now)} 更新${
+          sub.renewalDate.locked ? ' · 已锁定' : ''
+        }`
+      : sub.renewalDate.locked
+        ? '已锁定'
+        : null;
 
     return (
       <div
@@ -299,11 +305,7 @@ export function SubscriptionCard({
                         </span>
                       ))}
                     </div>
-                  ) : (
-                    <span>
-                      含 {breakdownMetrics.map((bm) => bm.label).join(' / ')} 分项
-                    </span>
-                  )}
+                  ) : null}
                   <Button
                     type="button"
                     variant="ghost"
@@ -318,7 +320,7 @@ export function SubscriptionCard({
                   >
                     {showBreakdown
                       ? '收起分项'
-                      : `展开分项 (${breakdownMetrics.length})`}
+                      : `分项 (${breakdownMetrics.length})`}
                   </Button>
                 </div>
               ) : null}
@@ -331,7 +333,6 @@ export function SubscriptionCard({
                 }`}
               >
                 <div className="manual-hero-top">
-                  <span className="manual-hero-label">周期费用与续费安排</span>
                   <strong className="manual-hero-price tabular">
                     {priceDisplay}
                   </strong>
@@ -365,7 +366,7 @@ export function SubscriptionCard({
               ) : (
                 <div className="quota-meter quota-unavailable">
                   <div className="quota-header">
-                    <span className="quota-label">额度窗口</span>
+                    <span className="quota-label">额度</span>
                     <span className="quota-value unavailable-text">
                       尚未获取
                     </span>
@@ -396,41 +397,27 @@ export function SubscriptionCard({
           </div>
         ) : null}
 
-        {/* Subtle Relationship & Local Exception Indicators (Placed after primary info) */}
-        {(billingPeers.length > 0 ||
-          quotaPeers.length > 0 ||
-          sub.possibleSharedWallet ||
-          hasProposed ||
-          low) && (
+        {/* Local exception indicators only; shared billing / quota pool relations live in the detail drawer */}
+        {(sub.possibleSharedWallet || hasProposed || low) && (
           <div className="card-relation-row">
-            {billingPeers.length > 0 ? (
-              <StatusBadge
-                tone="neutral"
-                title="共用同一笔周期付款，月费汇总与续费日程只计算一次；不代表额度池必然共享"
-              >
-                与 {billingPeers.map((p) => p.product).join('、')} 共用付款
-              </StatusBadge>
-            ) : null}
-            {quotaPeers.length > 0 ? (
-              <StatusBadge
-                tone="neutral"
-                title="共享同一额度池（与付款关系相互独立）"
-              >
-                与 {quotaPeers.map((p) => p.product).join('、')} 共享额度池
-              </StatusBadge>
-            ) : null}
             {sub.possibleSharedWallet ? (
-              <StatusBadge tone="warning">
-                疑似共享账户余额 · 不重复加总
+              <StatusBadge
+                tone="warning"
+                title="疑似与其他 Key 共享同一账户余额，汇总时不重复加总；详见抽屉"
+              >
+                疑似共享余额
               </StatusBadge>
             ) : null}
             {hasProposed ? (
-              <StatusBadge tone="warning">
-                存在模拟探测差异待核对
+              <StatusBadge
+                tone="warning"
+                title="手动锁定值与模拟探测值不一致，请在详情中保留或采纳"
+              >
+                待核对
               </StatusBadge>
             ) : null}
             {low ? (
-              <StatusBadge tone="danger">剩余额度/余额偏低</StatusBadge>
+              <StatusBadge tone="danger">余额偏低</StatusBadge>
             ) : null}
           </div>
         )}
@@ -452,33 +439,12 @@ export function SubscriptionCard({
           </div>
         ) : null}
 
-        {/* 5. Independent Provenance & Freshness Footer */}
-        <div className="card-provenance-footer">
-          <span
-            className="provenance-item"
-            title="收费与续费日期字段的独立来源与核对时间"
-          >
-            {sub.renewalDate.locked ? '手动锁定 · ' : ''}
-            日期：{sub.renewalDate.source || '手动记录'}（
-            {sub.renewalDate.observedAt
-              ? formatRelativeTime(sub.renewalDate.observedAt, now)
-              : '未记录时间'}
-            ）
-          </span>
-          <span className="provenance-sep">·</span>
-          <span
-            className="provenance-item"
-            title="核心额度/余额字段的独立来源与观察时间"
-          >
-            {hasTrackedMetric && firstMetric
-              ? `额度：${firstMetric.remaining.source}（${
-                  metricObservedAt
-                    ? formatRelativeTime(metricObservedAt, now)
-                    : '未获取'
-                }${metricFreshness === 'stale' ? ' · 已过时' : ''}）`
-              : '未配置自动额度读取'}
-          </span>
-        </div>
+        {/* 5. Single faint freshness line; per-field provenance lives in the drawer */}
+        {freshnessFooter ? (
+          <div className="card-provenance-footer">
+            <span>{freshnessFooter}</span>
+          </div>
+        ) : null}
       </div>
     );
   };
@@ -643,13 +609,6 @@ export function SubscriptionCard({
         </div>
 
         <div className="sub-card-actions">
-          <span
-            className="card-demo-badge"
-            title="当前卡片数据来自本地演示空间（示例）"
-          >
-            示例
-          </span>
-
           {primaryConn && connMeta?.needsRecovery ? (
             <Button
               type="button"
@@ -665,6 +624,7 @@ export function SubscriptionCard({
               type="button"
               variant="ghost"
               size="xs"
+              className="card-hover-reveal"
               title="模拟刷新此卡片额度（不覆盖锁定续费日）"
               disabled={primaryConn?.state === 'refreshing'}
               onClick={() => onRefresh(subscription.id)}

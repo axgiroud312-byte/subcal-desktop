@@ -23,10 +23,8 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-2, 0.5rem);
-    background: var(--card);
-    border: var(--border-width, 1px) solid var(--border);
-    border-radius: var(--radius-lg, 0.75rem);
-    padding: var(--space-3, 0.75rem) var(--space-4, 1rem);
+    /* De-boxed (Magpie-style): sits on the page background, no card chrome */
+    padding: var(--space-1, 0.25rem) var(--space-2, 0.5rem);
   }
 
   .action-zone-calm {
@@ -127,10 +125,9 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-3, 0.75rem);
-    background: var(--card);
-    border: var(--border-width, 1px) solid var(--border);
-    border-radius: var(--radius-lg, 0.75rem);
-    padding: var(--space-3, 0.75rem) var(--space-4, 1rem);
+    /* De-boxed: one hairline under the whole toolbar instead of a card box */
+    border-bottom: var(--border-width, 1px) solid var(--border);
+    padding: 0 var(--space-2, 0.5rem) var(--space-3, 0.75rem);
   }
 
   .honest-summary-strip {
@@ -139,8 +136,6 @@
     justify-content: space-between;
     flex-wrap: wrap;
     gap: var(--space-2, 0.5rem) var(--space-4, 1rem);
-    padding-bottom: var(--space-3, 0.75rem);
-    border-bottom: var(--border-width, 1px) solid var(--border);
   }
 
   .summary-metrics-group {
@@ -342,7 +337,8 @@
   .sub-card-product {
     font-size: var(--font-size-sm, 0.875rem);
     line-height: var(--line-height-sm, 1.25rem);
-    font-weight: var(--font-weight-semibold, 600);
+    /* 500 keeps the name apart from the 600 numbers it sits next to */
+    font-weight: var(--font-weight-medium, 500);
     color: var(--foreground);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -364,15 +360,21 @@
     flex-shrink: 0;
   }
 
-  .card-demo-badge {
-    font-size: var(--font-size-xs, 0.75rem);
-    line-height: var(--line-height-xs, 1.125rem);
-    color: var(--muted-foreground);
-    background: var(--muted);
-    border-radius: var(--radius-sm, 0.375rem);
-    padding: 0 var(--space-1, 0.25rem);
-    font-weight: var(--font-weight-medium, 500);
-    white-space: nowrap;
+  /* Card-chrome revealed on hover / keyboard focus (Magpie quota-refresh pattern):
+     at rest the card shows only information, controls appear on intent */
+  .sub-card .card-hover-reveal,
+  .sub-card .card-drag-handle:not(:disabled) {
+    opacity: 0;
+    transition: opacity var(--duration-fast, 120ms) var(--ease-standard);
+  }
+
+  .sub-card:hover .card-hover-reveal,
+  .sub-card:focus-within .card-hover-reveal,
+  .sub-card:hover .card-drag-handle,
+  .sub-card:focus-within .card-drag-handle,
+  .card-hover-reveal:focus-visible,
+  .card-drag-handle:focus-visible {
+    opacity: 1;
   }
 
   /* ------------------------------------------------------------------------
@@ -481,14 +483,8 @@
   .manual-hero-top {
     display: flex;
     align-items: baseline;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: var(--space-2, 0.5rem);
-  }
-
-  .manual-hero-label {
-    font-size: var(--font-size-control, 0.8125rem);
-    line-height: var(--line-height-control, 1.125rem);
-    color: var(--secondary-foreground);
   }
 
   .manual-hero-price {
@@ -578,7 +574,7 @@
     line-height: var(--line-height-xs, 1.125rem);
   }
 
-  /* Step 5 in reading order: Provenance & Update Time Footer */
+  /* Step 5 in reading order: single faint freshness line */
   .card-provenance-footer {
     display: flex;
     align-items: center;
@@ -586,7 +582,7 @@
     gap: var(--space-1, 0.25rem) var(--space-2, 0.5rem);
     font-size: var(--font-size-xs, 0.75rem);
     line-height: var(--line-height-xs, 1.125rem);
-    color: var(--muted-foreground);
+    color: var(--faint, var(--muted-foreground));
   }
 
   .provenance-sep {

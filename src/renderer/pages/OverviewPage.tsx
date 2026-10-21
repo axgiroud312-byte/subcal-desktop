@@ -615,9 +615,6 @@ export function OverviewPage({
                 <span className="action-zone-title">
                   近期需核对与处理 ({actionItems.length})
                 </span>
-                <span className="muted">
-                  优先显示近期续费、有效低额度与待确认异常
-                </span>
               </div>
               {actionItems.length > 3 ? (
                 <Button
@@ -697,9 +694,7 @@ export function OverviewPage({
           </>
         ) : (
           <div className="action-zone-calm">
-            <span>
-              当前演示空间暂无 7 天内紧急续费、有效低额度或待处理异常（仅基于本地演示数据计算，外部服务未连接）。
-            </span>
+            <span>近期没有需要核对与处理的事项。</span>
           </div>
         )}
       </section>
@@ -713,19 +708,15 @@ export function OverviewPage({
         <div className="honest-summary-strip">
           <div className="summary-metrics-group">
             {monthly.recurring === 0 ? (
-              <span className="summary-segment">
-                当前无固定周期订阅（按量 API 钱包与单次项目不折算为固定月费）。
-              </span>
+              <span className="summary-segment">当前无固定周期订阅。</span>
             ) : (
               <>
                 <span className="summary-segment">
-                  <span>固定周期折算月均（示例）：</span>
+                  <span>月均</span>
                   {monthly.totals.length > 0 ? (
                     <span className="summary-value-primary">
                       {monthly.totals
-                        .map(
-                          (t) => `${t.currency} ${money(t.amount, t.currency)}`
-                        )
+                        .map((t) => money(t.amount, t.currency))
                         .join(' · ')}
                     </span>
                   ) : (
@@ -733,32 +724,32 @@ export function OverviewPage({
                       暂无已知金额
                     </span>
                   )}
-                  <span>（分币种列示，不含按量钱包，共用付款只计 1 次）</span>
                 </span>
 
                 {monthly.unknown > 0 ? (
-                  <StatusBadge tone="warning">
-                    另有 {monthly.unknown} 项周期订阅未填价格，未计入月均
+                  <StatusBadge
+                    tone="warning"
+                    title="另有周期订阅未填价格，未计入月均"
+                  >
+                    {monthly.unknown} 项未填价
                   </StatusBadge>
                 ) : null}
 
                 <span className="summary-divider">|</span>
 
                 <span className="summary-segment">
-                  <span>未来 30 天预计续费总额：</span>
+                  <span>30 天内续费</span>
                   {upcoming.totals.length > 0 ? (
                     <span className="summary-value-secondary">
                       {upcoming.totals
-                        .map(
-                          (t) => `${t.currency} ${money(t.amount, t.currency)}`
-                        )
+                        .map((t) => money(t.amount, t.currency))
                         .join(' · ')}
                     </span>
                   ) : (
                     <span className="summary-value-secondary">无已知扣费</span>
                   )}
                   {upcoming.unknown > 0 ? (
-                    <span>（另有 {upcoming.unknown} 项金额待补充）</span>
+                    <span>· {upcoming.unknown} 项待补充</span>
                   ) : null}
                 </span>
               </>
@@ -766,8 +757,11 @@ export function OverviewPage({
           </div>
 
           {hasSharedWalletWarning ? (
-            <StatusBadge tone="warning">
-              包含疑似共享同一账户余额的多个 Key，不进行钱包总余额叠加
+            <StatusBadge
+              tone="warning"
+              title="包含疑似共享同一账户余额的多个 Key，不进行钱包总余额叠加"
+            >
+              疑似共享余额未叠加
             </StatusBadge>
           ) : null}
         </div>
@@ -806,17 +800,11 @@ export function OverviewPage({
                 value={sort}
                 onChange={(e) => setSort(e.target.value as SortKind)}
               >
-                <option value="custom">固定/自定义顺序（支持拖拽）</option>
+                <option value="custom">自定义顺序</option>
                 <option value="renewal">按下次续费/到期日</option>
                 <option value="brand">按品牌与产品名称</option>
               </FormSelect>
             </label>
-
-            {sort !== 'custom' ? (
-              <span className="sort-mode-note">
-                仅自定义顺序允许拖拽，当前按规则视图展示
-              </span>
-            ) : null}
 
             <div
               className="segmented-group"

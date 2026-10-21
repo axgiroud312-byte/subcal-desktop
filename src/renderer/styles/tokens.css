@@ -23,6 +23,10 @@
   --muted: #F0F0F3;
   --muted-foreground: #686873;
 
+  /* 第三级文字灰：时间戳等非关键信息（Magpie --faint 的角色），
+     只用于可牺牲的辅助行，关键状态仍用 muted-foreground */
+  --faint: #8A8A94;
+
   --accent: #F0F0F3;
   --accent-foreground: #52525B;
 
@@ -66,7 +70,7 @@
   --line-height-xs: 1.125rem;    /* 18px */
   --font-size-control: 0.8125rem;/* 13px - 标签 / 控件 */
   --line-height-control: 1.125rem;/* 18px */
-  --font-size-sm: 0.875rem;      /* 14px - 正文 / 卡片标题 / 窗口额度数值 */
+  --font-size-sm: 0.875rem;      /* 14px - 正文 / 卡片标题 / 额度数值 */
   --line-height-sm: 1.25rem;     /* 20px */
   --font-size-lg: 1.125rem;      /* 18px - 主要余额 / 页面标题 */
   --line-height-lg: 1.625rem;    /* 26px */
@@ -94,9 +98,9 @@
   /* Layout & Component Dimensions */
   --page-padding: 1.5rem;          /* 24px */
   --page-padding-compact: 1rem;    /* 16px */
-  --card-padding: 1rem;            /* 16px */
+  --card-padding: 0.875rem;        /* 14px（自 16px 校正：用户反馈呼吸感过重，对齐 Magpie 10-12px 的方向，保留可读余量） */
   --card-padding-compact: 0.75rem; /* 12px */
-  --card-gap: 0.75rem;             /* 12px */
+  --card-gap: 0.625rem;            /* 10px（自 12px 校正，Magpie 为 7px） */
   --card-gap-compact: 0.5rem;      /* 8px */
   --card-min-width: 18.75rem;      /* 300px */
   --card-min-width-compact: 16.25rem; /* 260px */
@@ -168,6 +172,9 @@
 
   --muted: #2C2C31;
   --muted-foreground: #A1A1AA;
+
+  /* 第三级文字灰（见上方说明） */
+  --faint: #71717A;
 
   --accent: #2C2C31;
   --accent-foreground: #D4D4D8;

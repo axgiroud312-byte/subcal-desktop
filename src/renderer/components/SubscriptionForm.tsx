@@ -54,8 +54,8 @@ export const PRODUCT_CATALOG: CatalogPreset[] = [
     connectionId: 'codex-local',
     website: 'https://chatgpt.com/',
     defaultMetrics: [
-      { label: '短窗口', unit: '%', availability: 'unfetched', total: '100' },
-      { label: '周窗口', unit: '%', availability: 'unfetched', total: '100' },
+      { label: '5 小时额度', unit: '%', availability: 'unfetched', total: '100' },
+      { label: '每周额度', unit: '%', availability: 'unfetched', total: '100' },
     ],
   },
   {
@@ -122,11 +122,11 @@ export const PRODUCT_CATALOG: CatalogPreset[] = [
     currency: 'USD',
     cycle: 'none',
     defaultPrice: '',
-    defaultPlan: '当前 Key 预算 · 非账户资金',
+    defaultPlan: 'Key 预算 · 非账户资金',
     connectionId: 'openrouter-key',
     website: 'https://openrouter.ai/settings/keys',
     defaultMetrics: [
-      { label: '当前 Key 剩余预算', unit: 'USD', availability: 'unfetched', total: '50.00' },
+      { label: '剩余预算', unit: 'USD', availability: 'unfetched', total: '50.00' },
     ],
   },
   {
@@ -139,11 +139,11 @@ export const PRODUCT_CATALOG: CatalogPreset[] = [
     currency: 'CNY',
     cycle: 'monthly',
     defaultPrice: '49.00',
-    defaultPlan: '会员共享积分',
+    defaultPlan: '会员共享额度',
     connectionId: null,
     website: 'https://kimi.moonshot.cn/',
     defaultMetrics: [
-      { label: '会员共享积分', unit: '%', availability: 'unfetched', total: '100' },
+      { label: '会员额度', unit: '%', availability: 'unfetched', total: '100' },
     ],
   },
   {
@@ -743,8 +743,8 @@ export function SubscriptionForm({
                 }}
               >
                 <option value="manual">手动会员</option>
-                <option value="window">窗口额度</option>
-                <option value="wallet">API 钱包 / Key 预算</option>
+                <option value="window">订阅额度</option>
+                <option value="wallet">API 余额 / 预算</option>
               </FormSelect>
             </Field>
 
@@ -1079,7 +1079,7 @@ export function SubscriptionForm({
                   ...prev,
                   {
                     id: `m-${Date.now()}-${prev.length + 1}`,
-                    label: kind === 'wallet' ? '可用余额' : '短窗口',
+                    label: kind === 'wallet' ? '可用余额' : '额度',
                     unit: kind === 'wallet' ? currency : '%',
                     value: '',
                     total: kind === 'wallet' ? '' : '100',

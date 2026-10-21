@@ -101,7 +101,7 @@ const ADAPTER_ROUTE_INFO: Record<
     method: '官方 Codex App Server · account/rateLimits/read',
     heartbeat: '前台 5 分钟 / 托盘 15 分钟（最短 60 秒）',
     boundary:
-      '动态识别实际返回的额度窗口与重置时间；不读取私有数据库，不代表 ChatGPT 全部消费者权益，不自动推断会员扣费日。',
+      '动态识别实际返回的额度与重置时间；不读取私有数据库，不代表 ChatGPT 全部消费者权益，不自动推断会员扣费日。',
   },
   'copilot-local': {
     method: '官方 Copilot SDK · account.getQuota（需官方 CLI 运行时）',
@@ -119,13 +119,13 @@ const ADAPTER_ROUTE_INFO: Record<
     method: 'Kimi 开放平台国内站 · GET /v1/users/me/balance',
     heartbeat: '默认 30 分钟（最短 5 分钟）',
     boundary:
-      '读取人民币现金、代金券与可用余额；不套用 Kimi Code 会员窗口，不自动跨区替换国际站域名重试。',
+      '读取人民币充值、赠送与可用余额；不套用 Kimi Code 会员额度，不自动跨区替换国际站域名重试。',
   },
   'openrouter-key': {
     method: 'OpenRouter · GET /api/v1/key（当前 Key 范围）',
     heartbeat: '默认 30 分钟（最短 5 分钟）',
     boundary:
-      '仅代表当前 Key 限额、用量与剩余预算；不声称获得账户总现金余额（总资金需后续 Management Key）。',
+      '仅代表 Key 限额、用量与剩余预算；不声称获得账户总资金（总资金需后续 Management Key）。',
   },
 };
 
@@ -1084,7 +1084,7 @@ export function ConnectionsPage({
                   <strong>Claude Code 本地 CLI</strong>：仅在确认条款后解析本机官方 CLI <code>/usage</code> 输出，绝不抽取 Claude.ai Cookie 或 OAuth Token。
                 </li>
                 <li>
-                  <strong>Kimi Code 与 Kimi 会员</strong>：跨功能共享积分窗口实验，不与国内站 API 钱包混同。
+                  <strong>Kimi Code 与 Kimi 会员</strong>：跨功能共享额度实验，不与国内站 API 钱包混同。
                 </li>
                 <li>
                   <strong>GLM Coding Plan / Z.ai、MiniMax Token Plan</strong>：存在非公开或变动中的配额路径，需独立核对合同，默认关闭。

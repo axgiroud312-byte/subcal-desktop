@@ -60,7 +60,7 @@ export function isLow(s: Subscription, now: string, prefs: Preferences): boolean
   return metrics.some(m=>m.remaining.availability==='known' && m.remaining.value!==null && freshness(m,now)==='fresh' && (m.unit==='%' ? Number(m.remaining.value)<=20 : prefs.walletThresholds[m.unit]!==undefined && decimal(m.remaining.value)<=decimal(prefs.walletThresholds[m.unit])));
 }
 export function renewalText(s: Subscription, now: string): string {
-  if(s.kind==='wallet' && s.cycle==='none')return '不适用 · 按量钱包 / Key 预算';
+  if(s.kind==='wallet' && s.cycle==='none')return '不适用 · 按量余额/预算';
   if(s.lifecycle==='ending' || s.autoRenew==='off')return s.paidThrough.value ? `${s.paidThrough.value} 到期 · 不续费` : '已记录不续费 · 有效期待补充';
   if(s.lifecycle==='trial' && s.trialEnd.value)return `${s.trialEnd.value} 试用结束`;
   if(!s.renewalDate.value)return '续费日期待补充';
