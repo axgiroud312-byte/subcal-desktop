@@ -1,0 +1,908 @@
+{
+  "platform": "win32",
+  "at": "2026-10-20T10:46:13.692Z",
+  "checks": [
+    "原生 Electron 窗口、实际 DPI 与隔离桥",
+    "四页导航与十二场景入口",
+    "键盘新增、未保存保护、编辑与日历联动、删除撤销",
+    "编辑冲突保留输入、来源不变与品牌模板带入",
+    "列表归档恢复、菜单键盘与详情焦点返回",
+    "多账号折叠、共享费用去重、独立额度与保存顺序",
+    "零值、未知、过时与部分成功保持字段语义",
+    "认证恢复向导、限流时钟与离线合并补查",
+    "日期边界月历、键盘跨月与窄窗口日程保留",
+    "三后端分阶段预演、半程失败重试与键盘裁决冲突",
+    "设置阈值错误、草稿关闭保护与重启恢复",
+    "设置真实备份、预览后改文件拒绝与恢复暂停",
+    "150% 系统缩放下的深浅色、960 窄窗口与键盘焦点",
+    "双主题四页、主要 Portal 与状态视觉核对",
+    "实际 JSON 文件往返与提交前重新读取",
+    "首次关闭说明、真实托盘重新打开与菜单完全退出"
+  ],
+  "screenshots": [
+    {
+      "file": "desktop-sync.png",
+      "theme": "dark",
+      "scenario": "normal_mixed",
+      "innerWidth": 1266,
+      "innerHeight": 784,
+      "devicePixelRatio": 1.5,
+      "rootFont": "16px",
+      "bounds": {
+        "x": 213,
+        "y": 99,
+        "width": 1281,
+        "height": 821
+      }
+    },
+    {
+      "file": "desktop-light.png",
+      "theme": "light",
+      "scenario": "normal_mixed",
+      "innerWidth": 1266,
+      "innerHeight": 784,
+      "devicePixelRatio": 1.5,
+      "rootFont": "16px",
+      "bounds": {
+        "x": 213,
+        "y": 99,
+        "width": 1281,
+        "height": 821
+      }
+    },
+    {
+      "file": "desktop-subscriptions.png",
+      "theme": "light",
+      "scenario": "normal_mixed",
+      "innerWidth": 1266,
+      "innerHeight": 784,
+      "devicePixelRatio": 1.5,
+      "rootFont": "16px",
+      "bounds": {
+        "x": 213,
+        "y": 99,
+        "width": 1281,
+        "height": 821
+      }
+    },
+    {
+      "file": "desktop-connections.png",
+      "theme": "light",
+      "scenario": "normal_mixed",
+      "innerWidth": 1266,
+      "innerHeight": 784,
+      "devicePixelRatio": 1.5,
+      "rootFont": "16px",
+      "bounds": {
+        "x": 213,
+        "y": 99,
+        "width": 1281,
+        "height": 821
+      }
+    },
+    {
+      "file": "desktop-calendar.png",
+      "theme": "light",
+      "scenario": "normal_mixed",
+      "innerWidth": 1266,
+      "innerHeight": 784,
+      "devicePixelRatio": 1.5,
+      "rootFont": "16px",
+      "bounds": {
+        "x": 213,
+        "y": 99,
+        "width": 1281,
+        "height": 821
+      }
+    },
+    {
+      "file": "desktop-dark.png",
+      "theme": "dark",
+      "scenario": "normal_mixed",
+      "innerWidth": 1266,
+      "innerHeight": 784,
+      "devicePixelRatio": 1.5,
+      "rootFont": "16px",
+      "bounds": {
+        "x": 213,
+        "y": 99,
+        "width": 1281,
+        "height": 821
+      }
+    },
+    {
+      "file": "desktop-narrow-detail.png",
+      "theme": "dark",
+      "scenario": "normal_mixed",
+      "innerWidth": 946,
+      "innerHeight": 604,
+      "devicePixelRatio": 1.5,
+      "rootFont": "16px",
+      "bounds": {
+        "x": 213,
+        "y": 99,
+        "width": 961,
+        "height": 642
+      }
+    },
+    {
+      "file": "desktop-narrow-form.png",
+      "theme": "dark",
+      "scenario": "normal_mixed",
+      "innerWidth": 946,
+      "innerHeight": 604,
+      "devicePixelRatio": 1.5,
+      "rootFont": "16px",
+      "bounds": {
+        "x": 213,
+        "y": 99,
+        "width": 961,
+        "height": 642
+      }
+    },
+    {
+      "file": "desktop-narrow-calendar.png",
+      "theme": "dark",
+      "scenario": "normal_mixed",
+      "innerWidth": 946,
+      "innerHeight": 604,
+      "devicePixelRatio": 1.5,
+      "rootFont": "16px",
+      "bounds": {
+        "x": 213,
+        "y": 99,
+        "width": 961,
+        "height": 642
+      }
+    },
+    {
+      "file": "desktop-calendar.png",
+      "theme": "dark",
+      "scenario": "normal_mixed",
+      "innerWidth": 1266,
+      "innerHeight": 784,
+      "devicePixelRatio": 1.5,
+      "rootFont": "16px",
+      "bounds": {
+        "x": 213,
+        "y": 99,
+        "width": 1281,
+        "height": 821
+      }
+    },
+    {
+      "file": "desktop-multi-account.png",
+      "theme": "light",
+      "scenario": "multi_account_shared",
+      "innerWidth": 1266,
+      "innerHeight": 784,
+      "devicePixelRatio": 1.5,
+      "rootFont": "16px",
+      "bounds": {
+        "x": 213,
+        "y": 99,
+        "width": 1281,
+        "height": 821
+      }
+    },
+    {
+      "file": "desktop-subscriptions-dark.png",
+      "theme": "dark",
+      "scenario": "normal_mixed",
+      "innerWidth": 1266,
+      "innerHeight": 784,
+      "devicePixelRatio": 1.5,
+      "rootFont": "16px",
+      "bounds": {
+        "x": 213,
+        "y": 99,
+        "width": 1281,
+        "height": 821
+      }
+    },
+    {
+      "file": "desktop-calendar-dark.png",
+      "theme": "dark",
+      "scenario": "normal_mixed",
+      "innerWidth": 1266,
+      "innerHeight": 784,
+      "devicePixelRatio": 1.5,
+      "rootFont": "16px",
+      "bounds": {
+        "x": 213,
+        "y": 99,
+        "width": 1281,
+        "height": 821
+      }
+    },
+    {
+      "file": "desktop-connections-dark.png",
+      "theme": "dark",
+      "scenario": "normal_mixed",
+      "innerWidth": 1266,
+      "innerHeight": 784,
+      "devicePixelRatio": 1.5,
+      "rootFont": "16px",
+      "bounds": {
+        "x": 213,
+        "y": 99,
+        "width": 1281,
+        "height": 821
+      }
+    },
+    {
+      "file": "desktop-unsaved-dark.png",
+      "theme": "dark",
+      "scenario": "normal_mixed",
+      "innerWidth": 1266,
+      "innerHeight": 784,
+      "devicePixelRatio": 1.5,
+      "rootFont": "16px",
+      "bounds": {
+        "x": 213,
+        "y": 99,
+        "width": 1281,
+        "height": 821
+      }
+    },
+    {
+      "file": "desktop-connections-error-dark.png",
+      "theme": "dark",
+      "scenario": "auth_and_locked_fields",
+      "innerWidth": 1266,
+      "innerHeight": 784,
+      "devicePixelRatio": 1.5,
+      "rootFont": "16px",
+      "bounds": {
+        "x": 213,
+        "y": 99,
+        "width": 1281,
+        "height": 821
+      }
+    }
+  ],
+  "visualChecks": [
+    {
+      "theme": "light",
+      "rootFont": "16px",
+      "fontFamily": "\"Segoe UI Variable Text\", \"Segoe UI\", \"Microsoft YaHei UI\", -apple-system, BlinkMacSystemFont, \"PingFang SC\", sans-serif",
+      "colors": {
+        "foreground": "rgb(32, 32, 37)",
+        "background": "rgb(245, 245, 247)",
+        "card": "rgb(255, 255, 255)",
+        "muted-foreground": "rgb(104, 104, 115)",
+        "input": "rgb(138, 138, 148)",
+        "ring": "rgb(79, 70, 229)",
+        "primary": "rgb(79, 70, 229)",
+        "primary-foreground": "rgb(255, 255, 255)",
+        "warning": "rgb(154, 52, 18)",
+        "warning-soft": "rgb(255, 247, 237)",
+        "destructive": "rgb(185, 28, 28)",
+        "destructive-soft": "rgb(254, 242, 242)"
+      },
+      "metrics": [
+        {
+          "size": "18px",
+          "weight": "600"
+        },
+        {
+          "size": "14px",
+          "weight": "600"
+        },
+        {
+          "size": "14px",
+          "weight": "600"
+        },
+        {
+          "size": "14px",
+          "weight": "600"
+        },
+        {
+          "size": "14px",
+          "weight": "600"
+        },
+        {
+          "size": "18px",
+          "weight": "600"
+        },
+        {
+          "size": "18px",
+          "weight": "600"
+        }
+      ],
+      "samples": [
+        {
+          "selector": ".btn-add-sub",
+          "foreground": "rgb(255, 255, 255)",
+          "background": "rgb(79, 70, 229)",
+          "weight": "500",
+          "size": "13px",
+          "contrast": 6.29
+        },
+        {
+          "selector": ".quota-label",
+          "foreground": "rgb(82, 82, 91)",
+          "background": "rgb(255, 255, 255)",
+          "weight": "400",
+          "size": "13px",
+          "contrast": 7.73
+        },
+        {
+          "selector": ".quota-value",
+          "foreground": "rgb(32, 32, 37)",
+          "background": "rgb(255, 255, 255)",
+          "weight": "600",
+          "size": "18px",
+          "contrast": 16.22
+        },
+        {
+          "selector": ".card-account-name",
+          "foreground": "rgb(82, 82, 91)",
+          "background": "rgb(255, 255, 255)",
+          "weight": "500",
+          "size": "13px",
+          "contrast": 7.73
+        },
+        {
+          "selector": ".preview-dock-summary",
+          "foreground": "rgb(104, 104, 115)",
+          "background": "rgb(245, 245, 247)",
+          "weight": "400",
+          "size": "12px",
+          "contrast": 5.05
+        }
+      ],
+      "overweight": [],
+      "headerControls": [
+        {
+          "name": "概览",
+          "height": 32,
+          "size": "13px",
+          "weight": "500"
+        },
+        {
+          "name": "订阅",
+          "height": 32,
+          "size": "13px",
+          "weight": "500"
+        },
+        {
+          "name": "日历",
+          "height": 32,
+          "size": "13px",
+          "weight": "500"
+        },
+        {
+          "name": "连接",
+          "height": 32,
+          "size": "13px",
+          "weight": "500"
+        },
+        {
+          "name": "新增订阅",
+          "height": 32,
+          "size": "13px",
+          "weight": "500"
+        },
+        {
+          "name": "模拟刷新",
+          "height": 32,
+          "size": "13px",
+          "weight": "500"
+        },
+        {
+          "name": "切换深浅色主题",
+          "height": 32,
+          "size": "13px",
+          "weight": "500"
+        },
+        {
+          "name": "打开设置与备份",
+          "height": 32,
+          "size": "13px",
+          "weight": "500"
+        }
+      ],
+      "platformFonts": [
+        {
+          "familyName": "Microsoft YaHei UI",
+          "postScriptName": "MicrosoftYaHeiUI",
+          "isCustomFont": false,
+          "glyphCount": 5
+        }
+      ],
+      "contrasts": [
+        {
+          "fg": "foreground",
+          "bg": "card",
+          "minimum": 4.5,
+          "ratio": 16.22
+        },
+        {
+          "fg": "muted-foreground",
+          "bg": "card",
+          "minimum": 4.5,
+          "ratio": 5.5
+        },
+        {
+          "fg": "muted-foreground",
+          "bg": "background",
+          "minimum": 4.5,
+          "ratio": 5.05
+        },
+        {
+          "fg": "primary-foreground",
+          "bg": "primary",
+          "minimum": 4.5,
+          "ratio": 6.29
+        },
+        {
+          "fg": "warning",
+          "bg": "warning-soft",
+          "minimum": 4.5,
+          "ratio": 6.88
+        },
+        {
+          "fg": "destructive",
+          "bg": "destructive-soft",
+          "minimum": 4.5,
+          "ratio": 5.91
+        },
+        {
+          "fg": "input",
+          "bg": "card",
+          "minimum": 3,
+          "ratio": 3.42
+        },
+        {
+          "fg": "ring",
+          "bg": "card",
+          "minimum": 3,
+          "ratio": 6.29
+        }
+      ]
+    },
+    {
+      "theme": "dark",
+      "rootFont": "16px",
+      "fontFamily": "\"Segoe UI Variable Text\", \"Segoe UI\", \"Microsoft YaHei UI\", -apple-system, BlinkMacSystemFont, \"PingFang SC\", sans-serif",
+      "colors": {
+        "foreground": "rgb(244, 244, 245)",
+        "background": "rgb(24, 24, 27)",
+        "card": "rgb(34, 34, 38)",
+        "muted-foreground": "rgb(161, 161, 170)",
+        "input": "rgb(113, 113, 122)",
+        "ring": "rgb(165, 180, 252)",
+        "primary": "rgb(129, 140, 248)",
+        "primary-foreground": "rgb(24, 24, 27)",
+        "warning": "rgb(253, 186, 116)",
+        "warning-soft": "rgb(56, 39, 24)",
+        "destructive": "rgb(252, 165, 165)",
+        "destructive-soft": "rgb(58, 29, 35)"
+      },
+      "metrics": [
+        {
+          "size": "18px",
+          "weight": "600"
+        },
+        {
+          "size": "14px",
+          "weight": "600"
+        },
+        {
+          "size": "14px",
+          "weight": "600"
+        },
+        {
+          "size": "14px",
+          "weight": "600"
+        },
+        {
+          "size": "14px",
+          "weight": "600"
+        },
+        {
+          "size": "18px",
+          "weight": "600"
+        },
+        {
+          "size": "18px",
+          "weight": "600"
+        }
+      ],
+      "samples": [
+        {
+          "selector": ".btn-add-sub",
+          "foreground": "rgb(24, 24, 27)",
+          "background": "rgb(129, 140, 248)",
+          "weight": "500",
+          "size": "13px",
+          "contrast": 5.94
+        },
+        {
+          "selector": ".quota-label",
+          "foreground": "rgb(212, 212, 216)",
+          "background": "rgb(34, 34, 38)",
+          "weight": "400",
+          "size": "13px",
+          "contrast": 10.72
+        },
+        {
+          "selector": ".quota-value",
+          "foreground": "rgb(244, 244, 245)",
+          "background": "rgb(34, 34, 38)",
+          "weight": "600",
+          "size": "18px",
+          "contrast": 14.42
+        },
+        {
+          "selector": ".card-account-name",
+          "foreground": "rgb(212, 212, 216)",
+          "background": "rgb(34, 34, 38)",
+          "weight": "500",
+          "size": "13px",
+          "contrast": 10.72
+        },
+        {
+          "selector": ".preview-dock-summary",
+          "foreground": "rgb(161, 161, 170)",
+          "background": "rgb(24, 24, 27)",
+          "weight": "400",
+          "size": "12px",
+          "contrast": 6.91
+        }
+      ],
+      "overweight": [],
+      "headerControls": [
+        {
+          "name": "概览",
+          "height": 32,
+          "size": "13px",
+          "weight": "500"
+        },
+        {
+          "name": "订阅",
+          "height": 32,
+          "size": "13px",
+          "weight": "500"
+        },
+        {
+          "name": "日历",
+          "height": 32,
+          "size": "13px",
+          "weight": "500"
+        },
+        {
+          "name": "连接",
+          "height": 32,
+          "size": "13px",
+          "weight": "500"
+        },
+        {
+          "name": "新增订阅",
+          "height": 32,
+          "size": "13px",
+          "weight": "500"
+        },
+        {
+          "name": "模拟刷新",
+          "height": 32,
+          "size": "13px",
+          "weight": "500"
+        },
+        {
+          "name": "切换深浅色主题",
+          "height": 32,
+          "size": "13px",
+          "weight": "500"
+        },
+        {
+          "name": "打开设置与备份",
+          "height": 32,
+          "size": "13px",
+          "weight": "500"
+        }
+      ],
+      "platformFonts": [
+        {
+          "familyName": "Microsoft YaHei UI",
+          "postScriptName": "MicrosoftYaHeiUI",
+          "isCustomFont": false,
+          "glyphCount": 5
+        }
+      ],
+      "contrasts": [
+        {
+          "fg": "foreground",
+          "bg": "card",
+          "minimum": 4.5,
+          "ratio": 14.42
+        },
+        {
+          "fg": "muted-foreground",
+          "bg": "card",
+          "minimum": 4.5,
+          "ratio": 6.18
+        },
+        {
+          "fg": "muted-foreground",
+          "bg": "background",
+          "minimum": 4.5,
+          "ratio": 6.91
+        },
+        {
+          "fg": "primary-foreground",
+          "bg": "primary",
+          "minimum": 4.5,
+          "ratio": 5.94
+        },
+        {
+          "fg": "warning",
+          "bg": "warning-soft",
+          "minimum": 4.5,
+          "ratio": 8.46
+        },
+        {
+          "fg": "destructive",
+          "bg": "destructive-soft",
+          "minimum": 4.5,
+          "ratio": 8.02
+        },
+        {
+          "fg": "input",
+          "bg": "card",
+          "minimum": 3,
+          "ratio": 3.28
+        },
+        {
+          "fg": "ring",
+          "bg": "card",
+          "minimum": 3,
+          "ratio": 7.95
+        }
+      ]
+    },
+    {
+      "theme": "light",
+      "scenario": "multi_account_shared",
+      "viewport": {
+        "width": 1266,
+        "height": 784,
+        "scale": 1.5
+      },
+      "noHorizontalOverflow": true
+    },
+    {
+      "theme": "light",
+      "scenario": "unknown_and_na",
+      "viewport": {
+        "width": 1266,
+        "height": 784,
+        "scale": 1.5
+      },
+      "noHorizontalOverflow": true
+    },
+    {
+      "theme": "light",
+      "scenario": "zero_vs_unfetched",
+      "viewport": {
+        "width": 1266,
+        "height": 784,
+        "scale": 1.5
+      },
+      "noHorizontalOverflow": true
+    },
+    {
+      "theme": "light",
+      "scenario": "stale_and_past_reset",
+      "viewport": {
+        "width": 1266,
+        "height": 784,
+        "scale": 1.5
+      },
+      "noHorizontalOverflow": true
+    },
+    {
+      "theme": "light",
+      "scenario": "auth_and_locked_fields",
+      "viewport": {
+        "width": 1266,
+        "height": 784,
+        "scale": 1.5
+      },
+      "noHorizontalOverflow": true
+    },
+    {
+      "theme": "light",
+      "scenario": "empty_first_run",
+      "viewport": {
+        "width": 1266,
+        "height": 784,
+        "scale": 1.5
+      },
+      "noHorizontalOverflow": true
+    },
+    {
+      "theme": "dark",
+      "scenario": "multi_account_shared",
+      "viewport": {
+        "width": 1266,
+        "height": 784,
+        "scale": 1.5
+      },
+      "noHorizontalOverflow": true
+    },
+    {
+      "theme": "dark",
+      "scenario": "unknown_and_na",
+      "viewport": {
+        "width": 1266,
+        "height": 784,
+        "scale": 1.5
+      },
+      "noHorizontalOverflow": true
+    },
+    {
+      "theme": "dark",
+      "scenario": "zero_vs_unfetched",
+      "viewport": {
+        "width": 1266,
+        "height": 784,
+        "scale": 1.5
+      },
+      "noHorizontalOverflow": true
+    },
+    {
+      "theme": "dark",
+      "scenario": "stale_and_past_reset",
+      "viewport": {
+        "width": 1266,
+        "height": 784,
+        "scale": 1.5
+      },
+      "noHorizontalOverflow": true
+    },
+    {
+      "theme": "dark",
+      "scenario": "auth_and_locked_fields",
+      "viewport": {
+        "width": 1266,
+        "height": 784,
+        "scale": 1.5
+      },
+      "noHorizontalOverflow": true
+    },
+    {
+      "theme": "dark",
+      "scenario": "empty_first_run",
+      "viewport": {
+        "width": 1266,
+        "height": 784,
+        "scale": 1.5
+      },
+      "noHorizontalOverflow": true
+    }
+  ],
+  "userAcceptance": "pending",
+  "limitations": [
+    "macOS 未实测",
+    "原生文件选择器由自动化指定路径；文件读写和导入逻辑为实际执行",
+    "首次关闭说明由自动化确认；托盘图标通过 Windows UI Automation 操作，退出使用真实菜单回调"
+  ],
+  "desktop": {
+    "bounds": {
+      "x": 213,
+      "y": 99,
+      "width": 1281,
+      "height": 821
+    },
+    "display": {
+      "accelerometerSupport": "unknown",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1707,
+        "height": 1067
+      },
+      "colorDepth": 24,
+      "colorSpace": "{primaries:BT709, transfer:SRGB, matrix:RGB, range:FULL}",
+      "depthPerComponent": 8,
+      "detected": true,
+      "displayFrequency": 300,
+      "id": 2498936783,
+      "internal": true,
+      "label": "NE160QDM-NZL",
+      "maximumCursorSize": {
+        "width": 0,
+        "height": 0
+      },
+      "monochrome": false,
+      "nativeOrigin": {
+        "x": 0,
+        "y": 0
+      },
+      "rotation": 0,
+      "scaleFactor": 1.5,
+      "size": {
+        "width": 1707,
+        "height": 1067
+      },
+      "workArea": {
+        "x": 0,
+        "y": 0,
+        "width": 1707,
+        "height": 1019
+      },
+      "workAreaSize": {
+        "width": 1707,
+        "height": 1019
+      },
+      "touchSupport": "unknown"
+    },
+    "preferences": {
+      "allowRunningInsecureContent": false,
+      "contextIsolation": true,
+      "disableDialogs": false,
+      "disablePopups": false,
+      "enableBlinkFeatures": "",
+      "experimentalFeatures": false,
+      "javascript": true,
+      "nodeIntegration": false,
+      "nodeIntegrationInSubFrames": false,
+      "nodeIntegrationInWorker": false,
+      "safeDialogs": false,
+      "safeDialogsMessage": "",
+      "sandbox": true,
+      "webSecurity": true,
+      "webviewTag": false
+    }
+  },
+  "sorting": {
+    "initialIds": [
+      "codex",
+      "deepseek",
+      "claude",
+      "copilot",
+      "kimi",
+      "openrouter",
+      "chatgpt",
+      "kimi-code",
+      "kimi-member"
+    ],
+    "initialOrder": [],
+    "afterPointer": [
+      "deepseek",
+      "deepseek-key2",
+      "codex",
+      "claude",
+      "copilot",
+      "kimi",
+      "kimi-2",
+      "kimi-3",
+      "openrouter",
+      "chatgpt",
+      "kimi-code",
+      "kimi-member"
+    ],
+    "afterKeyboard": [
+      "codex",
+      "deepseek",
+      "deepseek-key2",
+      "claude",
+      "copilot",
+      "kimi",
+      "kimi-2",
+      "kimi-3",
+      "openrouter",
+      "chatgpt",
+      "kimi-code",
+      "kimi-member"
+    ]
+  },
+  "nativeCapture": {
+    "dpi": 144,
+    "width": 1921,
+    "file": "C:\\Users\\niilo\\Desktop\\日历订阅消费管理系统\\docs\\evidence\\visual-v2\\native-window-150.png",
+    "height": 1231
+  }
+}

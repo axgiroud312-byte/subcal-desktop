@@ -1,0 +1,127 @@
+{
+  "platform": "win32",
+  "at": "2026-10-20T10:14:41.963Z",
+  "checks": [
+    "原生 Electron 窗口、实际 DPI 与隔离桥",
+    "多账号折叠、共享费用去重、独立额度与保存顺序"
+  ],
+  "screenshots": [],
+  "visualChecks": [],
+  "userAcceptance": "pending",
+  "limitations": [
+    "macOS 未实测",
+    "原生文件选择器由自动化指定路径；文件读写和导入逻辑为实际执行",
+    "首次关闭说明由自动化确认；托盘图标通过 Windows UI Automation 操作，退出使用真实菜单回调"
+  ],
+  "desktop": {
+    "bounds": {
+      "x": 213,
+      "y": 99,
+      "width": 1281,
+      "height": 821
+    },
+    "display": {
+      "accelerometerSupport": "unknown",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1707,
+        "height": 1067
+      },
+      "colorDepth": 24,
+      "colorSpace": "{primaries:BT709, transfer:SRGB, matrix:RGB, range:FULL}",
+      "depthPerComponent": 8,
+      "detected": true,
+      "displayFrequency": 300,
+      "id": 2498936783,
+      "internal": true,
+      "label": "NE160QDM-NZL",
+      "maximumCursorSize": {
+        "width": 0,
+        "height": 0
+      },
+      "monochrome": false,
+      "nativeOrigin": {
+        "x": 0,
+        "y": 0
+      },
+      "rotation": 0,
+      "scaleFactor": 1.5,
+      "size": {
+        "width": 1707,
+        "height": 1067
+      },
+      "workArea": {
+        "x": 0,
+        "y": 0,
+        "width": 1707,
+        "height": 1019
+      },
+      "workAreaSize": {
+        "width": 1707,
+        "height": 1019
+      },
+      "touchSupport": "unknown"
+    },
+    "preferences": {
+      "allowRunningInsecureContent": false,
+      "contextIsolation": true,
+      "disableDialogs": false,
+      "disablePopups": false,
+      "enableBlinkFeatures": "",
+      "experimentalFeatures": false,
+      "javascript": true,
+      "nodeIntegration": false,
+      "nodeIntegrationInSubFrames": false,
+      "nodeIntegrationInWorker": false,
+      "safeDialogs": false,
+      "safeDialogsMessage": "",
+      "sandbox": true,
+      "webSecurity": true,
+      "webviewTag": false
+    }
+  },
+  "sorting": {
+    "initialIds": [
+      "codex",
+      "deepseek",
+      "claude",
+      "copilot",
+      "kimi",
+      "openrouter",
+      "chatgpt",
+      "kimi-code",
+      "kimi-member"
+    ],
+    "initialOrder": [],
+    "afterPointer": [
+      "deepseek",
+      "deepseek-key2",
+      "codex",
+      "claude",
+      "copilot",
+      "kimi",
+      "kimi-2",
+      "kimi-3",
+      "openrouter",
+      "chatgpt",
+      "kimi-code",
+      "kimi-member"
+    ],
+    "afterKeyboard": [
+      "codex",
+      "deepseek",
+      "deepseek-key2",
+      "claude",
+      "copilot",
+      "kimi",
+      "kimi-2",
+      "kimi-3",
+      "openrouter",
+      "chatgpt",
+      "kimi-code",
+      "kimi-member"
+    ]
+  },
+  "filter": "多账号"
+}

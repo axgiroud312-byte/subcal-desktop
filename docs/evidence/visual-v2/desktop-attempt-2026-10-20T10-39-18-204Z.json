@@ -1,0 +1,179 @@
+{
+  "platform": "win32",
+  "at": "2026-10-20T10:38:46.821Z",
+  "checks": [
+    "原生 Electron 窗口、实际 DPI 与隔离桥",
+    "四页导航与十二场景入口",
+    "键盘新增、未保存保护、编辑与日历联动、删除撤销",
+    "编辑冲突保留输入、来源不变与品牌模板带入",
+    "多账号折叠、共享费用去重、独立额度与保存顺序",
+    "零值、未知、过时与部分成功保持字段语义",
+    "认证恢复向导、限流时钟与离线合并补查",
+    "日期边界月历、键盘跨月与窄窗口日程保留",
+    "三后端分阶段预演、半程失败重试与键盘裁决冲突",
+    "设置阈值错误、草稿关闭保护与重启恢复"
+  ],
+  "screenshots": [
+    {
+      "file": "desktop-sync.png",
+      "theme": "dark",
+      "scenario": "normal_mixed",
+      "innerWidth": 1266,
+      "innerHeight": 784,
+      "devicePixelRatio": 1.5,
+      "rootFont": "16px",
+      "bounds": {
+        "x": 213,
+        "y": 99,
+        "width": 1281,
+        "height": 821
+      }
+    }
+  ],
+  "visualChecks": [],
+  "userAcceptance": "pending",
+  "limitations": [
+    "macOS 未实测",
+    "原生文件选择器由自动化指定路径；文件读写和导入逻辑为实际执行",
+    "首次关闭说明由自动化确认；托盘图标通过 Windows UI Automation 操作，退出使用真实菜单回调"
+  ],
+  "desktop": {
+    "bounds": {
+      "x": 213,
+      "y": 99,
+      "width": 1281,
+      "height": 821
+    },
+    "display": {
+      "accelerometerSupport": "unknown",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1707,
+        "height": 1067
+      },
+      "colorDepth": 24,
+      "colorSpace": "{primaries:BT709, transfer:SRGB, matrix:RGB, range:FULL}",
+      "depthPerComponent": 8,
+      "detected": true,
+      "displayFrequency": 300,
+      "id": 2498936783,
+      "internal": true,
+      "label": "NE160QDM-NZL",
+      "maximumCursorSize": {
+        "width": 0,
+        "height": 0
+      },
+      "monochrome": false,
+      "nativeOrigin": {
+        "x": 0,
+        "y": 0
+      },
+      "rotation": 0,
+      "scaleFactor": 1.5,
+      "size": {
+        "width": 1707,
+        "height": 1067
+      },
+      "workArea": {
+        "x": 0,
+        "y": 0,
+        "width": 1707,
+        "height": 1019
+      },
+      "workAreaSize": {
+        "width": 1707,
+        "height": 1019
+      },
+      "touchSupport": "unknown"
+    },
+    "preferences": {
+      "allowRunningInsecureContent": false,
+      "contextIsolation": true,
+      "disableDialogs": false,
+      "disablePopups": false,
+      "enableBlinkFeatures": "",
+      "experimentalFeatures": false,
+      "javascript": true,
+      "nodeIntegration": false,
+      "nodeIntegrationInSubFrames": false,
+      "nodeIntegrationInWorker": false,
+      "safeDialogs": false,
+      "safeDialogsMessage": "",
+      "sandbox": true,
+      "webSecurity": true,
+      "webviewTag": false
+    }
+  },
+  "sorting": {
+    "initialIds": [
+      "codex",
+      "deepseek",
+      "claude",
+      "copilot",
+      "kimi",
+      "openrouter",
+      "chatgpt",
+      "kimi-code",
+      "kimi-member"
+    ],
+    "initialOrder": [],
+    "afterPointer": [
+      "deepseek",
+      "deepseek-key2",
+      "codex",
+      "claude",
+      "copilot",
+      "kimi",
+      "kimi-2",
+      "kimi-3",
+      "openrouter",
+      "chatgpt",
+      "kimi-code",
+      "kimi-member"
+    ],
+    "afterKeyboard": [
+      "codex",
+      "deepseek",
+      "deepseek-key2",
+      "claude",
+      "copilot",
+      "kimi",
+      "kimi-2",
+      "kimi-3",
+      "openrouter",
+      "chatgpt",
+      "kimi-code",
+      "kimi-member"
+    ]
+  },
+  "failure": "Error: locator.waitFor: Error: strict mode violation: getByText(/演示备份已保存/) resolved to 2 elements:\n    1) <div class=\"\" data-title=\"\">演示备份已保存：C:\\Users\\niilo\\AppData\\Local\\Temp\\opencod…</div> aka getByRole('region', { name: 'Notifications alt+T' }).getByText('演示备份已保存：C:\\\\Users\\\\niilo\\\\')\n    2) <span>演示备份已保存：C:\\Users\\niilo\\AppData\\Local\\Temp\\opencod…</span> aka locator('[id=\"_r_6_\"]').getByText('演示备份已保存：C:\\\\Users\\\\niilo\\\\')\n\nCall log:\n\u001b[2m  - waiting for getByText(/演示备份已保存/) to be visible\u001b[22m\n",
+  "pageErrors": [],
+  "failureState": {
+    "scenario": "calendar_conflicts",
+    "order": [
+      "deepseek",
+      "deepseek-key2",
+      "codex",
+      "claude",
+      "copilot",
+      "kimi",
+      "kimi-2",
+      "kimi-3",
+      "openrouter",
+      "chatgpt",
+      "kimi-code",
+      "kimi-member"
+    ],
+    "domOrder": [
+      "deepseek",
+      "codex",
+      "claude",
+      "copilot",
+      "kimi",
+      "openrouter",
+      "chatgpt"
+    ],
+    "active": "<body style=\"overflow: hidden;\"><div id=\"root\" data-base-ui-inert=\"\"><div data-theme=\"dark\" data-scenario=\"calendar_conflicts\" data-density=\"comfortable\" data-reduced-motion=\"true\" class=\"app\"><header class=\"top-nav\" aria-hidden=\"true\"><div class=\"brand-cluster\"><strong class=\"app-logo\" title=\"SubCal Desktop 前端预览\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-calendar-days app-logo-mark\" aria-hidden=\"true\"><path d=\"M8 2v3\"></path><path d=\"M"
+  }
+}

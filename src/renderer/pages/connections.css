@@ -1,0 +1,363 @@
+/* Owned styles for ConnectionsPage (FE-017).
+   All visual values reference src/renderer/styles/tokens.css. */
+@layer components {
+  .conn-page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4, 1rem);
+    font-variant-numeric: tabular-nums;
+    min-width: 0;
+  }
+
+  .conn-header-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-3, 0.75rem);
+  }
+
+  .conn-page-title {
+    margin: 0;
+    font-size: var(--font-size-lg, 1.125rem);
+    line-height: var(--line-height-lg, 1.625rem);
+    font-weight: var(--font-weight-semibold, 600);
+    color: var(--foreground);
+  }
+
+  .conn-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2, 0.5rem);
+    padding-top: var(--space-2, 0.5rem);
+    border-top: 1px solid var(--border);
+  }
+
+  .conn-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 22.5rem), 1fr));
+    gap: var(--card-gap, 0.75rem);
+    min-width: 0;
+  }
+
+  .conn-grid > * {
+    min-width: 0;
+  }
+
+  .conn-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg, 0.75rem);
+    padding: var(--card-padding, 1rem);
+    background: var(--card);
+    color: var(--card-foreground);
+    box-shadow: var(--shadow-card);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3, 0.75rem);
+    min-width: 0;
+    overflow-wrap: anywhere;
+    transition: border-color var(--duration-fast, 120ms) var(--ease-standard),
+      box-shadow var(--duration-fast, 120ms) var(--ease-standard);
+  }
+
+  .conn-card[data-focused="true"] {
+    border-color: var(--ring);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--ring) 28%, transparent);
+  }
+
+  .conn-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-2, 0.5rem);
+    min-width: 0;
+  }
+
+  .conn-identity {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 0.25rem);
+    min-width: 0;
+  }
+
+  .conn-title-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2, 0.5rem);
+    min-width: 0;
+  }
+
+  .conn-provider-name {
+    font-size: var(--font-size-sm, 0.875rem);
+    line-height: var(--line-height-sm, 1.25rem);
+    font-weight: var(--font-weight-semibold, 600);
+    color: var(--foreground);
+  }
+
+  .conn-account-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1, 0.25rem) var(--space-2, 0.5rem);
+    font-size: var(--font-size-xs, 0.75rem);
+    line-height: var(--line-height-xs, 1.125rem);
+    color: var(--muted-foreground);
+  }
+
+  .conn-account-name {
+    color: var(--secondary-foreground);
+    font-weight: var(--font-weight-medium, 500);
+  }
+
+  .conn-summary-line {
+    font-size: var(--font-size-xs, 0.75rem);
+    line-height: var(--line-height-xs, 1.125rem);
+    color: var(--muted-foreground);
+    margin: 0;
+  }
+
+  /* Update times & linked subscription timestamps */
+  .conn-time-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+    gap: var(--space-1, 0.25rem) var(--space-3, 0.75rem);
+    padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
+    border-radius: var(--radius-md, 0.5rem);
+    background: var(--muted);
+    font-size: var(--font-size-xs, 0.75rem);
+    line-height: var(--line-height-xs, 1.125rem);
+  }
+
+  .conn-time-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-0-5, 0.125rem);
+    min-width: 0;
+  }
+
+  .conn-time-label {
+    color: var(--muted-foreground);
+  }
+
+  .conn-time-value {
+    color: var(--foreground);
+    font-weight: var(--font-weight-medium, 500);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .conn-retry-notice {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1, 0.25rem);
+    padding-top: var(--space-1, 0.25rem);
+    border-top: 1px solid var(--border);
+    color: var(--warning);
+    font-weight: var(--font-weight-medium, 500);
+  }
+
+  .conn-field-time-note {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1, 0.25rem) var(--space-2, 0.5rem);
+    padding-top: var(--space-1, 0.25rem);
+    border-top: 1px solid var(--border);
+    color: var(--secondary-foreground);
+  }
+
+  .conn-linked-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1, 0.25rem) var(--space-2, 0.5rem);
+    font-size: var(--font-size-xs, 0.75rem);
+  }
+
+  /* Directly visible error & next recovery action box */
+  .conn-error-box {
+    padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
+    border-radius: var(--radius-md, 0.5rem);
+    border: 1px solid color-mix(in srgb, var(--warning) 35%, var(--border));
+    background: var(--warning-soft);
+    color: var(--warning);
+    font-size: var(--font-size-control, 0.8125rem);
+    line-height: var(--line-height-control, 1.125rem);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2, 0.5rem);
+  }
+
+  .conn-error-box[data-tone="danger"] {
+    border-color: color-mix(in srgb, var(--destructive) 35%, var(--border));
+    background: var(--destructive-soft);
+    color: var(--destructive);
+  }
+
+  .conn-error-title {
+    font-weight: var(--font-weight-semibold, 600);
+    display: flex;
+    align-items: center;
+    gap: var(--space-1, 0.25rem);
+  }
+
+  .conn-error-note {
+    font-size: var(--font-size-xs, 0.75rem);
+    line-height: var(--line-height-xs, 1.125rem);
+    color: var(--secondary-foreground);
+  }
+
+  /* Primary & secondary action bar on card */
+  .conn-actions-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2, 0.5rem);
+    margin-top: auto;
+    padding-top: var(--space-1, 0.25rem);
+  }
+
+  /* 3-Step Reconnect / Probe Wizard */
+  .conn-probe-panel {
+    padding: var(--space-3, 0.75rem);
+    border-radius: var(--radius-md, 0.5rem);
+    border: 1px solid var(--ring);
+    background: var(--background);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3, 0.75rem);
+  }
+
+  .conn-probe-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-3, 0.75rem);
+  }
+
+  .conn-probe-select-field {
+    min-width: 12rem;
+    flex: 1;
+    max-width: 18rem;
+  }
+
+  .conn-probe-result {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2, 0.5rem);
+    padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
+    border-radius: var(--radius-md, 0.5rem);
+    border: 1px solid var(--border);
+    background: var(--card);
+    font-size: var(--font-size-xs, 0.75rem);
+    line-height: var(--line-height-xs, 1.125rem);
+  }
+
+  .conn-attention-note {
+    padding: var(--space-2, 0.5rem);
+    border-radius: var(--radius-sm, 0.375rem);
+    background: var(--warning-soft);
+    color: var(--warning);
+    font-size: var(--font-size-xs, 0.75rem);
+  }
+
+  /* Collapsible capability & route details */
+  .conn-details-collapsible {
+    border-top: 1px solid var(--border);
+    padding-top: var(--space-2, 0.5rem);
+  }
+
+  .conn-details-trigger {
+    width: 100%;
+    justify-content: space-between;
+    color: var(--muted-foreground);
+    font-size: var(--font-size-xs, 0.75rem);
+  }
+
+  .conn-boundary-box {
+    margin-top: var(--space-2, 0.5rem);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 0.25rem);
+    font-size: var(--font-size-xs, 0.75rem);
+    line-height: var(--line-height-xs, 1.125rem);
+    padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
+    border-radius: var(--radius-md, 0.5rem);
+    background: var(--background);
+    border: 1px solid var(--border);
+  }
+
+  .conn-mono {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs, 0.75rem);
+  }
+
+  /* Catalog section */
+  .conn-catalog-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 17.5rem), 1fr));
+    gap: var(--space-3, 0.75rem);
+    margin-top: var(--space-3, 0.75rem);
+  }
+
+  .conn-catalog-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2, 0.5rem);
+    padding: var(--space-3, 0.75rem);
+    border-radius: var(--radius-md, 0.5rem);
+    background: var(--background);
+    border: 1px solid var(--border);
+    font-size: var(--font-size-xs, 0.75rem);
+    line-height: var(--line-height-xs, 1.125rem);
+  }
+
+  .conn-catalog-list {
+    margin: 0;
+    padding-left: var(--space-4, 1rem);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 0.25rem);
+    color: var(--secondary-foreground);
+  }
+
+  /* Diagnostics Modal */
+  .conn-diag-root {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3, 0.75rem);
+    min-width: 0;
+  }
+
+  .conn-diag-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+    gap: var(--space-2, 0.5rem);
+    padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
+    border-radius: var(--radius-md, 0.5rem);
+    background: var(--muted);
+    font-size: var(--font-size-xs, 0.75rem);
+  }
+
+  .conn-diag-pre {
+    margin: var(--space-2, 0.5rem) 0 0;
+    padding: var(--space-3, 0.75rem);
+    border-radius: var(--radius-md, 0.5rem);
+    background: var(--background);
+    border: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs, 0.75rem);
+    line-height: 1.45;
+    max-height: 20rem;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+}

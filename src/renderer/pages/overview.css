@@ -1,0 +1,641 @@
+/* ==========================================================================
+   SubCal Overview & Subscription Card Styles (FE-014)
+   All values strictly reference Design Tokens from src/renderer/styles/tokens.css
+   ========================================================================== */
+
+@layer components {
+  .overview-page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4, 1rem);
+    min-width: 0;
+  }
+
+  /* Prevent browser default 700 bold on semantic tags inside overview */
+  .overview-page :is(strong, b, h1, h2, h3, h4) {
+    font-weight: var(--font-weight-semibold, 600);
+  }
+
+  /* ------------------------------------------------------------------------
+     1. Top Action Zone (Compact max-3 action rows, expandable details)
+     ------------------------------------------------------------------------ */
+  .action-zone {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2, 0.5rem);
+    background: var(--card);
+    border: var(--border-width, 1px) solid var(--border);
+    border-radius: var(--radius-lg, 0.75rem);
+    padding: var(--space-3, 0.75rem) var(--space-4, 1rem);
+  }
+
+  .action-zone-calm {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2, 0.5rem);
+    color: var(--muted-foreground);
+    font-size: var(--font-size-xs, 0.75rem);
+    line-height: var(--line-height-xs, 1.125rem);
+  }
+
+  .action-zone-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2, 0.5rem);
+    flex-wrap: wrap;
+  }
+
+  .action-zone-title {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1, 0.25rem);
+    font-size: var(--font-size-control, 0.8125rem);
+    line-height: var(--line-height-control, 1.125rem);
+    font-weight: var(--font-weight-semibold, 600);
+    color: var(--foreground);
+  }
+
+  .action-rows-list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .action-row-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 0.25rem);
+    padding-block: var(--space-2, 0.5rem);
+    border-top: var(--border-width, 1px) solid var(--border);
+  }
+
+  .action-row-item:first-child {
+    border-top: 0;
+    padding-top: var(--space-1, 0.25rem);
+  }
+
+  .action-row-item:last-child {
+    padding-bottom: 0;
+  }
+
+  .action-row-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3, 0.75rem);
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+
+  .action-row-left {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 0.5rem);
+    flex-wrap: wrap;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .action-row-title {
+    font-size: var(--font-size-sm, 0.875rem);
+    line-height: var(--line-height-sm, 1.25rem);
+    font-weight: var(--font-weight-medium, 500);
+    color: var(--foreground);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .action-row-right {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1, 0.25rem);
+    flex-shrink: 0;
+  }
+
+  .action-row-detail {
+    margin: 0;
+    padding-left: var(--space-1, 0.25rem);
+    font-size: var(--font-size-xs, 0.75rem);
+    line-height: var(--line-height-xs, 1.125rem);
+    color: var(--muted-foreground);
+  }
+
+  /* ------------------------------------------------------------------------
+     2. Summary & Filter / Sort Toolbar
+     ------------------------------------------------------------------------ */
+  .overview-toolbar-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3, 0.75rem);
+    background: var(--card);
+    border: var(--border-width, 1px) solid var(--border);
+    border-radius: var(--radius-lg, 0.75rem);
+    padding: var(--space-3, 0.75rem) var(--space-4, 1rem);
+  }
+
+  .honest-summary-strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-2, 0.5rem) var(--space-4, 1rem);
+    padding-bottom: var(--space-3, 0.75rem);
+    border-bottom: var(--border-width, 1px) solid var(--border);
+  }
+
+  .summary-metrics-group {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: var(--space-2, 0.5rem) var(--space-4, 1rem);
+  }
+
+  .summary-segment {
+    display: inline-flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: var(--space-1, 0.25rem);
+    font-size: var(--font-size-xs, 0.75rem);
+    line-height: var(--line-height-xs, 1.125rem);
+    color: var(--muted-foreground);
+  }
+
+  .summary-value-primary {
+    font-size: var(--font-size-lg, 1.125rem);
+    line-height: var(--line-height-lg, 1.625rem);
+    font-weight: var(--font-weight-semibold, 600);
+    color: var(--foreground);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .summary-value-secondary {
+    font-size: var(--font-size-sm, 0.875rem);
+    line-height: var(--line-height-sm, 1.25rem);
+    font-weight: var(--font-weight-semibold, 600);
+    color: var(--foreground);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .summary-divider {
+    color: var(--border);
+    user-select: none;
+  }
+
+  .overview-controls-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-2, 0.5rem);
+  }
+
+  .filter-pills {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-1, 0.25rem);
+  }
+
+  .overview-right-controls {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-2, 0.5rem);
+  }
+
+  .overview-sort-select {
+    min-width: 11.5rem;
+  }
+
+  .sort-mode-note {
+    font-size: var(--font-size-xs, 0.75rem);
+    line-height: var(--line-height-xs, 1.125rem);
+    color: var(--muted-foreground);
+  }
+
+  /* ------------------------------------------------------------------------
+     3. Subscription Cards Grid & Card Layout (.sub-card)
+     ------------------------------------------------------------------------ */
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(
+      auto-fill,
+      minmax(min(100%, var(--card-min-width, 18.75rem)), 1fr)
+    );
+    gap: var(--card-gap, 0.75rem);
+    align-items: start;
+  }
+
+  .cards-grid.density-compact {
+    --card-padding: var(--card-padding-compact, 0.75rem);
+    --card-gap: var(--card-gap-compact, 0.5rem);
+    --card-min-width: var(--card-min-width-compact, 16.25rem);
+  }
+
+  .sub-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3, 0.75rem);
+    background: var(--card);
+    color: var(--card-foreground);
+    border: var(--border-width, 1px) solid var(--border);
+    border-radius: var(--radius-lg, 0.75rem);
+    padding: var(--card-padding, 1rem);
+    box-shadow: var(--shadow-card, none);
+    min-width: 0;
+    transition: border-color var(--duration-fast, 120ms) var(--ease-standard);
+  }
+
+  .sub-card:hover {
+    border-color: var(--input);
+  }
+
+  .sub-card[data-sort-over="true"]:not(.is-dragging) { border-color: var(--ring); }
+
+  .sub-card.is-dragging {
+    z-index: var(--z-sticky, 20);
+    border-color: var(--ring);
+    box-shadow: var(--shadow-popover);
+    opacity: 0.92;
+  }
+
+  /* Card Header: Drag Handle + Brand/Product Title + Status/Actions */
+  .sub-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2, 0.5rem);
+    min-width: 0;
+  }
+
+  .sub-card-header-left {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1, 0.25rem);
+    min-width: 0;
+    flex: 1;
+  }
+
+  .card-drag-handle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--control-height);
+    height: var(--control-height, 2rem);
+    padding: 0;
+    border: var(--border-width, 1px) solid transparent;
+    border-radius: var(--radius-sm, 0.375rem);
+    background: transparent;
+    color: var(--muted-foreground);
+    cursor: grab;
+    flex-shrink: 0;
+    touch-action: none;
+    outline: none;
+  }
+
+  .card-drag-handle:hover:not(:disabled) {
+    background: var(--muted);
+    color: var(--foreground);
+  }
+
+  .card-drag-handle:focus-visible {
+    border-color: var(--ring);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--ring) 35%, transparent);
+    color: var(--foreground);
+  }
+
+  .card-drag-handle:active:not(:disabled) {
+    cursor: grabbing;
+  }
+
+  .card-drag-handle:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  .sub-card-title-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2, 0.5rem);
+    min-height: var(--control-height, 2rem);
+    padding: var(--space-0-5, 0.125rem) var(--space-1, 0.25rem);
+    border: var(--border-width, 1px) solid transparent;
+    border-radius: var(--radius-md, 0.5rem);
+    background: transparent;
+    color: var(--foreground);
+    text-align: left;
+    cursor: pointer;
+    min-width: 0;
+    outline: none;
+  }
+
+  .sub-card-title-btn:hover {
+    background: var(--muted);
+  }
+
+  .sub-card-title-btn:focus-visible {
+    border-color: var(--ring);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--ring) 35%, transparent);
+  }
+
+  .sub-card-product {
+    font-size: var(--font-size-sm, 0.875rem);
+    line-height: var(--line-height-sm, 1.25rem);
+    font-weight: var(--font-weight-semibold, 600);
+    color: var(--foreground);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .sub-card-brand-tag {
+    font-size: var(--font-size-xs, 0.75rem);
+    line-height: var(--line-height-xs, 1.125rem);
+    font-weight: var(--font-weight-regular, 400);
+    color: var(--muted-foreground);
+    white-space: nowrap;
+  }
+
+  .sub-card-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1, 0.25rem);
+    flex-shrink: 0;
+  }
+
+  .card-demo-badge {
+    font-size: var(--font-size-xs, 0.75rem);
+    line-height: var(--line-height-xs, 1.125rem);
+    color: var(--muted-foreground);
+    background: var(--muted);
+    border-radius: var(--radius-sm, 0.375rem);
+    padding: 0 var(--space-1, 0.25rem);
+    font-weight: var(--font-weight-medium, 500);
+    white-space: nowrap;
+  }
+
+  /* ------------------------------------------------------------------------
+     4. Card Body & Account Partitions
+     ------------------------------------------------------------------------ */
+  .sub-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3, 0.75rem);
+    min-width: 0;
+  }
+
+  .card-account-partition {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2, 0.5rem);
+    min-width: 0;
+  }
+
+  .card-account-partition.partition-divider {
+    padding-top: var(--space-3, 0.75rem);
+    border-top: var(--border-width, 1px) solid var(--border);
+  }
+
+  /* Step 2 in reading order: Account & Plan */
+  .card-subtitle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2, 0.5rem);
+    min-width: 0;
+  }
+
+  .card-account-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-1, 0.25rem);
+    font-size: var(--font-size-xs, 0.75rem);
+    line-height: var(--line-height-xs, 1.125rem);
+    color: var(--muted-foreground);
+    min-width: 0;
+  }
+
+  .card-account-name {
+    font-size: var(--font-size-control, 0.8125rem);
+    line-height: var(--line-height-control, 1.125rem);
+    font-weight: var(--font-weight-medium, 500);
+    color: var(--secondary-foreground);
+  }
+
+  /* Step 3 in reading order: Core Metrics / Balance / Manual Date Hero */
+  .card-metrics-area {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2, 0.5rem);
+    min-width: 0;
+  }
+
+  .window-metrics-block,
+  .wallet-metrics-block,
+  .manual-focus-block {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2, 0.5rem);
+    min-width: 0;
+  }
+
+  /* Wallet breakdown row (flat inline list, no nested card box) */
+  .wallet-breakdown-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-2, 0.5rem);
+    font-size: var(--font-size-xs, 0.75rem);
+    line-height: var(--line-height-xs, 1.125rem);
+    color: var(--muted-foreground);
+  }
+
+  .wallet-breakdown-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
+  }
+
+  .wallet-breakdown-item {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--space-1, 0.25rem);
+    color: var(--muted-foreground);
+  }
+
+  .wallet-breakdown-item strong {
+    color: var(--foreground);
+    font-weight: var(--font-weight-semibold, 600);
+  }
+
+  /* Manual Membership Hero (Highlights Price & Date without fake quota box) */
+  .manual-renewal-hero {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 0.25rem);
+  }
+
+  .manual-hero-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2, 0.5rem);
+  }
+
+  .manual-hero-label {
+    font-size: var(--font-size-control, 0.8125rem);
+    line-height: var(--line-height-control, 1.125rem);
+    color: var(--secondary-foreground);
+  }
+
+  .manual-hero-price {
+    font-size: var(--font-size-lg, 1.125rem);
+    line-height: var(--line-height-lg, 1.625rem);
+    font-weight: var(--font-weight-semibold, 600);
+    color: var(--foreground);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .manual-hero-date {
+    font-size: var(--font-size-sm, 0.875rem);
+    line-height: var(--line-height-sm, 1.25rem);
+    font-weight: var(--font-weight-semibold, 600);
+    color: var(--foreground);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .manual-renewal-hero.past-due .manual-hero-date {
+    color: var(--destructive);
+  }
+
+  .manual-renewal-hero.soon .manual-hero-date {
+    color: var(--warning);
+  }
+
+  /* Step 4 in reading order: Dedicated Renewal / Expiry & Price Row */
+  .card-renewal-row {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 0.25rem);
+    padding-top: var(--space-2, 0.5rem);
+    border-top: var(--border-width, 1px) solid var(--border);
+  }
+
+  .renewal-main-line {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2, 0.5rem);
+    flex-wrap: wrap;
+    font-size: var(--font-size-control, 0.8125rem);
+    line-height: var(--line-height-control, 1.125rem);
+  }
+
+  .renewal-date-text {
+    font-weight: var(--font-weight-medium, 500);
+    color: var(--foreground);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .card-renewal-row.renewal-past-due .renewal-date-text {
+    color: var(--destructive);
+    font-weight: var(--font-weight-semibold, 600);
+  }
+
+  .card-renewal-row.renewal-soon .renewal-date-text {
+    color: var(--warning);
+    font-weight: var(--font-weight-semibold, 600);
+  }
+
+  .renewal-price-text {
+    color: var(--secondary-foreground);
+    font-weight: var(--font-weight-medium, 500);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Relationship & Local Exception Notes (Subtle & placed after primary metrics) */
+  .card-relation-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1, 0.25rem);
+  }
+
+  .card-conn-error-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-2, 0.5rem);
+    padding: var(--space-1, 0.25rem) var(--space-2, 0.5rem);
+    border-radius: var(--radius-sm, 0.375rem);
+    background: var(--destructive-soft);
+    color: var(--destructive);
+    font-size: var(--font-size-xs, 0.75rem);
+    line-height: var(--line-height-xs, 1.125rem);
+  }
+
+  /* Step 5 in reading order: Provenance & Update Time Footer */
+  .card-provenance-footer {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-1, 0.25rem) var(--space-2, 0.5rem);
+    font-size: var(--font-size-xs, 0.75rem);
+    line-height: var(--line-height-xs, 1.125rem);
+    color: var(--muted-foreground);
+  }
+
+  .provenance-sep {
+    color: var(--border);
+    user-select: none;
+  }
+
+  /* ------------------------------------------------------------------------
+     5. Multi-Account Summary Rows & Progressive Disclosure
+     ------------------------------------------------------------------------ */
+  .account-compact-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2, 0.5rem);
+    padding-top: var(--space-2, 0.5rem);
+    border-top: var(--border-width, 1px) solid var(--border);
+    min-width: 0;
+  }
+
+  .account-summary-main {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: var(--space-1, 0.25rem) var(--space-2, 0.5rem);
+    min-width: 0;
+    flex: 1;
+  }
+
+  .account-summary-metric {
+    font-size: var(--font-size-control, 0.8125rem);
+    line-height: var(--line-height-control, 1.125rem);
+    font-weight: var(--font-weight-semibold, 600);
+    color: var(--foreground);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .account-summary-date {
+    font-size: var(--font-size-xs, 0.75rem);
+    line-height: var(--line-height-xs, 1.125rem);
+    color: var(--muted-foreground);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sub-card-multi-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: var(--space-2, 0.5rem);
+    border-top: var(--border-width, 1px) solid var(--border);
+  }
+}

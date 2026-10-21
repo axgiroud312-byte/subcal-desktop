@@ -1,0 +1,19 @@
+{
+  "SessionID": "ses_ea7e55cb3ffeD8STFoXNt6dtmr",
+  "RequestedModel": "opencode-go/gemini-4-argon-contributor",
+  "ObservedModels": [
+    "opencode-go/gemini-4-argon-contributor"
+  ],
+  "Agent": "plan",
+  "FinalFinish": "stop",
+  "MessageCount": 3,
+  "Tools": [
+    "read",
+    "read"
+  ],
+  "AnswerCharacters": 26572,
+  "SourcePRDSHA256": "8CEFDBF6415550CC614438029A63717A448D191DD4C213FFC5C511A312EE8BA7",
+  "ReferenceSHA256": "97BBF880C4CA7B65741F6D9AB7D984EE2FE4E45A17EDC4323437D2E6EEFADD2E",
+  "AnswerSHA256": "AF02B5286609056A76578902ADEF7FCF473590E02189D8D3611FB19295C97EA9",
+  "CompletedAt": "2026-10-20T15:03:03.8626154+08:00"
+}

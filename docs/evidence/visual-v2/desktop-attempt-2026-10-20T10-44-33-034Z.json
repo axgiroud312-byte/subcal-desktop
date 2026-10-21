@@ -1,0 +1,92 @@
+{
+  "platform": "win32",
+  "at": "2026-10-20T10:44:24.559Z",
+  "checks": [
+    "原生 Electron 窗口、实际 DPI 与隔离桥",
+    "四页导航与十二场景入口"
+  ],
+  "screenshots": [],
+  "visualChecks": [],
+  "userAcceptance": "pending",
+  "limitations": [
+    "macOS 未实测",
+    "原生文件选择器由自动化指定路径；文件读写和导入逻辑为实际执行",
+    "首次关闭说明由自动化确认；托盘图标通过 Windows UI Automation 操作，退出使用真实菜单回调"
+  ],
+  "desktop": {
+    "bounds": {
+      "x": 213,
+      "y": 99,
+      "width": 1281,
+      "height": 821
+    },
+    "display": {
+      "accelerometerSupport": "unknown",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1707,
+        "height": 1067
+      },
+      "colorDepth": 24,
+      "colorSpace": "{primaries:BT709, transfer:SRGB, matrix:RGB, range:FULL}",
+      "depthPerComponent": 8,
+      "detected": true,
+      "displayFrequency": 300,
+      "id": 2498936783,
+      "internal": true,
+      "label": "NE160QDM-NZL",
+      "maximumCursorSize": {
+        "width": 0,
+        "height": 0
+      },
+      "monochrome": false,
+      "nativeOrigin": {
+        "x": 0,
+        "y": 0
+      },
+      "rotation": 0,
+      "scaleFactor": 1.5,
+      "size": {
+        "width": 1707,
+        "height": 1067
+      },
+      "workArea": {
+        "x": 0,
+        "y": 0,
+        "width": 1707,
+        "height": 1019
+      },
+      "workAreaSize": {
+        "width": 1707,
+        "height": 1019
+      },
+      "touchSupport": "unknown"
+    },
+    "preferences": {
+      "allowRunningInsecureContent": false,
+      "contextIsolation": true,
+      "disableDialogs": false,
+      "disablePopups": false,
+      "enableBlinkFeatures": "",
+      "experimentalFeatures": false,
+      "javascript": true,
+      "nodeIntegration": false,
+      "nodeIntegrationInSubFrames": false,
+      "nodeIntegrationInWorker": false,
+      "safeDialogs": false,
+      "safeDialogsMessage": "",
+      "sandbox": true,
+      "webSecurity": true,
+      "webviewTag": false
+    }
+  },
+  "failure": "AssertionError [ERR_ASSERTION]: 焦点不能逃出未保存确认\n\nfalse !== true\n",
+  "pageErrors": [],
+  "failureState": {
+    "scenario": "empty_first_run",
+    "order": [],
+    "domOrder": [],
+    "active": "<button type=\"button\" tabindex=\"0\" data-slot=\"alert-dialog-cancel\" class=\"group/button inline-flex shrink-0 cursor-pointer items-center justify-center rounded-md border bg-clip-padding text-control font-medium whitespace-nowrap transition-[background-color,color,border-color,box-shadow,transform] duration-(--duration-fast) outline-none select-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/35 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-2 aria-"
+  }
+}

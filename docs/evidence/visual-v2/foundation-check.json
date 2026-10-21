@@ -1,0 +1,526 @@
+{
+  "platform": "win32",
+  "at": "2026-10-20T10:44:11.759Z",
+  "checks": [
+    "原生 Electron 窗口、实际 DPI 与隔离桥",
+    "Mira / Base UI 嵌套 Portal、主题、Recharts Tooltip / Legend / 空数据与窄宽度"
+  ],
+  "screenshots": [
+    {
+      "file": "foundation-narrow-dark.png",
+      "theme": "dark",
+      "scenario": "normal_mixed",
+      "innerWidth": 946,
+      "innerHeight": 604,
+      "devicePixelRatio": 1.5,
+      "rootFont": "16px",
+      "bounds": {
+        "x": 213,
+        "y": 99,
+        "width": 961,
+        "height": 642
+      }
+    }
+  ],
+  "visualChecks": [
+    {
+      "theme": "light",
+      "rootFont": "16px",
+      "fontFamily": "\"Segoe UI Variable Text\", \"Segoe UI\", \"Microsoft YaHei UI\", -apple-system, BlinkMacSystemFont, \"PingFang SC\", sans-serif",
+      "colors": {
+        "foreground": "rgb(32, 32, 37)",
+        "background": "rgb(245, 245, 247)",
+        "card": "rgb(255, 255, 255)",
+        "muted-foreground": "rgb(104, 104, 115)",
+        "input": "rgb(138, 138, 148)",
+        "ring": "rgb(79, 70, 229)",
+        "primary": "rgb(79, 70, 229)",
+        "primary-foreground": "rgb(255, 255, 255)",
+        "warning": "rgb(154, 52, 18)",
+        "warning-soft": "rgb(255, 247, 237)",
+        "destructive": "rgb(185, 28, 28)",
+        "destructive-soft": "rgb(254, 242, 242)"
+      },
+      "metrics": [
+        {
+          "size": "14px",
+          "weight": "600"
+        },
+        {
+          "size": "14px",
+          "weight": "600"
+        },
+        {
+          "size": "18px",
+          "weight": "600"
+        },
+        {
+          "size": "14px",
+          "weight": "600"
+        },
+        {
+          "size": "14px",
+          "weight": "600"
+        },
+        {
+          "size": "18px",
+          "weight": "600"
+        },
+        {
+          "size": "18px",
+          "weight": "600"
+        }
+      ],
+      "samples": [
+        {
+          "selector": ".btn-add-sub",
+          "foreground": "rgb(255, 255, 255)",
+          "background": "rgb(79, 70, 229)",
+          "weight": "500",
+          "size": "13px",
+          "contrast": 6.29
+        },
+        {
+          "selector": ".quota-label",
+          "foreground": "rgb(82, 82, 91)",
+          "background": "rgb(255, 255, 255)",
+          "weight": "400",
+          "size": "13px",
+          "contrast": 7.73
+        },
+        {
+          "selector": ".quota-value",
+          "foreground": "rgb(32, 32, 37)",
+          "background": "rgb(255, 255, 255)",
+          "weight": "600",
+          "size": "14px",
+          "contrast": 16.22
+        },
+        {
+          "selector": ".card-account-name",
+          "foreground": "rgb(82, 82, 91)",
+          "background": "rgb(255, 255, 255)",
+          "weight": "500",
+          "size": "13px",
+          "contrast": 7.73
+        },
+        {
+          "selector": ".preview-dock-summary",
+          "foreground": "rgb(104, 104, 115)",
+          "background": "rgb(245, 245, 247)",
+          "weight": "400",
+          "size": "12px",
+          "contrast": 5.05
+        }
+      ],
+      "overweight": [],
+      "headerControls": [
+        {
+          "name": "概览",
+          "height": 32,
+          "size": "13px",
+          "weight": "500"
+        },
+        {
+          "name": "订阅",
+          "height": 32,
+          "size": "13px",
+          "weight": "500"
+        },
+        {
+          "name": "日历",
+          "height": 32,
+          "size": "13px",
+          "weight": "500"
+        },
+        {
+          "name": "连接",
+          "height": 32,
+          "size": "13px",
+          "weight": "500"
+        },
+        {
+          "name": "新增订阅",
+          "height": 32,
+          "size": "13px",
+          "weight": "500"
+        },
+        {
+          "name": "模拟刷新",
+          "height": 32,
+          "size": "13px",
+          "weight": "500"
+        },
+        {
+          "name": "切换深浅色主题",
+          "height": 32,
+          "size": "13px",
+          "weight": "500"
+        },
+        {
+          "name": "打开设置与备份",
+          "height": 32,
+          "size": "13px",
+          "weight": "500"
+        }
+      ],
+      "platformFonts": [
+        {
+          "familyName": "Microsoft YaHei UI",
+          "postScriptName": "MicrosoftYaHeiUI",
+          "isCustomFont": false,
+          "glyphCount": 3
+        }
+      ],
+      "contrasts": [
+        {
+          "fg": "foreground",
+          "bg": "card",
+          "minimum": 4.5,
+          "ratio": 16.22
+        },
+        {
+          "fg": "muted-foreground",
+          "bg": "card",
+          "minimum": 4.5,
+          "ratio": 5.5
+        },
+        {
+          "fg": "muted-foreground",
+          "bg": "background",
+          "minimum": 4.5,
+          "ratio": 5.05
+        },
+        {
+          "fg": "primary-foreground",
+          "bg": "primary",
+          "minimum": 4.5,
+          "ratio": 6.29
+        },
+        {
+          "fg": "warning",
+          "bg": "warning-soft",
+          "minimum": 4.5,
+          "ratio": 6.88
+        },
+        {
+          "fg": "destructive",
+          "bg": "destructive-soft",
+          "minimum": 4.5,
+          "ratio": 5.91
+        },
+        {
+          "fg": "input",
+          "bg": "card",
+          "minimum": 3,
+          "ratio": 3.42
+        },
+        {
+          "fg": "ring",
+          "bg": "card",
+          "minimum": 3,
+          "ratio": 6.29
+        }
+      ]
+    },
+    {
+      "component": "Recharts Tooltip / Legend",
+      "theme": "light",
+      "series1": "#4F46E5",
+      "series2": "#0D9488"
+    },
+    {
+      "theme": "dark",
+      "rootFont": "16px",
+      "fontFamily": "\"Segoe UI Variable Text\", \"Segoe UI\", \"Microsoft YaHei UI\", -apple-system, BlinkMacSystemFont, \"PingFang SC\", sans-serif",
+      "colors": {
+        "foreground": "rgb(244, 244, 245)",
+        "background": "rgb(24, 24, 27)",
+        "card": "rgb(34, 34, 38)",
+        "muted-foreground": "rgb(161, 161, 170)",
+        "input": "rgb(113, 113, 122)",
+        "ring": "rgb(165, 180, 252)",
+        "primary": "rgb(129, 140, 248)",
+        "primary-foreground": "rgb(24, 24, 27)",
+        "warning": "rgb(253, 186, 116)",
+        "warning-soft": "rgb(56, 39, 24)",
+        "destructive": "rgb(252, 165, 165)",
+        "destructive-soft": "rgb(58, 29, 35)"
+      },
+      "metrics": [
+        {
+          "size": "14px",
+          "weight": "600"
+        },
+        {
+          "size": "14px",
+          "weight": "600"
+        },
+        {
+          "size": "18px",
+          "weight": "600"
+        },
+        {
+          "size": "14px",
+          "weight": "600"
+        },
+        {
+          "size": "14px",
+          "weight": "600"
+        },
+        {
+          "size": "18px",
+          "weight": "600"
+        },
+        {
+          "size": "18px",
+          "weight": "600"
+        }
+      ],
+      "samples": [
+        {
+          "selector": ".btn-add-sub",
+          "foreground": "rgb(24, 24, 27)",
+          "background": "rgb(129, 140, 248)",
+          "weight": "500",
+          "size": "13px",
+          "contrast": 5.94
+        },
+        {
+          "selector": ".quota-label",
+          "foreground": "rgb(212, 212, 216)",
+          "background": "rgb(34, 34, 38)",
+          "weight": "400",
+          "size": "13px",
+          "contrast": 10.72
+        },
+        {
+          "selector": ".quota-value",
+          "foreground": "rgb(244, 244, 245)",
+          "background": "rgb(34, 34, 38)",
+          "weight": "600",
+          "size": "14px",
+          "contrast": 14.42
+        },
+        {
+          "selector": ".card-account-name",
+          "foreground": "rgb(212, 212, 216)",
+          "background": "rgb(34, 34, 38)",
+          "weight": "500",
+          "size": "13px",
+          "contrast": 10.72
+        },
+        {
+          "selector": ".preview-dock-summary",
+          "foreground": "rgb(161, 161, 170)",
+          "background": "rgb(24, 24, 27)",
+          "weight": "400",
+          "size": "12px",
+          "contrast": 6.91
+        }
+      ],
+      "overweight": [],
+      "headerControls": [
+        {
+          "name": "概览",
+          "height": 32,
+          "size": "13px",
+          "weight": "500"
+        },
+        {
+          "name": "订阅",
+          "height": 32,
+          "size": "13px",
+          "weight": "500"
+        },
+        {
+          "name": "日历",
+          "height": 32,
+          "size": "13px",
+          "weight": "500"
+        },
+        {
+          "name": "连接",
+          "height": 32,
+          "size": "13px",
+          "weight": "500"
+        },
+        {
+          "name": "新增订阅",
+          "height": 32,
+          "size": "13px",
+          "weight": "500"
+        },
+        {
+          "name": "模拟刷新",
+          "height": 32,
+          "size": "13px",
+          "weight": "500"
+        },
+        {
+          "name": "切换深浅色主题",
+          "height": 32,
+          "size": "13px",
+          "weight": "500"
+        },
+        {
+          "name": "打开设置与备份",
+          "height": 32,
+          "size": "13px",
+          "weight": "500"
+        }
+      ],
+      "platformFonts": [
+        {
+          "familyName": "Microsoft YaHei UI",
+          "postScriptName": "MicrosoftYaHeiUI",
+          "isCustomFont": false,
+          "glyphCount": 3
+        }
+      ],
+      "contrasts": [
+        {
+          "fg": "foreground",
+          "bg": "card",
+          "minimum": 4.5,
+          "ratio": 14.42
+        },
+        {
+          "fg": "muted-foreground",
+          "bg": "card",
+          "minimum": 4.5,
+          "ratio": 6.18
+        },
+        {
+          "fg": "muted-foreground",
+          "bg": "background",
+          "minimum": 4.5,
+          "ratio": 6.91
+        },
+        {
+          "fg": "primary-foreground",
+          "bg": "primary",
+          "minimum": 4.5,
+          "ratio": 5.94
+        },
+        {
+          "fg": "warning",
+          "bg": "warning-soft",
+          "minimum": 4.5,
+          "ratio": 8.46
+        },
+        {
+          "fg": "destructive",
+          "bg": "destructive-soft",
+          "minimum": 4.5,
+          "ratio": 8.02
+        },
+        {
+          "fg": "input",
+          "bg": "card",
+          "minimum": 3,
+          "ratio": 3.28
+        },
+        {
+          "fg": "ring",
+          "bg": "card",
+          "minimum": 3,
+          "ratio": 7.95
+        }
+      ]
+    },
+    {
+      "component": "Recharts Tooltip / Legend",
+      "theme": "dark",
+      "series1": "#818CF8",
+      "series2": "#2DD4BF"
+    },
+    {
+      "token": "--radius-md",
+      "before": [
+        "8px",
+        "8px",
+        "8px"
+      ],
+      "after": [
+        "10px",
+        "10px",
+        "10px"
+      ]
+    }
+  ],
+  "userAcceptance": "pending",
+  "limitations": [
+    "macOS 未实测",
+    "原生文件选择器由自动化指定路径；文件读写和导入逻辑为实际执行",
+    "首次关闭说明由自动化确认；托盘图标通过 Windows UI Automation 操作，退出使用真实菜单回调"
+  ],
+  "desktop": {
+    "bounds": {
+      "x": 213,
+      "y": 99,
+      "width": 1281,
+      "height": 821
+    },
+    "display": {
+      "accelerometerSupport": "unknown",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1707,
+        "height": 1067
+      },
+      "colorDepth": 24,
+      "colorSpace": "{primaries:BT709, transfer:SRGB, matrix:RGB, range:FULL}",
+      "depthPerComponent": 8,
+      "detected": true,
+      "displayFrequency": 300,
+      "id": 2498936783,
+      "internal": true,
+      "label": "NE160QDM-NZL",
+      "maximumCursorSize": {
+        "width": 0,
+        "height": 0
+      },
+      "monochrome": false,
+      "nativeOrigin": {
+        "x": 0,
+        "y": 0
+      },
+      "rotation": 0,
+      "scaleFactor": 1.5,
+      "size": {
+        "width": 1707,
+        "height": 1067
+      },
+      "workArea": {
+        "x": 0,
+        "y": 0,
+        "width": 1707,
+        "height": 1019
+      },
+      "workAreaSize": {
+        "width": 1707,
+        "height": 1019
+      },
+      "touchSupport": "unknown"
+    },
+    "preferences": {
+      "allowRunningInsecureContent": false,
+      "contextIsolation": true,
+      "disableDialogs": false,
+      "disablePopups": false,
+      "enableBlinkFeatures": "",
+      "experimentalFeatures": false,
+      "javascript": true,
+      "nodeIntegration": false,
+      "nodeIntegrationInSubFrames": false,
+      "nodeIntegrationInWorker": false,
+      "safeDialogs": false,
+      "safeDialogsMessage": "",
+      "sandbox": true,
+      "webSecurity": true,
+      "webviewTag": false
+    }
+  }
+}

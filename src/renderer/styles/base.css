@@ -1,0 +1,143 @@
+@layer theme, base, components, utilities;
+
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "./tokens.css";
+
+@custom-variant dark (&:is(.dark *, [data-theme="dark"] *, .dark, [data-theme="dark"]));
+
+@utility text-control {
+  font-size: var(--font-size-control);
+  line-height: var(--line-height-control);
+}
+
+@theme inline {
+  /* Semantic Color Mapping */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-soft: var(--warning-soft);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Chart Colors */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* Explicit Radius Mapping (sm 6px / md 8px / lg 12px / xl 16px) */
+  --spacing: var(--space-1);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+
+  /* Explicit Font Family & Weight Mapping (400 / 500 / 600 only) */
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-weight-normal: var(--font-weight-regular);
+  --font-weight-medium: var(--font-weight-medium);
+  --font-weight-semibold: var(--font-weight-semibold);
+  --font-weight-bold: var(--font-weight-semibold);
+
+  /* Explicit Typography Scale Mapping (Root 16px, Body 14px) */
+  --text-xs: var(--font-size-xs);
+  --text-xs--line-height: var(--line-height-xs);
+  --text-sm: var(--font-size-sm);
+  --text-sm--line-height: var(--line-height-sm);
+  --text-base: var(--font-size-sm);
+  --text-base--line-height: var(--line-height-sm);
+  --text-lg: var(--font-size-lg);
+  --text-lg--line-height: var(--line-height-lg);
+  --text-xl: var(--font-size-xl);
+  --text-xl--line-height: var(--line-height-xl);
+
+  /* Shadows */
+  --shadow-popover: var(--shadow-popover);
+  --shadow-dialog: var(--shadow-dialog);
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    font-size: var(--font-size-root); /* 16px root */
+    line-height: 1.5;
+    background-color: var(--background);
+    color: var(--foreground);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: var(--font-sans);
+    font-size: var(--font-size-sm); /* 14px body */
+    line-height: var(--line-height-sm); /* 20px */
+    font-weight: var(--font-weight-regular);
+    background-color: var(--background);
+    color: var(--foreground);
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    border-color: var(--border);
+  }
+
+  b, strong { font-weight: var(--font-weight-semibold); }
+  .lucide { width: var(--icon-size-sm); height: var(--icon-size-sm); stroke-width: var(--icon-stroke-width); }
+  :where(button, a, input, select, textarea, summary, [tabindex]):focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+}
+
+/* Reduced Motion Global Support (covers both HTML root & .app portals) */
+:root[data-reduced-motion="true"] *,
+:root[data-reduced-motion="true"] *::before,
+:root[data-reduced-motion="true"] *::after,
+.app[data-reduced-motion="true"] *,
+.app[data-reduced-motion="true"] *::before,
+.app[data-reduced-motion="true"] *::after {
+  transition-duration: 0ms !important;
+  animation-duration: 0ms !important;
+}
+
+/* Tabular numbers helper for amounts, percentages, and dates */
+.tabular-nums,
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Sonner ships unlayered CSS. This narrowly scoped adapter keeps its standalone
+   close hit target at 32px, without overriding our own component layers. */
+[data-sonner-toaster].toaster [data-close-button] {
+  width: var(--control-height);
+  height: var(--control-height);
+}
+html[data-modal-open="true"] [data-sonner-toaster] { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0ms !important; animation-duration: 0ms !important; scroll-behavior: auto !important; }
+}

@@ -1,0 +1,15 @@
+node_modules/
+dist-electron/
+dist/
+*.log
+
+# Local credentials and operating-system files must not enter version control.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+.DS_Store
+Thumbs.db

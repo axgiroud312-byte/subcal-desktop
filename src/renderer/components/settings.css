@@ -1,0 +1,140 @@
+/* Owned styles for Settings modal (FE-017).
+   All visual values reference src/renderer/styles/tokens.css. */
+@layer components {
+  .settings-root {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3, 0.75rem);
+    min-width: 0;
+  }
+
+  .settings-tabs-list {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .settings-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4, 1rem);
+    padding-top: var(--space-2, 0.5rem);
+    font-size: var(--font-size-sm, 0.875rem);
+    line-height: var(--line-height-sm, 1.25rem);
+    min-width: 0;
+  }
+
+  .settings-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3, 0.75rem);
+    min-width: 0;
+  }
+
+  .settings-section-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2, 0.5rem);
+  }
+
+  .settings-section-title {
+    margin: 0;
+    font-size: var(--font-size-sm, 0.875rem);
+    line-height: var(--line-height-sm, 1.25rem);
+    font-weight: var(--font-weight-semibold, 600);
+    color: var(--foreground);
+  }
+
+  .settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+    gap: var(--space-3, 0.75rem);
+    min-width: 0;
+  }
+
+  .settings-switch-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2, 0.5rem);
+  }
+
+  .settings-switch-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3, 0.75rem);
+    padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
+    border-radius: var(--radius-md, 0.5rem);
+    border: 1px solid var(--border);
+    background: var(--background);
+    min-width: 0;
+  }
+
+  .settings-switch-copy {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-0-5, 0.125rem);
+  }
+
+  .settings-error {
+    color: var(--destructive);
+    background: var(--destructive-soft);
+    border: 1px solid color-mix(in srgb, var(--destructive) 30%, var(--border));
+    border-radius: var(--radius-md, 0.5rem);
+    padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
+    font-size: var(--font-size-control, 0.8125rem);
+    line-height: var(--line-height-control, 1.125rem);
+    margin: 0;
+  }
+
+  .notification-preview {
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--primary);
+    border-radius: var(--radius-md, 0.5rem);
+    background: var(--background);
+    padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 0.25rem);
+    font-size: var(--font-size-xs, 0.75rem);
+  }
+
+  .settings-preview-box {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md, 0.5rem);
+    background: var(--background);
+    padding: var(--space-3, 0.75rem);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2, 0.5rem);
+  }
+
+  .settings-diff-stats {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2, 0.5rem);
+    font-size: var(--font-size-xs, 0.75rem);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .settings-info-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md, 0.5rem);
+    background: var(--background);
+    padding: var(--space-3, 0.75rem);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2, 0.5rem);
+    font-size: var(--font-size-xs, 0.75rem);
+    line-height: var(--line-height-xs, 1.125rem);
+  }
+
+  .settings-info-card p {
+    margin: 0;
+    color: var(--secondary-foreground);
+  }
+}

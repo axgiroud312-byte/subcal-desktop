@@ -1,0 +1,358 @@
+{
+  "platform": "win32",
+  "at": "2026-10-20T10:56:49.486Z",
+  "checks": [
+    "原生 Electron 窗口、实际 DPI 与隔离桥",
+    "零值、未知、过时与部分成功保持字段语义",
+    "双主题四页、主要 Portal 与状态视觉核对"
+  ],
+  "screenshots": [
+    {
+      "file": "desktop-multi-account.png",
+      "theme": "light",
+      "scenario": "multi_account_shared",
+      "innerWidth": 1266,
+      "innerHeight": 784,
+      "devicePixelRatio": 1.5,
+      "rootFont": "16px",
+      "bounds": {
+        "x": 213,
+        "y": 99,
+        "width": 1281,
+        "height": 821
+      }
+    },
+    {
+      "file": "desktop-subscriptions-dark.png",
+      "theme": "dark",
+      "scenario": "normal_mixed",
+      "innerWidth": 1266,
+      "innerHeight": 784,
+      "devicePixelRatio": 1.5,
+      "rootFont": "16px",
+      "bounds": {
+        "x": 213,
+        "y": 99,
+        "width": 1281,
+        "height": 821
+      }
+    },
+    {
+      "file": "desktop-calendar-dark.png",
+      "theme": "dark",
+      "scenario": "normal_mixed",
+      "innerWidth": 1266,
+      "innerHeight": 784,
+      "devicePixelRatio": 1.5,
+      "rootFont": "16px",
+      "bounds": {
+        "x": 213,
+        "y": 99,
+        "width": 1281,
+        "height": 821
+      }
+    },
+    {
+      "file": "desktop-connections-dark.png",
+      "theme": "dark",
+      "scenario": "normal_mixed",
+      "innerWidth": 1266,
+      "innerHeight": 784,
+      "devicePixelRatio": 1.5,
+      "rootFont": "16px",
+      "bounds": {
+        "x": 213,
+        "y": 99,
+        "width": 1281,
+        "height": 821
+      }
+    },
+    {
+      "file": "desktop-unsaved-dark.png",
+      "theme": "dark",
+      "scenario": "normal_mixed",
+      "innerWidth": 1266,
+      "innerHeight": 784,
+      "devicePixelRatio": 1.5,
+      "rootFont": "16px",
+      "bounds": {
+        "x": 213,
+        "y": 99,
+        "width": 1281,
+        "height": 821
+      }
+    },
+    {
+      "file": "state-unknown_and_na.png",
+      "theme": "dark",
+      "scenario": "unknown_and_na",
+      "innerWidth": 1266,
+      "innerHeight": 784,
+      "devicePixelRatio": 1.5,
+      "rootFont": "16px",
+      "bounds": {
+        "x": 213,
+        "y": 99,
+        "width": 1281,
+        "height": 821
+      }
+    },
+    {
+      "file": "state-zero_vs_unfetched.png",
+      "theme": "dark",
+      "scenario": "zero_vs_unfetched",
+      "innerWidth": 1266,
+      "innerHeight": 784,
+      "devicePixelRatio": 1.5,
+      "rootFont": "16px",
+      "bounds": {
+        "x": 213,
+        "y": 99,
+        "width": 1281,
+        "height": 821
+      }
+    },
+    {
+      "file": "state-stale_and_past_reset.png",
+      "theme": "dark",
+      "scenario": "stale_and_past_reset",
+      "innerWidth": 1266,
+      "innerHeight": 784,
+      "devicePixelRatio": 1.5,
+      "rootFont": "16px",
+      "bounds": {
+        "x": 213,
+        "y": 99,
+        "width": 1281,
+        "height": 821
+      }
+    },
+    {
+      "file": "desktop-connections-error-dark.png",
+      "theme": "dark",
+      "scenario": "auth_and_locked_fields",
+      "innerWidth": 1266,
+      "innerHeight": 784,
+      "devicePixelRatio": 1.5,
+      "rootFont": "16px",
+      "bounds": {
+        "x": 213,
+        "y": 99,
+        "width": 1281,
+        "height": 821
+      }
+    },
+    {
+      "file": "state-empty_first_run.png",
+      "theme": "dark",
+      "scenario": "empty_first_run",
+      "innerWidth": 1266,
+      "innerHeight": 784,
+      "devicePixelRatio": 1.5,
+      "rootFont": "16px",
+      "bounds": {
+        "x": 213,
+        "y": 99,
+        "width": 1281,
+        "height": 821
+      }
+    }
+  ],
+  "visualChecks": [
+    {
+      "theme": "light",
+      "scenario": "multi_account_shared",
+      "viewport": {
+        "width": 1266,
+        "height": 784,
+        "scale": 1.5
+      },
+      "noHorizontalOverflow": true
+    },
+    {
+      "theme": "light",
+      "scenario": "unknown_and_na",
+      "viewport": {
+        "width": 1266,
+        "height": 784,
+        "scale": 1.5
+      },
+      "noHorizontalOverflow": true
+    },
+    {
+      "theme": "light",
+      "scenario": "zero_vs_unfetched",
+      "viewport": {
+        "width": 1266,
+        "height": 784,
+        "scale": 1.5
+      },
+      "noHorizontalOverflow": true
+    },
+    {
+      "theme": "light",
+      "scenario": "stale_and_past_reset",
+      "viewport": {
+        "width": 1266,
+        "height": 784,
+        "scale": 1.5
+      },
+      "noHorizontalOverflow": true
+    },
+    {
+      "theme": "light",
+      "scenario": "auth_and_locked_fields",
+      "viewport": {
+        "width": 1266,
+        "height": 784,
+        "scale": 1.5
+      },
+      "noHorizontalOverflow": true
+    },
+    {
+      "theme": "light",
+      "scenario": "empty_first_run",
+      "viewport": {
+        "width": 1266,
+        "height": 784,
+        "scale": 1.5
+      },
+      "noHorizontalOverflow": true
+    },
+    {
+      "theme": "dark",
+      "scenario": "multi_account_shared",
+      "viewport": {
+        "width": 1266,
+        "height": 784,
+        "scale": 1.5
+      },
+      "noHorizontalOverflow": true
+    },
+    {
+      "theme": "dark",
+      "scenario": "unknown_and_na",
+      "viewport": {
+        "width": 1266,
+        "height": 784,
+        "scale": 1.5
+      },
+      "noHorizontalOverflow": true
+    },
+    {
+      "theme": "dark",
+      "scenario": "zero_vs_unfetched",
+      "viewport": {
+        "width": 1266,
+        "height": 784,
+        "scale": 1.5
+      },
+      "noHorizontalOverflow": true
+    },
+    {
+      "theme": "dark",
+      "scenario": "stale_and_past_reset",
+      "viewport": {
+        "width": 1266,
+        "height": 784,
+        "scale": 1.5
+      },
+      "noHorizontalOverflow": true
+    },
+    {
+      "theme": "dark",
+      "scenario": "auth_and_locked_fields",
+      "viewport": {
+        "width": 1266,
+        "height": 784,
+        "scale": 1.5
+      },
+      "noHorizontalOverflow": true
+    },
+    {
+      "theme": "dark",
+      "scenario": "empty_first_run",
+      "viewport": {
+        "width": 1266,
+        "height": 784,
+        "scale": 1.5
+      },
+      "noHorizontalOverflow": true
+    }
+  ],
+  "userAcceptance": "pending",
+  "limitations": [
+    "macOS 未实测",
+    "原生文件选择器由自动化指定路径；文件读写和导入逻辑为实际执行",
+    "首次关闭说明由自动化确认；托盘图标通过 Windows UI Automation 操作，退出使用真实菜单回调"
+  ],
+  "desktop": {
+    "bounds": {
+      "x": 213,
+      "y": 99,
+      "width": 1281,
+      "height": 821
+    },
+    "display": {
+      "accelerometerSupport": "unknown",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1707,
+        "height": 1067
+      },
+      "colorDepth": 24,
+      "colorSpace": "{primaries:BT709, transfer:SRGB, matrix:RGB, range:FULL}",
+      "depthPerComponent": 8,
+      "detected": true,
+      "displayFrequency": 300,
+      "id": 2498936783,
+      "internal": true,
+      "label": "NE160QDM-NZL",
+      "maximumCursorSize": {
+        "width": 0,
+        "height": 0
+      },
+      "monochrome": false,
+      "nativeOrigin": {
+        "x": 0,
+        "y": 0
+      },
+      "rotation": 0,
+      "scaleFactor": 1.5,
+      "size": {
+        "width": 1707,
+        "height": 1067
+      },
+      "workArea": {
+        "x": 0,
+        "y": 0,
+        "width": 1707,
+        "height": 1019
+      },
+      "workAreaSize": {
+        "width": 1707,
+        "height": 1019
+      },
+      "touchSupport": "unknown"
+    },
+    "preferences": {
+      "allowRunningInsecureContent": false,
+      "contextIsolation": true,
+      "disableDialogs": false,
+      "disablePopups": false,
+      "enableBlinkFeatures": "",
+      "experimentalFeatures": false,
+      "javascript": true,
+      "nodeIntegration": false,
+      "nodeIntegrationInSubFrames": false,
+      "nodeIntegrationInWorker": false,
+      "safeDialogs": false,
+      "safeDialogsMessage": "",
+      "sandbox": true,
+      "webSecurity": true,
+      "webviewTag": false
+    }
+  },
+  "filter": "零值|双主题"
+}

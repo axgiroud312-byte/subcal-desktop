@@ -1,0 +1,231 @@
+/* ==========================================================================
+   SubCal Design Tokens (FE-012)
+   Source of truth: docs/design/visual-foundation.md Section 3
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* 3.1 Semantic Colors — Light Mode */
+  --background: #F5F5F7;
+  --foreground: #202025;
+
+  --card: #FFFFFF;
+  --card-foreground: #202025;
+
+  --popover: #FFFFFF;
+  --popover-foreground: #202025;
+
+  /* Control surfaces & hover (Note: --muted is background surface, NOT text) */
+  --secondary: #F0F0F3;
+  --secondary-foreground: #52525B;
+
+  --muted: #F0F0F3;
+  --muted-foreground: #686873;
+
+  --accent: #F0F0F3;
+  --accent-foreground: #52525B;
+
+  /* Borders & Focus */
+  --border: #E4E4E7;
+  --input: #8A8A94;
+  --ring: #4F46E5;
+
+  /* Brand Primary */
+  --primary: #4F46E5;
+  --primary-foreground: #FFFFFF;
+
+  /* Semantic Statuses */
+  --success-soft: #F0FDF4;
+  --success: #166534;
+  --success-foreground: #FFFFFF;
+
+  --warning-soft: #FFF7ED;
+  --warning: #9A3412;
+  --warning-foreground: #FFFFFF;
+
+  --destructive-soft: #FEF2F2;
+  --destructive: #B91C1C;
+  --destructive-foreground: #FFFFFF;
+
+  /* Chart Series (chart-1 to chart-5) */
+  --chart-1: #4F46E5;
+  --chart-2: #0D9488;
+  --chart-3: #D97706;
+  --chart-4: #2563EB;
+  --chart-5: #7C3AED;
+
+  /* 3.2 Typography & Weights (Root 16px, Body 14px, Weights 400/500/600 only) */
+  --font-sans: "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI",
+    -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+  --font-mono: "Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono",
+    Menlo, monospace;
+
+  --font-size-root: 16px;
+  --font-size-xs: 0.75rem;       /* 12px - 辅助信息 */
+  --line-height-xs: 1.125rem;    /* 18px */
+  --font-size-control: 0.8125rem;/* 13px - 标签 / 控件 */
+  --line-height-control: 1.125rem;/* 18px */
+  --font-size-sm: 0.875rem;      /* 14px - 正文 / 卡片标题 / 窗口额度数值 */
+  --line-height-sm: 1.25rem;     /* 20px */
+  --font-size-lg: 1.125rem;      /* 18px - 主要余额 / 页面标题 */
+  --line-height-lg: 1.625rem;    /* 26px */
+  --font-size-xl: 1.5rem;        /* 24px - 页面汇总 */
+  --line-height-xl: 1.875rem;    /* 30px */
+  --text-xs: var(--font-size-xs);
+  --text-sm: var(--font-size-sm);
+  --text-lg: var(--font-size-lg);
+  --text-xl: var(--font-size-xl);
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+
+  /* 3.3 Spacing Scale (2 / 4 / 8 / 12 / 16 / 20 / 24 / 32px) */
+  --space-0-5: calc(var(--space-1) / 2); /* 2px */
+  --space-1: 0.25rem;    /* 4px */
+  --space-2: calc(var(--space-1) * 2); /* 8px */
+  --space-3: calc(var(--space-1) * 3); /* 12px */
+  --space-4: calc(var(--space-1) * 4); /* 16px */
+  --space-5: calc(var(--space-1) * 5); /* 20px */
+  --space-6: calc(var(--space-1) * 6); /* 24px */
+  --space-8: calc(var(--space-1) * 8); /* 32px */
+
+  /* Layout & Component Dimensions */
+  --page-padding: 1.5rem;          /* 24px */
+  --page-padding-compact: 1rem;    /* 16px */
+  --card-padding: 1rem;            /* 16px */
+  --card-padding-compact: 0.75rem; /* 12px */
+  --card-gap: 0.75rem;             /* 12px */
+  --card-gap-compact: 0.5rem;      /* 8px */
+  --card-min-width: 18.75rem;      /* 300px */
+  --card-min-width-compact: 16.25rem; /* 260px */
+
+  --control-height-sm: 2rem;       /* Compact padding, same 32px hit target */
+  --control-height: 2rem;          /* 32px - 常规控件高度 */
+  --control-height-lg: 2.25rem;    /* 36px - 宽松控件高度 */
+  --icon-size-sm: 1rem;            /* 16px */
+  --icon-size-md: 1.25rem;         /* 20px */
+  --icon-stroke-width: 1.75;
+
+  --dialog-max-width: 35rem;       /* 560px */
+  --sheet-max-width: 28.75rem;     /* 460px */
+  --size-dialog: var(--dialog-max-width);
+  --size-dialog-wide: 45rem;
+  --size-sheet: var(--sheet-max-width);
+  --size-currency: 6rem;
+  --text-label: var(--font-size-control);
+
+  /* Border & Radius (sm 6 / md 8 / lg 12 / xl 16px) */
+  --border-width: 1px;
+  --radius-sm: 0.375rem; /* 6px */
+  --radius-md: 0.5rem;   /* 8px - 控件 */
+  --radius-lg: 0.75rem;  /* 12px - 卡片 */
+  --radius-xl: 1rem;     /* 16px - 弹层 */
+  --radius-full: 9999px;
+  --radius: var(--radius-md);
+
+  /* Shadows (card: none, popover: tier 1, dialog: tier 2) */
+  --shadow-card: none;
+  --shadow-popover: 0 8px 24px -4px rgba(15, 23, 42, 0.10),
+    0 2px 6px -1px rgba(15, 23, 42, 0.06);
+  --shadow-dialog: 0 20px 44px -8px rgba(15, 23, 42, 0.18),
+    0 4px 12px -2px rgba(15, 23, 42, 0.08);
+
+  /* Z-Index Hierarchy (Select/Popover/Tooltip above Dialog/Sheet) */
+  --z-content: 1;
+  --z-sticky: 20;
+  --z-overlay: 40;
+  --z-dialog: 50;
+  --z-popover: 60;
+  --z-tooltip: 70;
+  --z-toast: 80;
+
+  /* Motion Durations & Easing */
+  --duration-fast: 120ms;
+  --duration-normal: 180ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+}
+
+:root.dark,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* 3.1 Semantic Colors — Dark Mode */
+  --background: #18181B;
+  --foreground: #F4F4F5;
+
+  --card: #222226;
+  --card-foreground: #F4F4F5;
+
+  --popover: #222226;
+  --popover-foreground: #F4F4F5;
+
+  /* Control surfaces & hover (Note: --muted is background surface, NOT text) */
+  --secondary: #2C2C31;
+  --secondary-foreground: #D4D4D8;
+
+  --muted: #2C2C31;
+  --muted-foreground: #A1A1AA;
+
+  --accent: #2C2C31;
+  --accent-foreground: #D4D4D8;
+
+  /* Borders & Focus */
+  --border: #3F3F46;
+  --input: #71717A;
+  --ring: #A5B4FC;
+
+  /* Brand Primary */
+  --primary: #818CF8;
+  --primary-foreground: #18181B;
+
+  /* Semantic Statuses */
+  --success-soft: #173124;
+  --success: #86EFAC;
+  --success-foreground: #18181B;
+
+  --warning-soft: #382718;
+  --warning: #FDBA74;
+  --warning-foreground: #18181B;
+
+  --destructive-soft: #3A1D23;
+  --destructive: #FCA5A5;
+  --destructive-foreground: #18181B;
+
+  /* Chart Series (chart-1 to chart-5) */
+  --chart-1: #818CF8;
+  --chart-2: #2DD4BF;
+  --chart-3: #FBBF24;
+  --chart-4: #60A5FA;
+  --chart-5: #A78BFA;
+
+  /* Shadows */
+  --shadow-card: none;
+  --shadow-popover: 0 10px 28px -4px rgba(0, 0, 0, 0.48),
+    0 2px 8px -1px rgba(0, 0, 0, 0.32);
+  --shadow-dialog: 0 24px 52px -8px rgba(0, 0, 0, 0.65),
+    0 6px 16px -2px rgba(0, 0, 0, 0.42);
+
+}
+
+/* Density-aware token overrides */
+:root[data-density="compact"] {
+  --card-padding: var(--card-padding-compact);
+  --card-gap: var(--card-gap-compact);
+  --card-min-width: var(--card-min-width-compact);
+}
+
+/* Reduced motion token overrides */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-normal: 0ms;
+  }
+}
+
+:root[data-reduced-motion="true"] {
+  --duration-fast: 0ms;
+  --duration-normal: 0ms;
+}
