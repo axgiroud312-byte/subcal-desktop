@@ -21,6 +21,7 @@ import { Field, FieldDescription, FieldError, FieldLabel } from './ui/field';
 import { ChevronDown, LockKeyhole, Pin, Plus, TriangleAlert } from 'lucide-react';
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
 import './subscription-details.css';
+import { isAutomatic } from '../lib/entitlements';
 
 export interface CatalogPreset {
   id: string;
@@ -191,21 +192,16 @@ export interface SubscriptionFormProps {
 
 export function SubscriptionForm(props: SubscriptionFormProps) {
   const initial = props.initial;
-  const collected = initial && (initial.connectionId || initial.plan.dataOrigin === 'official_api' || initial.plan.dataOrigin === 'local_client' || initial.metrics.some(metric => ['official_api', 'local_client'].includes(metric.remaining.dataOrigin)));
+  const collected = initial && isAutomatic(initial);
   return collected && props.mode === 'edit'
     ? <CollectedBillingForm {...props} initial={initial} />
     : <ManualSubscriptionForm {...props} />;
 }
 
 const BILLING_FIELDS = [
-  ['price', '账单金额'], ['renewalDate', '下次续费日'], ['startDate', '开始生效日'],
-  ['paidThrough', '已付有效期结束日'], ['trialEnd', '试用结束日'],
+  ['price', '实际支付金额'],
 ] as const;
 type BillingKey = typeof BILLING_FIELDS[number][0];
-
-function canSupplement(field: FieldType<string>) {
-  return field.dataOrigin === 'manual' || (field.value === null && field.availability !== 'na');
-}
 
 function CollectedBillingForm({ initial, snapshot, client, notify, onClose, onSaved }: SubscriptionFormProps & { initial: Subscription }) {
   const [original] = useState(initial);
@@ -222,10 +218,11 @@ function CollectedBillingForm({ initial, snapshot, client, notify, onClose, onSa
     try {
       const patch: Partial<SubscriptionInput> = {};
       for (const [key] of BILLING_FIELDS) {
-        if (!canSupplement(original[key]) || values[key].trim() === (original[key].value ?? '')) continue;
+        if (values[key].trim() === (original[key].value ?? '')) continue;
+        if (values[key].trim() && !/^\d+(\.\d{1,6})?$/.test(values[key].trim())) throw new Error('请填写非负支付金额，最多保留六位小数。');
         patch[key] = makeFormField(values[key], snapshot.now);
       }
-      if (canSupplement(original.price) && currency !== original.currency) patch.currency = currency;
+      if (currency !== original.currency) patch.currency = currency;
       if (Object.keys(patch).length) await client.update(original.id, original.revision, patch);
       notify('账单资料已保存'); onSaved?.(original.id); onClose();
     } catch (e) { setError((e as Error).message); }
@@ -234,14 +231,13 @@ function CollectedBillingForm({ initial, snapshot, client, notify, onClose, onSa
   return <Modal title={`账单资料 · ${original.product}`} onClose={close}>
     <form className="sub-form stack" onSubmit={e => { e.preventDefault(); void save(); }}>
       <section className="panel stack"><strong>{original.account}</strong><span>{original.plan.value ?? '套餐暂未提供'}</span></section>
-      <p className="muted">可补充服务未提供的账单金额和日期。</p>
+      <p className="muted">只记录你实际支付的金额及币种。套餐、日期、余额与额度由服务自动更新；未提供的日期保持未知。</p>
       <div className="form-grid">
         {BILLING_FIELDS.map(([key, label]) => <Field key={key}>
           <FieldLabel htmlFor={`billing-${key}`}>{label}</FieldLabel>
-          <Input id={`billing-${key}`} type={key === 'price' ? 'text' : 'date'} inputMode={key === 'price' ? 'decimal' : undefined} value={values[key]} disabled={saving || !canSupplement(original[key])} placeholder={canSupplement(original[key]) ? '未知可留空' : '服务提供'} onChange={e => setValues(current => ({ ...current, [key]: e.target.value }))} />
-          {!canSupplement(original[key]) && <FieldDescription>{original[key].availability === 'na' ? '不适用' : '由服务自动更新'}</FieldDescription>}
+          <Input id={`billing-${key}`} type="text" inputMode="decimal" value={values[key]} disabled={saving} placeholder="未知可留空" onChange={e => setValues(current => ({ ...current, [key]: e.target.value }))} />
         </Field>)}
-        <Field><FieldLabel htmlFor="billing-currency">账单币种</FieldLabel><FormSelect id="billing-currency" disabled={saving || !canSupplement(original.price)} value={currency} onChange={e => setCurrency(e.target.value)}>{Array.from(new Set([original.currency, 'USD', 'CNY', 'EUR', 'GBP', 'JPY', 'HKD'])).map(value => <option key={value} value={value}>{value}</option>)}</FormSelect></Field>
+        <Field><FieldLabel htmlFor="billing-currency">支付币种</FieldLabel><FormSelect id="billing-currency" disabled={saving} value={currency} onChange={e => setCurrency(e.target.value)}>{Array.from(new Set([original.currency, 'USD', 'CNY', 'EUR', 'GBP', 'JPY', 'HKD'])).map(value => <option key={value} value={value}>{value}</option>)}</FormSelect></Field>
       </div>
       {error && <p className="danger-text" role="alert">{error}</p>}
       <div className="row"><Button type="button" variant="outline" onClick={close}>取消</Button><Button type="submit" disabled={saving || !dirty}>{saving ? '保存中…' : '保存账单资料'}</Button></div>

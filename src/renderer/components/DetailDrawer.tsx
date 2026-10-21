@@ -55,6 +55,8 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import './subscription-details.css';
+import { isAutomatic, uniqueWindows } from '../lib/entitlements';
+import { BalanceDetails, EntitlementDates } from './EntitlementDetails';
 
 export interface DetailDrawerProps {
   subscription: Subscription;
@@ -78,6 +80,7 @@ export function DetailDrawer({
   onConnection,
 }: DetailDrawerProps) {
   const [busy, setBusy] = useState(false);
+  const automatic = isAutomatic(subscription);
   const [showCancelPanel, setShowCancelPanel] = useState(false);
   const [cancelMode, setCancelMode] = useState<'known' | 'unknown'>(
     subscription.paidThrough.value ? 'known' : 'unknown'
@@ -133,7 +136,7 @@ export function DetailDrawer({
   ).length;
 
   const proposedFields = (['renewalDate', 'price', 'plan'] as const).filter(
-    (key) => subscription[key].proposed !== undefined
+    (key) => !automatic && subscription[key].proposed !== undefined
   );
 
   const fieldTitle: Record<'renewalDate' | 'price' | 'plan', string> = {
@@ -385,14 +388,14 @@ export function DetailDrawer({
           {/* Primary Amount & Next Date Summary (Always Visible, never hidden in collapsed sections) */}
           <div className="drawer-primary-summary" aria-label="核心金额与日期摘要">
             <div className="drawer-summary-item">
-              <span className="drawer-summary-label">周期价格与计费</span>
-              <strong className="drawer-summary-value">{primaryPriceDisplay}</strong>
+              <span className="drawer-summary-label">{automatic ? '实际支付金额' : '周期价格与计费'}</span>
+              <strong className="drawer-summary-value">{automatic ? subscription.price.value === null ? '未记录' : money(subscription.price.value, subscription.currency) : primaryPriceDisplay}</strong>
             </div>
             <div className="drawer-summary-item">
-              <span className="drawer-summary-label">下次续费 / 有效期</span>
-              <strong className="drawer-summary-value">
-                {renewalText(subscription, snapshot.now)}
-              </strong>
+              <span className="drawer-summary-label">{automatic ? '服务提供的日期' : '下次续费 / 有效期'}</span>
+              <div className="drawer-summary-value">
+                {automatic ? <EntitlementDates subscription={subscription} /> : renewalText(subscription, snapshot.now)}
+              </div>
             </div>
           </div>
 
@@ -420,7 +423,7 @@ export function DetailDrawer({
 
           <div className="drawer-action-bar">
             <Button type="button" onClick={() => onEdit(subscription)}>
-              编辑记录
+              {automatic ? '编辑实际支付' : '编辑记录'}
             </Button>
             {subscription.connectionId ? (
               <Button
@@ -556,7 +559,7 @@ export function DetailDrawer({
         ) : null}
 
         {/* Past-Due Renewal Confirmation Banner */}
-        {isPastDue ? (
+        {!automatic && isPastDue ? (
           <div className="drawer-pastdue-box">
             <div>
               <strong>
@@ -603,7 +606,7 @@ export function DetailDrawer({
           >
             <span>1. 收费与日期安排</span>
             <span className="drawer-trigger-meta">
-              {renewalText(subscription, snapshot.now)}
+              {automatic ? '服务自动更新' : renewalText(subscription, snapshot.now)}
               <ChevronDown className="drawer-chevron" />
             </span>
           </CollapsibleTrigger>
@@ -616,12 +619,12 @@ export function DetailDrawer({
               </div>
 
               <div className="detail-kv-item">
-                <span className="detail-kv-label">周期价格与币种</span>
-                <strong className="detail-kv-value tabular">{primaryPriceDisplay}</strong>
+                <span className="detail-kv-label">{automatic ? '实际支付金额' : '周期价格与币种'}</span>
+                <strong className="detail-kv-value tabular">{automatic ? subscription.price.value === null ? '未记录' : money(subscription.price.value, subscription.currency) : primaryPriceDisplay}</strong>
                 <FieldSource field={subscription.price} now={snapshot.now} />
               </div>
 
-              <div className="detail-kv-item">
+              {!automatic && <><div className="detail-kv-item">
                 <span className="detail-kv-label">下次计划续费日（扣款日）</span>
                 <strong className="detail-kv-value tabular">
                   {subscription.renewalDate.availability === 'known' &&
@@ -661,10 +664,20 @@ export function DetailDrawer({
                     : fieldText(subscription.trialEnd)}
                 </strong>
                 <FieldSource field={subscription.trialEnd} now={snapshot.now} />
-              </div>
+              </div></>}
+              {automatic && <>
+                <EntitlementDates subscription={subscription} />
+                {subscription.entitlements?.listPrice && <div className="detail-kv-item">
+                  <span className="detail-kv-label">服务标价（非实际支付）</span>
+                  <strong>{subscription.entitlements.listPrice.availability === 'known' && subscription.entitlements.listPrice.value !== null
+                    ? subscription.entitlements.listPriceCurrency ? money(subscription.entitlements.listPrice.value, subscription.entitlements.listPriceCurrency) : `${subscription.entitlements.listPrice.value}（币种暂未提供）`
+                    : '暂未提供'}</strong>
+                  <FieldSource field={subscription.entitlements.listPrice} now={snapshot.now} />
+                </div>}
+              </>}
             </div>
 
-            <div className="detail-meta-strip">
+            {!automatic && <div className="detail-meta-strip">
               <span>
                 自动续费：
                 <strong>
@@ -682,7 +695,7 @@ export function DetailDrawer({
               <span>
                 账单时区：<strong className="tabular">{subscription.timezone}</strong>
               </span>
-            </div>
+            </div>}
 
             {/* Shared Billing vs Shared Quota Pool Explanation */}
             {(subscription.billingGroupId || quotaPeers.length > 0 || subscription.possibleSharedWallet) && <div className="detail-relationship-card">
@@ -690,10 +703,9 @@ export function DetailDrawer({
                 <strong>共用付款：</strong>
                 {subscription.billingGroupId ? (
                   <span>
-                    <code className="relationship-code">{subscription.billingGroupId}</code>
                     {billingPeers.length > 0
-                      ? ` · ${billingPeers.map((p) => p.product).join('、')}`
-                      : ' · 已设置分组标识'}
+                      ? billingPeers.map((p) => p.product).join('、')
+                      : '已设置共用付款'}
                   </span>
                 ) : (
                   <span className="muted">独立付款（未与其他记录共用账单）</span>
@@ -703,13 +715,12 @@ export function DetailDrawer({
                 <strong>共享额度：</strong>
                 {subscription.quotaPoolId ? (
                   <span>
-                    <code className="relationship-code">{subscription.quotaPoolId}</code>
                     {quotaPeers.length > 0
-                      ? ` · 与 ${quotaPeers.map((p) => `${p.product}(${p.account})`).join('、')} 共享同一额度池`
-                      : ' · 独立额度池'}
+                      ? `与 ${quotaPeers.map((p) => `${p.product}(${p.account})`).join('、')} 共享额度`
+                      : '此账号的额度'}
                   </span>
                 ) : (
-                  <span className="muted">无自动额度池标识</span>
+                  <span className="muted">未发现共享额度</span>
                 )}
               </div>
               {subscription.possibleSharedWallet ? (
@@ -732,7 +743,7 @@ export function DetailDrawer({
             ) : null}
 
             {/* "我已在官网关闭自动续费" Action & Panel */}
-            {subscription.kind !== 'wallet' && subscription.autoRenew !== 'off' ? (
+            {!automatic && subscription.kind !== 'wallet' && subscription.autoRenew !== 'off' ? (
               <div className="cancel-renew-wrapper">
                 {!showCancelPanel ? (
                   <Button
@@ -851,13 +862,14 @@ export function DetailDrawer({
           >
             <span>2. 额度与余额明细</span>
             <span className="drawer-trigger-meta">
-              共 {subscription.metrics.length} 项指标
+              共 {uniqueWindows(subscription.metrics).length + (subscription.balances?.length ?? 0)} 项
               <ChevronDown className="drawer-chevron" />
             </span>
           </CollapsibleTrigger>
           <CollapsibleContent className="drawer-section-body stack">
+            <BalanceDetails subscription={subscription} now={snapshot.now} />
             {subscription.metrics.length > 0 ? (
-              subscription.metrics.map((m) => (
+              uniqueWindows(subscription.metrics).map((m) => (
                 <div key={m.id} className="drawer-metric-card">
                   <QuotaMeter
                     metric={m}
@@ -867,8 +879,7 @@ export function DetailDrawer({
                   <div className="drawer-metric-meta">
                     <FieldSource field={m.remaining} now={snapshot.now} label="字段来源" />
                     <span className="muted">
-                      过时阈值：{m.staleAfterMinutes} 分钟
-                      {m.resetAt ? ` · 重置时刻：${formatDateTime(m.resetAt)}` : ''}
+                      超过 {m.staleAfterMinutes} 分钟未更新会提示数据过时
                     </span>
                   </div>
                 </div>
@@ -900,15 +911,9 @@ export function DetailDrawer({
               <div className="drawer-connection-box stack">
                 <div className="row spread">
                   <div>
-                    <strong>关联适配器：{connection.provider}</strong>
-                    <span className="muted"> · {connection.version}</span>
+                    <strong>账号：{subscription.account}</strong>
                   </div>
                   <StatusBadge tone={connMeta?.tone}>{connMeta?.label}</StatusBadge>
-                </div>
-                <div className="muted">
-                  可读字段：{connection.fields.join('、') || '无'}
-                  <br />
-                  当前方式不提供：{connection.unsupported.join('、') || '无'}
                 </div>
                 <div className="muted tabular">
                   最近成功：{formatDateTime(connection.lastSuccess)} · 最近尝试：
@@ -919,7 +924,6 @@ export function DetailDrawer({
                 </div>
                 {connection.error ? (
                   <div className="conn-error-callout">
-                    <strong>{connection.error.code}：</strong>
                     <span>{connection.error.message}</span>
                     <div className="muted">建议动作：{connection.error.action}</div>
                   </div>
@@ -934,7 +938,7 @@ export function DetailDrawer({
                       onConnection(connection.id);
                     }}
                   >
-                    前往「连接」页核对 / 恢复
+                    查看账号 / 重新登录
                   </Button>
                 </div>
               </div>

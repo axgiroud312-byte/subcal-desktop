@@ -11,7 +11,7 @@ import {
   type Subscription,
 } from '../../shared/types';
 
-export const CURRENT_SCHEMA_VERSION = 2;
+export const CURRENT_SCHEMA_VERSION = 3;
 
 const MIGRATION_V1_SQL = `
 CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -242,9 +242,15 @@ CREATE INDEX IF NOT EXISTS idx_collection_jobs_next_run ON collection_jobs(state
 CREATE INDEX IF NOT EXISTS idx_metric_observations_pool ON metric_observations(pool_id, observed_at);
 `;
 
+const MIGRATION_V3_SQL = `
+ALTER TABLE metric_observations ADD COLUMN observation_json TEXT;
+UPDATE subscriptions SET record_json=json_set(record_json,'$.management','automatic')
+WHERE connection_id IS NOT NULL AND json_extract(record_json,'$.management') IS NULL;
+`;
 const MIGRATIONS: readonly { version: number; sql: string }[] = [
   { version: 1, sql: MIGRATION_V1_SQL },
   { version: 2, sql: MIGRATION_V2_SQL },
+  { version: 3, sql: MIGRATION_V3_SQL },
 ];
 
 export const DEFAULT_PRODUCTION_PREFERENCES: Preferences = {
@@ -343,6 +349,7 @@ export class SubCalDatabase {
       this.sqlite = new DatabaseSync(':memory:');
       this.sqlite.exec(MIGRATION_V1_SQL);
       this.sqlite.exec(MIGRATION_V2_SQL);
+      this.sqlite.exec(MIGRATION_V3_SQL);
       this.orm = this.createDrizzleInstance();
       // Error reporting only: never seed or write the fallback database.
     }
@@ -773,18 +780,19 @@ export class SubCalDatabase {
              ON CONFLICT(id) DO UPDATE SET
                value_json = excluded.value_json,
                source_kind = excluded.source_kind,
-               observed_at = excluded.observed_at,
+                observed_at = excluded.observed_at,
+                precision = excluded.precision,
                locked = excluded.locked`,
           )
           .run(
             assertionId,
             `subscription:${sub.id}`,
             fieldName,
-            JSON.stringify({ value: f.value, availability: f.availability, proposed: f.proposed }),
+            JSON.stringify(f),
             f.dataOrigin || 'manual',
             f.observedAt ? Date.parse(f.observedAt) : null,
             fieldName.endsWith('Date') || fieldName === 'paidThrough' || fieldName === 'trialEnd'
-              ? 'day'
+              ? (f.value?.includes('T') ? 'instant' : 'day')
               : 'exact',
             f.locked ? 1 : 0,
           );
@@ -1055,6 +1063,8 @@ export class SubCalDatabase {
     observedAtMs: number;
     source: string;
     availability: string;
+    used?: string | null;
+    observation?: unknown;
   }): void {
     this.writeTransaction(() => {
       this.sqlite
@@ -1069,21 +1079,23 @@ export class SubCalDatabase {
         .prepare(
           `INSERT INTO metric_observations (
              id, pool_id, meter_key, used, remaining, limit_val, unit, currency,
-             window_start, reset_at, observed_at, source, availability
-           ) VALUES (?, ?, ?, NULL, ?, ?, ?, ?, NULL, ?, ?, ?, ?)`,
+             window_start, reset_at, observed_at, source, availability, observation_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)`,
         )
         .run(
           `obs-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           params.poolId,
           params.meterKey,
+          params.used ?? null,
           params.remaining,
           params.total,
           params.unit,
-          params.unit !== '%' ? params.unit : null,
+          /^[A-Z]{3}$/.test(params.unit) ? params.unit : null,
           params.resetAtMs,
           params.observedAtMs,
           params.source,
           params.availability,
+          params.observation ? JSON.stringify(params.observation) : null,
         );
     });
   }

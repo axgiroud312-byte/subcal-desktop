@@ -9,6 +9,7 @@
  * Only read-only entitlement endpoints; no token exchange or model requests.
  */
 import { createHash } from 'node:crypto';
+import { copilotHost } from '../../shared/copilot-host';
 import { defaultHttpFetch, executeOfficialGet, formatDecimalString, hashKeySubject, OpenRouterKeyAdapter, OPENROUTER_KEY_MANIFEST, type HttpFetchFn } from './http-adapters';
 import { AdapterError, defaultDescribeRecovery, type AdapterManifest, type CollectInput, type CollectOutput, type NormalizedMetricObservation, type ProviderAdapter } from './types';
 
@@ -29,7 +30,7 @@ export const CLAUDE_OAUTH_MANIFEST: AdapterManifest = { ...manifest('claude-loca
 export const COPILOT_HTTP_MANIFEST: AdapterManifest = { ...manifest('copilot-local', 'GitHub Copilot', 'api.github.com', '/copilot_internal/user'), brand: 'GitHub', authMode: 'local_client', minIntervalSeconds: 300, defaultForegroundSeconds: 600, defaultBackgroundSeconds: 1800 };
 export const OPENROUTER_CREDITS_MANIFEST = manifest('openrouter-credits', 'OpenRouter', 'openrouter.ai', '/api/v1/credits');
 
-export interface HttpCredential { accessToken: string; accountId?: string; subject?: string; alias?: string; source?: string; tokenSource?: 'cli' | 'editor' }
+export interface HttpCredential { accessToken: string; accountId?: string; subject?: string; alias?: string; source?: string; host?: string; membershipExpiresAt?: string; tokenSource?: 'cli' | 'editor' }
 /** secret accepts a raw token or JSON {accessToken, accountId?, tokenSource?}.
  * Codex auth.json {tokens:{access_token,account_id}} and Claude credentials
  * {claudeAiOauth:{accessToken}} can also be supplied explicitly by the caller. */
@@ -49,6 +50,8 @@ export function parseHttpCredential(secret: string | null | undefined): HttpCred
   if (accountId !== undefined && (typeof accountId !== 'string' || !accountId.trim() || /[\r\n]/.test(accountId))) throw new AdapterError('AUTH_REQUIRED', 'accountId 格式无效');
   if (obj.tokenSource !== undefined && obj.tokenSource !== 'cli' && obj.tokenSource !== 'editor') throw new AdapterError('AUTH_REQUIRED', 'tokenSource 必须为 cli 或 editor');
   return { accessToken, accountId: accountId as string | undefined, subject: typeof obj.subject === 'string' && obj.subject ? obj.subject : undefined,
+    host: typeof obj.host === 'string' ? copilotHost(obj.host) : undefined,
+    membershipExpiresAt: typeof obj.membershipExpiresAt === 'string' ? obj.membershipExpiresAt : codexMembershipClaim(tokens.id_token),
     alias: typeof obj.alias === 'string' ? obj.alias : undefined, source: typeof obj.source === 'string' ? obj.source : undefined,
     tokenSource: obj.source === 'copilot-cli' ? 'cli' : obj.source === 'copilot-editor' || obj.source === 'copilot-device' ? 'editor' : obj.tokenSource as HttpCredential['tokenSource'] };
 }
@@ -79,13 +82,15 @@ abstract class CredentialAdapter implements ProviderAdapter {
     const credential = parseHttpCredential(input.secret);
     const sources: Record<string, string[]> = { 'codex-local': ['codex'], 'claude-local': ['claude'], 'copilot-local': ['copilot-cli', 'copilot-editor', 'copilot-device'] };
     if (credential.source && !sources[this.manifest.id]?.includes(credential.source)) throw new AdapterError('AUTH_REQUIRED', '凭据来源与服务不匹配');
-    const raw = await executeOfficialGet(this.manifest, this.manifest.officialSourceUrl, { ...input, secret: credential.accessToken }, this.fetchFn, this.headers(credential));
+    const host = this.manifest.id === 'copilot-local' && credential.host && credential.host !== 'github.com' ? `api.${credential.host}` : null;
+    const requestManifest = host ? { ...this.manifest, allowedHosts: [host], officialSourceUrl: `https://${host}/copilot_internal/user` } : this.manifest;
+    const raw = await executeOfficialGet(requestManifest, requestManifest.officialSourceUrl, { ...input, secret: credential.accessToken }, this.fetchFn, this.headers(credential));
     const out = this.normalize(raw, new Date().toISOString());
     // A supplied account ID is stable across refreshes; otherwise bind to the token
     // fingerprint, requiring a new probe after replacement rather than guessing identity.
     out.account.subject = this.manifest.id === 'openrouter-credits' ? hashKeySubject(this.manifest.id, credential.accessToken) : credential.subject ?? `${this.manifest.id}:${hash(credential.accountId ?? credential.accessToken)}`;
     if (credential.alias) out.account.alias = credential.alias;
-    out.account.region = this.manifest.region;
+    out.account.region = credential.host ?? this.manifest.region;
     out.poolId = `pool-${out.account.subject}`;
     if (input.expectedSubject && input.reason !== 'probe' && input.expectedSubject !== out.account.subject) throw new AdapterError('ACCOUNT_MISMATCH', '登录账号已改变，请重新连接');
     return out;
@@ -97,6 +102,17 @@ abstract class CredentialAdapter implements ProviderAdapter {
 export class CodexHttpAdapter extends CredentialAdapter {
   readonly manifest = CODEX_HTTP_MANIFEST;
   protected headers(c: HttpCredential): Record<string, string> { return c.accountId ? { 'ChatGPT-Account-Id': c.accountId } : {}; }
+  async collect(input: CollectInput): Promise<CollectOutput> {
+    const out = await super.collect(input);
+    const value = parseHttpCredential(input.secret).membershipExpiresAt;
+    // A stale ID-token claim says nothing about the current membership. The
+    // service retains the previous observation rather than replacing it by zero.
+    const until = instant(value);
+    if (until && Date.parse(until) > Date.parse(out.observedAt)) out.entitlements = {
+      membershipExpiresAt: { value: { precision: 'instant', value: until }, availability: 'known', source: 'Codex ID token · chatgpt_subscription_active_until', observedAt: out.observedAt, dataOrigin: 'local_client', evidence: 'reported' },
+    };
+    return out;
+  }
   normalize(raw: unknown, at: string): CollectOutput {
     const r = record(raw), out = output('Codex', at);
     const buckets: [string, Record<string, unknown>][] = [['codex', record(r.rate_limit)]];
@@ -114,17 +130,37 @@ export class CodexHttpAdapter extends CredentialAdapter {
       const duration = seconds !== null && seconds > 0 ? seconds % 86400 === 0 ? `${seconds / 86400}天` : seconds % 3600 === 0 ? `${seconds / 3600}小时` : `${seconds / 60}分钟` : slot === 'primary_window' ? '主窗口' : slot === 'secondary_window' ? '次窗口' : slot.replace(/_window$/, '');
       const prefix = key === 'codex' ? '' : key === 'code_review' ? '代码审查 · ' : `${key} · `;
       percent(out, `${key}_${slot.replace(/_window$/, '')}`, w.used_percent, w.reset_at, `${prefix}${duration}额度`);
+      const added = out.metrics.find(m => m.id === `${key}_${slot.replace(/_window$/, '')}`);
+      if (added) { added.windowMinutes = seconds !== null && seconds > 0 ? seconds / 60 : undefined; added.poolId = key; added.scope = 'account'; added.evidence = 'reported'; }
     }
     const c = record(r.credits), balance = formatDecimalString(c.balance);
     if (c.unlimited === true || balance !== null) metric(out, 'codex_credits', c.unlimited === true ? null : balance, { label: 'Codex 积分', unit: '积分', total: null, availability: c.unlimited === true ? 'unlimited' : 'known' });
+    const resets = number(record(r.rate_limit_reset_credits).available_count);
+    if (resets !== null && Number.isInteger(resets) && resets >= 0) metric(out, 'reset-credits', String(resets), { label: '可用重置次数', unit: '次', total: null, evidence: 'reported' });
     if (typeof r.plan_type === 'string' && r.plan_type.trim()) out.fields.push({ field: 'plan', value: r.plan_type, availability: 'known', source: 'wham/usage', observedAt: at, dataOrigin: 'official_api' });
     return finish(out);
   }
 }
 
+function codexMembershipClaim(token: unknown): string | undefined {
+  if (typeof token !== 'string') return undefined;
+  try {
+    const claims = record(JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8')));
+    const value = record(claims['https://api.openai.com/auth']).chatgpt_subscription_active_until;
+    return typeof value === 'string' ? value : undefined;
+  } catch { return undefined; }
+}
+
 export class ClaudeOAuthAdapter extends CredentialAdapter {
   readonly manifest = CLAUDE_OAUTH_MANIFEST;
   protected headers() { return { 'anthropic-beta': 'oauth-2025-04-20' }; }
+  async collect(input: CollectInput): Promise<CollectOutput> {
+    const out = await super.collect(input);
+    let credential: Record<string, unknown> = {};
+    try { credential = record(JSON.parse(input.secret ?? '')); } catch { /* raw token has no reported plan */ }
+    if (typeof credential.plan === 'string' && credential.plan.trim()) out.fields.push({ field: 'plan', value: credential.plan, availability: 'known', source: 'Claude Code OAuth · subscriptionType', observedAt: out.observedAt, dataOrigin: 'local_client', evidence: 'reported' });
+    return out;
+  }
   normalize(raw: unknown, at: string): CollectOutput {
     const r = record(raw), out = output('Claude', at);
     for (const [key, value] of Object.entries(r)) {
@@ -180,13 +216,14 @@ export class CopilotHttpAdapter extends CredentialAdapter {
         metric(out, key, exhausted ? '0' : null, { label, availability: exhausted ? 'known' : 'unlimited', total: exhausted ? '100' : null, resetAt });
         continue;
       }
-      if (remaining !== null) metric(out, `${key}:requests`, remaining, { label: `${label}剩余次数`, unit: '次', total, resetAt });
+       if (remaining !== null) metric(out, `${key}:requests`, remaining, { label: `${label}剩余额度`, unit: typeof q.unit === 'string' ? q.unit : '额度', total, resetAt });
       const p = number(q.percent_remaining);
       if (p !== null) metric(out, key, String(p), { label, resetAt });
       else if (remaining !== null && number(total) !== null && Number(total) > 0) metric(out, key, String(Number((Number(remaining) / Number(total) * 100).toFixed(10))), { label, resetAt });
       else out.partialFailures.push({ field: key, reason: '未返回有效剩余百分比' });
     }
-    if (typeof r.copilot_plan === 'string') out.fields.push({ field: 'plan', value: r.copilot_plan, availability: 'known', observedAt: at, source: 'copilot_internal/user', dataOrigin: 'official_api' });
+    const detectedPlan=typeof r.copilot_plan==='string'?r.copilot_plan:typeof r.access_type_sku==='string'?r.access_type_sku:null;
+    if (detectedPlan) out.fields.push({ field: 'plan', value: detectedPlan, availability: 'known', observedAt: at, source: 'copilot_internal/user', dataOrigin: 'official_api',evidence:'reported' });
     return finish(out);
   }
 }

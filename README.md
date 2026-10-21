@@ -1,6 +1,6 @@
 # SubCal Desktop
 
-**当前状态：** BE-012 已交付自动发现、加入后建卡和后台查询，真实验证范围见 [交付记录](docs/evidence/BE-012/acceptance.md)。下一批 [总目标 #5](https://github.com/axgiroud312-byte/subcal-desktop/issues/5) 覆盖 Magpie 全服务权益及前端展示，共 33 个子任务，尚未实施。规格见 [全服务计划](docs/specs/full-service-entitlements.md)。
+**当前状态：** [总目标 #5](https://github.com/axgiroud312-byte/subcal-desktop/issues/5) 的共享权益合同、多服务只读适配器、账号入口与权益卡片已进入整合交付；不等于所有服务均通过真实账号验收。当前进度、接入限制与检查证据见 [全服务交付记录](docs/evidence/full-service/acceptance.md)，规格见 [全服务计划](docs/specs/full-service-entitlements.md)。
 
 在本机管理订阅、续费日期与额度。桌面默认使用真实 IPC、SQLite 数据库与官方只读查询，不加载演示资料。
 
@@ -19,12 +19,13 @@
 - Codex、Claude Code、Copilot 直接权益查询；DeepSeek、Kimi API 国内站、OpenRouter 账户余额与 Key 预算。
 - 前端四页去掉模拟入口、演示数据和无关说明，沿用既有视觉。
 
-本机 Codex 已通过真实 Electron 加入、实际权益、五分钟更新及重启检查；其他五项缺真实凭据，仍待验证。新计划中的 Grok Bot、OpenCode、Devin 等不能视作已经接入。Google / iCloud / EventKit 外部日历同步仍待接入。
+本机 Codex 与 Grok Build 已读到真实权益；Codex 另有五分钟更新与实际支付编辑验证。其他服务的协议测试不替代真实账号验证，缺凭据或接口的部分仍待验证，详见交付记录。Google / iCloud / EventKit 外部日历同步仍待接入。
 
 ## 检查
 
 ```powershell
 npm run typecheck
+npm test
 npm run test:rules
 npm run test:backend
 npm run test:adapters

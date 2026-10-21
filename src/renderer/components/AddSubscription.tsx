@@ -7,6 +7,8 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Field, FieldLabel } from './ui/field';
 import { PROVIDERS } from '../service/account-providers';
+import { SERVICE_ACCESS } from '../../shared/service-access';
+import { FormSelect } from './form-controls';
 
 type Candidate = { id: string; providerId: string; alias: string; source: string; organization?: string };
 type Login = { id: string; userCode: string; verificationUri: string; intervalSeconds: number; expiresAt: number };
@@ -23,6 +25,11 @@ export function AddSubscription({ client, notify, initialProvider, onAdded, onMa
   const [error, setError] = useState('');
   const [providerId, setProviderId] = useState(initialProvider ?? '');
   const [secret, setSecret] = useState('');
+  const [remoteUrl, setRemoteUrl] = useState('');
+  const [accessKeyId,setAccessKeyId]=useState('');
+  const [teamId,setTeamId]=useState('');
+  const [relayTemplate, setRelayTemplate] = useState('new-api-key');
+  const [relayUserId, setRelayUserId] = useState('');
   const [busy, setBusy] = useState(false);
   const [login, setLogin] = useState<Login | null>(null);
   const [added, setAdded] = useState<Set<string>>(new Set());
@@ -33,6 +40,7 @@ export function AddSubscription({ client, notify, initialProvider, onAdded, onMa
   const callbacks = useRef({ onAdded, onClose, notify });
   callbacks.current = { onAdded, onClose, notify };
   const selected = PROVIDERS.find(p => p.id === providerId);
+  const cloud=SERVICE_ACCESS.find(p=>p.id===providerId)?.cloudRegion;
 
   useEffect(() => { alive.current = true; return () => { alive.current = false; generation.current++; }; }, []);
   const discover = useCallback(async () => {
@@ -112,8 +120,9 @@ export function AddSubscription({ client, notify, initialProvider, onAdded, onMa
     } catch (e) { setError((e as Error).message); }
   };
 
-  return <Modal title="添加订阅" onClose={onClose}>
+  return <Modal title="添加账号" onClose={onClose}>
     <div className="stack">
+      <p className="muted">加入后自动识别套餐、额度窗口和余额。日期以服务提供为准；你只需按需记录实际支付金额。</p>
       <div className="row spread"><h3>已有账号</h3><Button variant="ghost" disabled={discovering || busy} onClick={() => void discover()}><RefreshCw className={discovering ? 'animate-spin' : undefined} />重新发现</Button></div>
       {discovering && <p className="muted" role="status">正在查找本机已登录的账号…</p>}
       {discoveryError && <p className="danger-text" role="alert">{discoveryError}</p>}
@@ -124,15 +133,17 @@ export function AddSubscription({ client, notify, initialProvider, onAdded, onMa
       </section>)}
       {warnings.map((warning, i) => <p className="muted" key={i}>{warning}</p>)}
       <h3>添加其他账号</h3>
-      <div className="row" role="group" aria-label="选择服务">
-        {PROVIDERS.map(provider => <Button key={provider.id} variant={providerId === provider.id ? 'default' : 'outline'} disabled={busy} aria-pressed={providerId === provider.id} onClick={() => { generation.current++; setProviderId(provider.id); setSecret(''); setLogin(null); setError(''); }}><BrandIcon product={provider.name} />{provider.name}</Button>)}
-      </div>
-      {selected?.mode === 'api_key' && <form className="stack" onSubmit={e => { e.preventDefault(); if (secret.trim()) void add({ providerId, secret: secret.trim() }); }}>
-        <Field><FieldLabel htmlFor="account-key">{selected.name} API Key</FieldLabel><Input id="account-key" type="password" autoComplete="off" spellCheck={false} disabled={busy} value={secret} onChange={e => setSecret(e.target.value)} /></Field>
+      <Field><FieldLabel htmlFor="account-service">选择服务</FieldLabel><FormSelect id="account-service" value={providerId} disabled={busy} onChange={e => { generation.current++; setProviderId(e.target.value); setSecret(''); setLogin(null); setError(''); }}><option value="">请选择服务</option>{PROVIDERS.map(provider=><option value={provider.id} key={provider.id}>{provider.name}</option>)}</FormSelect></Field>
+      {selected?.mode === 'api_key' && <form className="stack" onSubmit={e => { e.preventDefault(); if (secret.trim()) void add({ providerId, secret: cloud?JSON.stringify({accessKeyId,secretAccessKey:secret,teamId}):providerId==='relay-wallet'?JSON.stringify({origin:remoteUrl.trim(),apiKey:secret.trim(),template:relayTemplate,userId:relayUserId}):providerId==='remote-magpie'?JSON.stringify({origin:remoteUrl.trim(),apiKey:secret.trim()}):secret.trim() }); }}>
+        {cloud&&<><Field><FieldLabel htmlFor="cloud-access-id">AccessKeyId / SecretId</FieldLabel><Input id="cloud-access-id" required autoComplete="off" value={accessKeyId} onChange={e=>setAccessKeyId(e.target.value)}/></Field>{providerId.startsWith('tencent-')&&<Field><FieldLabel htmlFor="cloud-team">团队 ID（可选）</FieldLabel><Input id="cloud-team" value={teamId} onChange={e=>setTeamId(e.target.value)} placeholder="留空自动识别团队，分别建卡" /></Field>}</>}
+        {(providerId==='remote-magpie'||providerId==='relay-wallet') && <Field><FieldLabel htmlFor="remote-url">确认远端 HTTPS 站点</FieldLabel><Input id="remote-url" type="url" required value={remoteUrl} onChange={e=>setRemoteUrl(e.target.value)} placeholder="https://panel.example.com" /></Field>}
+        {providerId==='relay-wallet' && <><Field><FieldLabel htmlFor="relay-template">站点面板类型</FieldLabel><FormSelect id="relay-template" value={relayTemplate} onChange={e=>setRelayTemplate(e.target.value)}><option value="new-api-key">New API · Key 预算</option><option value="new-api-account">New API · 账号余额</option><option value="one-api-key">One API · Key 预算</option><option value="sub2api-key">Sub2API · Key 预算</option><option value="sub2api-account">Sub2API · 账号余额</option><option value="credit-grants">兼容 credit-grants · 余额</option></FormSelect></Field>{relayTemplate==='new-api-account'&&<Field><FieldLabel htmlFor="relay-user">面板用户 ID</FieldLabel><Input id="relay-user" required pattern="[0-9]+" value={relayUserId} onChange={e=>setRelayUserId(e.target.value)} /></Field>}<p className="muted">账号余额需要面板访问令牌；模型 API Key 仅用于 Key 预算。仅向上述站点发送凭据，不自动尝试其他协议。</p></>}
+        {SERVICE_ACCESS.find(p=>p.id===providerId)?.instruction && <p className="muted">{SERVICE_ACCESS.find(p=>p.id===providerId)?.instruction}</p>}
+        <Field><FieldLabel htmlFor="account-key">{cloud?'SecretAccessKey / SecretKey':`${selected.name} API Key`}</FieldLabel><Input id="account-key" type="password" autoComplete="off" spellCheck={false} disabled={busy} value={secret} onChange={e => setSecret(e.target.value)} /></Field>
         <Button type="submit" disabled={busy || !secret.trim()}>{busy ? '正在加入…' : '加入'}</Button>
       </form>}
       {selected?.mode === 'device' && !login && <Button disabled={busy || !client.startAccountLogin} onClick={() => void startLogin()}>{busy ? '正在准备登录…' : `登录 ${selected.name}`}</Button>}
-      {selected?.mode === 'external' && <section className="panel stack"><strong>在 Claude Code 中登录</strong><p>打开终端，运行 <code>claude</code>，输入 <code>/login</code>，按提示在浏览器完成登录。</p><p className="muted">完成后，这里会自动找到账号；点击账号旁的“加入”即可。</p></section>}
+      {selected?.mode === 'external' && <section className="panel stack"><strong>在 {selected.name} 中登录</strong><p>{SERVICE_ACCESS.find(p=>p.id===providerId)?.instruction ?? (providerId === 'claude-local' ? <>打开终端，运行 <code>claude</code>，输入 <code>/login</code>，按提示在浏览器完成登录。</> : '在原客户端或 OpenCode / Magpie 中完成登录，返回选择已有账号。此服务的独立网页登录尚未接入。')}</p><p className="muted">选择已发现账号即可加入；没有发现时不会生成虚假的权益。</p></section>}
       {login && <section className="panel stack"><p>打开登录页面，输入以下登录码：</p><strong className="text-xl select-all" aria-label="登录码">{login.userCode}</strong><Button onClick={() => void openLogin()}><ExternalLink />打开登录页面</Button><p className="muted" role="status">正在等待登录，完成后会自动加入订阅。</p><Button variant="ghost" onClick={() => setLogin(null)}>取消等待</Button></section>}
       {error && <p role="alert" className="danger-text">{error}</p>}
       {onManual && <Button variant="ghost" disabled={busy} onClick={onManual}><Plus />手动记录其他订阅</Button>}

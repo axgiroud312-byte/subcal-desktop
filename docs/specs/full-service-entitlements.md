@@ -1,6 +1,6 @@
 # 全服务登录后自动权益（下一批）
 
-状态：规划，不代表功能已实现或真实账号验证通过。接续 BE-012 / GitHub #4。
+状态：接续 BE-012 / GitHub #4，已实施共享合同、只读适配器、来源接线与权益展示，正在按服务收口；真实账号范围及未完成项以 [交付记录](../evidence/full-service/acceptance.md) 为准，不把协议夹具通过当成真实账号验收。
 
 ## 用户目标
 
@@ -20,6 +20,18 @@
 ## 展示合同
 
 参照 [权益卡片设计](../design/full-service-entitlements.md)，以服务分组、账号区分。卡片优先展示套餐与会员到期/续费、动态窗口和余额；不强制每项订阅都出现空的账单面板。历史曲线只使用实际观察，无历史时不画虚构趋势。
+
+### 共享合同（#6，本地实现）
+
+- `Field<T>` 保留来源、真实观察时间，并可携带 `evidence`（reported/derived/configured/cached）与 `providerAt`。读取缓存不重写 `observedAt`。未知、拒绝、未支持、缺项及局部失败均不能清空旧成功观察；旧观察按字段时间拒绝覆盖。
+- `EntitlementDate` 为 `{precision:'day',value:'YYYY-MM-DD'}` 或 `{precision:'instant',value:'带偏移的 ISO 时间'}`；日期型不补时区。`entitlements.membershipExpiresAt`、`billingPeriodEnd`、`nextBillingStart` 各自独立；`autoRenew` 为 `Field<boolean>`，未提供保持未知。
+- `Subscription.price` 只代表实际支付，`currency` 为该支付币种。供应商 `fields.price` 兼容输入被路由到 `entitlements.listPrice`，新适配器应直接提供 listPrice/listPriceCurrency；不得把余额、预算、消费写入 price。自动订阅仅允许编辑 price/currency 及 website/reminder/pinned/notes，断开或备份恢复后通过 `management:'automatic'` 保持保护；独立 archive 操作不受影响。
+- `Metric` 保留旧 remaining/total/resetAt，并扩展 used/totalObservation、windowStart/windowEnd/resetObservation、windowMinutes、scope、models、poolId。NormalizedMetricObservation.used 仍接收字符串；落盘转为独立 `Field<string>`。每个真实窗口、模型范围/共享池都有稳定 id，不强制固定五小时或每周。
+- `balances[]` 以 id/scope/kind/currency 区分；scope 为 account/key，kind 为 total/cash/grant/credit/budget/usage，amount 为 Field<string>，可附 expiresAt/poolId。不自动加总分项，不把 Key 无预算当账户无限资金。`credentialExpiresAt` 单独保存认证寿命，不进入会员日历。
+- 会员截止只生成 expiry、额度重置只生成 reset；账期边界、下一账期、积分失效、认证过期不冒充上述事件或续费。日历事件携带 precision/dateSemantic；日期型无 instant，timezone 仅为用户日历展示设置。自动记录不按旧周期推算未来一年的扣费事件。
+- SQLite schema v3 迁移前自动一致备份，旧 record_json 原样保留（已连接记录仅增加 management），指标历史新增完整 observation_json 并保存 used、精度、模型/范围/来源。JSON 备份写 v2，继续读取 v1/v2；恢复断开连接且不携带凭据。旧手动资料保持可编辑。
+
+验证：合成后端/迁移/备份/日期规则测试；不代表新增服务协议或真实账号已验证。积分失效当前保留在余额观察中，不创建独立积分日历事件；扩展事件类型需同步日历 UI 合同，不能复用会员 expiry。
 
 ## 验收
 

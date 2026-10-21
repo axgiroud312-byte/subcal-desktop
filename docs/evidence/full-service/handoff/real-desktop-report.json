@@ -1,0 +1,539 @@
+{
+  "at": "2026-10-21T08:04:38.920Z",
+  "platform": "win32",
+  "userAcceptance": "pending",
+  "checks": [
+    "真实 Electron 添加入口已打开，后台自动发现已调用",
+    "1280px 真实窗口无页面横向溢出",
+    "960px 真实窗口无页面横向溢出",
+    "完整退出与重启后账号和订阅持久化",
+    "普通备份不含凭据字段"
+  ],
+  "services": [
+    {
+      "providerId": "codex-local",
+      "discovered": 1,
+      "status": "真实权益查询通过，完整生命周期仍待验证",
+      "checks": [
+        "在真实窗口选择已发现账号后生成卡片",
+        "后台自动尝试查询，无需读取或绑定",
+        "供应商实际返回权益",
+        "编辑资料不能篡改自动额度与套餐",
+        "重复加入保持同一卡片",
+        "真实窗口编辑实际支付并保存，未出现日期输入，自动权益不变"
+      ],
+      "blocker": "",
+      "state": "ready",
+      "errorCode": null,
+      "metrics": [
+        {
+          "label": "7天额度",
+          "unit": "%",
+          "availability": "known",
+          "hasObservedAt": true
+        },
+        {
+          "label": "Codex 积分",
+          "unit": "积分",
+          "availability": "known",
+          "hasObservedAt": true
+        },
+        {
+          "label": "可用重置次数",
+          "unit": "次",
+          "availability": "known",
+          "hasObservedAt": true
+        }
+      ],
+      "entitlementFields": [
+        "membershipExpiresAt"
+      ]
+    },
+    {
+      "providerId": "grok-build",
+      "discovered": 1,
+      "status": "真实权益查询通过，完整生命周期仍待验证",
+      "checks": [
+        "后台自动尝试查询，无需读取或绑定",
+        "供应商实际返回权益",
+        "编辑资料不能篡改自动额度与套餐",
+        "重复加入保持同一卡片"
+      ],
+      "blocker": "",
+      "state": "ready",
+      "errorCode": null,
+      "metrics": [
+        {
+          "label": "Grok Build 额度",
+          "unit": "%",
+          "availability": "known",
+          "hasObservedAt": true
+        }
+      ],
+      "entitlementFields": []
+    },
+    {
+      "providerId": "claude-local",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "copilot-local",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "deepseek-balance",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "kimi-platform-cn",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "openrouter-key",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "relay-wallet",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "cursor",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "devin",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "opencode-go",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "kimi-code",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "kimi-code-cn",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "factory",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "cline",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "commandcode",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "opendesign",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "ollama-cloud",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "glm-coding-cn",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "glm-coding-global",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "minimax-plan-cn",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "minimax-plan-global",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "stepfun-balance-com",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "stepfun-balance-ai",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "remote-magpie",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "kimi-platform-global",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "siliconflow-cn",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "siliconflow-global",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "aihubmix-key",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "volcengine-coding-cn-beijing",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "volcengine-agent-cn-beijing",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "tencent-token-plan-ap-guangzhou",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "tencent-token-plan-ap-singapore",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "zcode-team-cn",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "zcode-team-global",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "zcode-gift",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "workbuddy",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "workbuddy-ai",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "trae-cn",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "trae-global-sg",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "trae-global-us",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "minimax-code",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "minimax-code-global",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "codearts",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "aihubmix-account",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "kimi-work",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "zed",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "autoclaw",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "autoclaw-cn",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "kiro-us-east-1",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "kiro-eu-central-1",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "qoder",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "qoder-cn",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "mimo-app-sgp",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "mimo-app-ru",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "mimo-app-in",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "mimo-token-plan",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "raccoon",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "gemini-cli",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "antigravity",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "stepfun-plan-com",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    },
+    {
+      "providerId": "stepfun-plan-ai",
+      "discovered": 0,
+      "status": "待验证",
+      "checks": [],
+      "blocker": "本机未发现可用真实凭据；授权登录与权益尚待真实账号验证"
+    }
+  ],
+  "errors": [],
+  "layouts": [
+    {
+      "viewport": 1280,
+      "page": 1280,
+      "cards": [
+        {
+          "width": 302,
+          "height": 342.66668701171875,
+          "padding": "12px",
+          "borderRadius": "10px",
+          "overflow": false
+        },
+        {
+          "width": 302,
+          "height": 282.66668701171875,
+          "padding": "12px",
+          "borderRadius": "10px",
+          "overflow": false
+        }
+      ]
+    },
+    {
+      "viewport": 960,
+      "page": 960,
+      "cards": [
+        {
+          "width": 304,
+          "height": 342.66668701171875,
+          "padding": "12px",
+          "borderRadius": "10px",
+          "overflow": false
+        },
+        {
+          "width": 304,
+          "height": 282.66668701171875,
+          "padding": "12px",
+          "borderRadius": "10px",
+          "overflow": false
+        }
+      ]
+    }
+  ]
+}

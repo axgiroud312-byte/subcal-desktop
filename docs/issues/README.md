@@ -2,7 +2,7 @@
 
 ## 下一批：全服务自动权益与 Magpie 风格展示
 
-**总目标：[GitHub #5](https://github.com/axgiroud312-byte/subcal-desktop/issues/5) / [完整任务清单](full-service/overview.md)**。已发布 33 个子任务（#6—#38），状态为规划，尚未实施。
+**总目标：[GitHub #5](https://github.com/axgiroud312-byte/subcal-desktop/issues/5) / [完整任务清单](full-service/overview.md)**。33 个子任务（#6—#38）已进入整合交付；逐项实现、验证与阻碍以 [当前交付记录](../evidence/full-service/acceptance.md) 为准。任务仍保留待验收状态。
 
 入口：[全服务规格](../specs/full-service-entitlements.md)、[界面设计](../design/full-service-entitlements.md)、[内置能力清单](../references/magpie-builtins-inventory.md)、[社区插件清单](../references/magpie-plugins-inventory.md)。先稳定 #6 共享合同；服务任务与 #37 前端可独立推进。优先 #8 Codex、#11 Cursor/Grok Bot、#13 OpenCode、#9 Claude、#14 Devin。#35 覆盖无现成接口的服务，#38 逐服务真实验收收口。
 

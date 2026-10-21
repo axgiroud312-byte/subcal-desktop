@@ -14,7 +14,11 @@ export class Collector {
     if (this.active.has(input.connectionId)) return Promise.reject(new AdapterError('RATE_LIMITED', '此连接正在查询，请稍候'));
     const manifest = getAdapter(adapterId).manifest;
     const epoch=this.epochs.get(input.connectionId)??0;
-    const proxy=this.resolveProxy?await this.resolveProxy(`https://${manifest.allowedHosts[0]}/`):undefined;
+    let proxyUrl=`https://${manifest.allowedHosts[0]}/`;
+    if(adapterId==='remote-magpie'){
+      try{const auth=JSON.parse(input.secret??'');if(auth.approvedOrigin===auth.origin)proxyUrl=auth.origin;}catch{/* worker reports invalid credentials */}
+    }
+    const proxy=this.resolveProxy?await this.resolveProxy(proxyUrl):undefined;
     if(this.closed||(this.epochs.get(input.connectionId)??0)!==epoch)throw new AdapterError('CANCELLED','查询已取消');
     const env:NodeJS.ProcessEnv={...process.env,ELECTRON_RUN_AS_NODE:'1'};
     if(proxy!==undefined) {

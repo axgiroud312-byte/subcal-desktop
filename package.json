@@ -5,6 +5,8 @@
   "description": "SubCal Desktop 订阅管理",
   "main": "dist-electron/main.cjs",
   "scripts": {
+    "test": "tsx --test tests/*.test.ts",
+    "test:full-service": "tsx --test tests/*.test.ts",
     "dev": "node scripts/dev.mjs",
     "typecheck": "tsc --noEmit",
     "test:rules": "tsx --test tests/rules.test.ts tests/client.test.ts",

@@ -236,6 +236,25 @@ export interface QuotaMeterProps {
 }
 
 export function QuotaMeter({ metric, now = new Date().toISOString(), view = 'remaining' }: QuotaMeterProps) {
+  const reset = metric.resetObservation;
+  const resetDate = reset?.availability === 'known' ? reset.value : null;
+  const normalized = { ...metric, total: metric.totalObservation ? metric.totalObservation.availability === 'known' ? metric.totalObservation.value : null : metric.total, resetAt: reset ? resetDate?.precision === 'instant' ? resetDate.value : null : metric.resetAt };
+  const scope = metric.scope && metric.scope!=='account' && metric.scope!=='model' ? ({ account: '账户', key: 'Key 预算', organization: '工作区共享', model: '模型', seat: '席位' } as const)[metric.scope] : null;
+  const minutes = metric.windowMinutes;
+  const windowLabel = minutes && Number.isFinite(minutes) && minutes > 0
+    ? `${minutes % 1440 === 0 ? `${minutes / 1440} 天` : minutes % 60 === 0 ? `${minutes / 60} 小时` : `${minutes} 分钟`}窗口`
+    : null;
+  return <div className="quota-window" title={metric.remaining.observedAt?`上次观察 ${formatDateTime(metric.remaining.observedAt)}`:undefined}>
+    <QuotaValue metric={normalized} now={now} view={view} />
+    {(windowLabel || scope || metric.models?.length || metric.poolId) ? <div className="quota-sub quota-window-meta">{windowLabel && <span>{windowLabel}</span>}{scope && <span>{scope}</span>}{metric.poolId && <span>共享额度</span>}{metric.models?.length ? <span>{metric.models.join('、')}</span> : null}</div> : null}
+    {resetDate?.precision === 'day' && <div className="quota-sub">重置 {resetDate.value}（日期）</div>}
+    {metric.windowStart?.availability === 'known' && metric.windowStart.value && <div className="quota-sub">窗口开始 {metric.windowStart.value.precision === 'day' ? metric.windowStart.value.value : formatDateTime(metric.windowStart.value.value)}</div>}
+    {metric.windowEnd?.availability === 'known' && metric.windowEnd.value && <div className="quota-sub">窗口结束 {metric.windowEnd.value.precision === 'day' ? metric.windowEnd.value.value : formatDateTime(metric.windowEnd.value.value)}</div>}
+    {metric.remaining.observedAt && (metric.evidence==='cached'||freshness(metric,now)!=='fresh') && <div className="quota-sub">{formatRelativeTime(metric.remaining.observedAt, now)}观察{metric.evidence==='cached'?' · 远端缓存':''}</div>}
+  </div>;
+}
+
+function QuotaValue({ metric, now = new Date().toISOString(), view = 'remaining' }: QuotaMeterProps) {
   const { remaining, unit, label, total, resetAt } = metric;
   const freshState = freshness(metric, now);
   const relTime = remaining.observedAt ? formatRelativeTime(remaining.observedAt, now) : '无时间戳';
@@ -320,7 +339,7 @@ export function QuotaMeter({ metric, now = new Date().toISOString(), view = 'rem
 
   // Currency / Wallet / Key Budget metric
   const hasTotal = total !== null && total !== undefined;
-  const metricMoney = (value: string | null, metricUnit: string) => /^[A-Z]{3}$/.test(metricUnit) ? money(value, metricUnit) : `${value ?? '尚未获取'} ${metricUnit}`;
+  const metricMoney = (value: string | null, metricUnit: string) => /^[A-Z]{3}$/.test(metricUnit) ? money(value, metricUnit) : `${value?.includes('.') ? value.replace(/0+$/,'').replace(/\.$/,'') : value ?? '尚未获取'} ${metricUnit}`;
   let primaryDisplay = metricMoney(remaining.value, unit);
   let pctWidth: number | null = null;
 
@@ -376,13 +395,13 @@ export function connectionStateMeta(state: ConnectionState): {
 } {
   switch (state) {
     case 'ready':
-      return { label: '已连接', tone: 'neutral', needsRecovery: false };
+      return { label: '已添加', tone: 'neutral', needsRecovery: false };
     case 'refreshing':
-      return { label: '刷新中…', tone: 'primary', needsRecovery: false };
+      return { label: '更新中…', tone: 'primary', needsRecovery: false };
     case 'partial':
       return { label: '部分成功', tone: 'warning', needsRecovery: true };
     case 'auth':
-      return { label: '需要重新连接', tone: 'danger', needsRecovery: true };
+      return { label: '需要重新登录', tone: 'danger', needsRecovery: true };
     case 'denied':
       return { label: '权限不足', tone: 'danger', needsRecovery: true };
     case 'rate_limited':
@@ -392,7 +411,7 @@ export function connectionStateMeta(state: ConnectionState): {
     case 'runtime_missing':
       return { label: '缺少官方客户端', tone: 'danger', needsRecovery: true };
     case 'schema_changed':
-      return { label: '适配器需更新', tone: 'danger', needsRecovery: true };
+      return { label: '服务数据格式有变化', tone: 'danger', needsRecovery: true };
     case 'paused':
       return { label: '已暂停', tone: 'neutral', needsRecovery: false };
     case 'disconnected':

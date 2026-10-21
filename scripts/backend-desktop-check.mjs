@@ -6,7 +6,8 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 
 // Run against freshly built Electron entries; use an isolated, initially empty real database.
-const evidence = path.resolve('docs/evidence/BE-012-regression');
+const evidenceArg = process.argv.indexOf('--evidence');
+const evidence = path.resolve(evidenceArg >= 0 ? process.argv[evidenceArg + 1] : 'docs/evidence/BE-012-regression');
 const temp = path.join(process.env.LOCALAPPDATA, 'Temp', 'opencode');
 const profile = await fs.mkdtemp(path.join(temp, 'subcal-real-check-'));
 await fs.mkdir(evidence, { recursive: true });
@@ -105,10 +106,22 @@ try {
     }
     await page.getByRole('button', { name: '添加账号', exact: true }).first().click();
     await assertClean();
-    await page.getByRole('group', { name: '选择服务' }).getByRole('button', { name: 'DeepSeek API', exact: true }).click();
+    await page.getByRole('combobox', { name: '选择服务', exact: true }).click();
+    await page.getByRole('option', { name: 'DeepSeek API', exact: true }).click();
     assert.equal(await page.locator('#account-key').getAttribute('type'), 'password');
     assert.equal(await page.locator('form').getByRole('button', { name: '加入', exact: true }).isDisabled(), true);
-    await shot('connection-auth.png'); await closeModal();
+    await shot('connection-auth.png');
+    await page.getByRole('combobox', { name: '选择服务', exact: true }).click();
+    await page.getByRole('option', { name: '中转站余额 / Key 预算', exact: true }).click();
+    await page.getByLabel('确认远端 HTTPS 站点').fill('https://panel.example.test');
+    await page.getByRole('combobox', { name: '站点面板类型', exact: true }).click();
+    await page.getByRole('option', { name: 'New API · 账号余额', exact: true }).click();
+    assert.equal(await page.getByLabel('面板用户 ID').getAttribute('required'), '');
+    await shot('relay-auth.png');
+    await page.getByRole('combobox', { name: '选择服务', exact: true }).click();
+    await page.getByRole('option', { name: '腾讯企业套餐广州', exact: true }).click();
+    assert.equal(await page.getByLabel('团队 ID（可选）').getAttribute('required'), null);
+    await shot('tencent-auth.png'); await closeModal();
     await page.getByRole('button', { name: '打开设置与备份' }).click();
     await assertClean(); await shot('settings.png'); await closeModal();
   });

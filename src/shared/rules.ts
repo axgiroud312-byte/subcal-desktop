@@ -1,4 +1,5 @@
 import type { CalendarEvent, Field, Metric, Preferences, Subscription } from './types';
+import { isAutomatic } from './entitlements';
 
 export function dateValid(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -58,7 +59,8 @@ export function monthlySummary(subs: Subscription[]) {
   return {totals:Object.entries(sums).map(([currency,n])=>({currency,amount:decimalText(n)})),unknown,recurring};
 }
 export function freshness(metric: Metric, now: string): 'fresh' | 'stale' | 'past_reset' {
-  if(metric.resetAt && (dateValid(metric.resetAt)?metric.resetAt<now.slice(0,10):metric.resetAt<=now))return 'past_reset';
+  const reset=metric.resetObservation?.availability==='known'?metric.resetObservation.value?.value??metric.resetAt:metric.resetAt;
+  if(reset && (dateValid(reset)?reset<now.slice(0,10):Date.parse(reset)<=Date.parse(now)))return 'past_reset';
   if(!metric.remaining.observedAt || (Date.parse(now)-Date.parse(metric.remaining.observedAt))/60000>metric.staleAfterMinutes)return 'stale';
   return 'fresh';
 }
@@ -82,22 +84,31 @@ export function projectEvents(subs: Subscription[], now: string, includeReset=fa
       const id=`${kind==='renewal'?group:s.id}:${kind}:${index}`;
       if(seen.has(id))return; seen.add(id);
       const overrideLabel=field.dataOrigin==='demo'?'用户逐次改期（演示记录）':'用户逐次改期';
-      result.push({id,subscriptionId:s.id,product:s.product,account:s.account,kind,date:s.scheduleOverrides?.[id]||date,instant,timezone:s.timezone,expected:kind==='renewal',source:s.scheduleOverrides?.[id]?overrideLabel:field.source,revision:s.revision,dataOrigin:field.dataOrigin||'manual'});
+      result.push({id,subscriptionId:s.id,product:s.product,account:s.account,kind,date:s.scheduleOverrides?.[id]||date,instant,precision:instant?'instant':'day',dateSemantic:kind==='expiry'?'membership_expiry':kind==='reset'?'quota_reset':kind==='renewal'?'billing_renewal':kind,timezone:s.timezone,expected:kind==='renewal',source:s.scheduleOverrides?.[id]?overrideLabel:field.source,revision:s.revision,dataOrigin:field.dataOrigin||'manual'});
     };
     if(s.startDate.value)push('start',s.startDate.value,s.startDate);
-    if(s.paidThrough.value)push('expiry',s.paidThrough.value,s.paidThrough);
+    const membership=s.entitlements?.membershipExpiresAt;
+    if(membership?.availability==='known'&&membership.value) {
+      const value=membership.value;
+      push('expiry',dateInZone(value.value,s.timezone),{...membership,value:value.value,proposed:undefined},0,value.precision==='instant'?value.value:undefined);
+    } else if(s.paidThrough.value)push('expiry',s.paidThrough.value,s.paidThrough);
     if(s.trialEnd.value)push('trial',s.trialEnd.value,s.trialEnd);
-    if(s.renewalDate.value && s.autoRenew!=='off' && !['ending','cancelled','expired'].includes(s.lifecycle)){
+    const explicitlyNotRenewing=s.entitlements?.autoRenew?.availability==='known'?s.entitlements.autoRenew.value===false:s.autoRenew==='off';
+    if(s.renewalDate.value && !explicitlyNotRenewing && !['ending','cancelled','expired'].includes(s.lifecycle)){
       const first=s.renewalDate.value; const anchor=s.anchorDate||first; const horizon=anchoredDate(dateInZone(now,s.timezone),'yearly',1);
       let offset=0;
       if(['monthly','yearly','days'].includes(s.cycle))while(offset<1000 && anchoredDate(anchor,s.cycle,offset,s.intervalDays)<first)offset++;
       for(let i=0;i<400;i++){
         const date=i===0?first:anchoredDate(anchor,s.cycle,offset+i,s.intervalDays);
-        if(i>0 && (date>horizon || ['once','irregular','none'].includes(s.cycle)))break;
+        if(i>0 && (isAutomatic(s) || date>horizon || ['once','irregular','none'].includes(s.cycle)))break;
         push('renewal',date,s.renewalDate,i);
       }
     }
-    if(includeReset)s.metrics.forEach((m,i)=>{if(m.resetAt)push('reset',dateInZone(m.resetAt,s.timezone),m.remaining,i,dateValid(m.resetAt)?undefined:m.resetAt);});
+    if(includeReset)s.metrics.forEach((m,i)=>{
+      const reset=m.resetObservation;
+      if(reset?.availability==='known'&&reset.value)push('reset',dateInZone(reset.value.value,s.timezone),{...reset,value:reset.value.value,proposed:undefined},i,reset.value.precision==='instant'?reset.value.value:undefined);
+      else if(m.resetAt)push('reset',dateInZone(m.resetAt,s.timezone),m.remaining,i,dateValid(m.resetAt)?undefined:m.resetAt);
+    });
   }
   return result.sort((a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id));
 }
@@ -122,7 +133,9 @@ export function validateSubscription(s: Partial<Subscription>): Record<string,st
   for(const m of s.metrics??[]) {
     if(!m.unit.trim()||m.unit.length>80)errors[`metric_${m.id}`]='请填写有效计量单位';
     if(m.remaining.value!==null){try{compareMetricDecimal(m.remaining.value,'0');if(m.unit==='%'&&(Number(m.remaining.value)<0||Number(m.remaining.value)>100))errors[`metric_${m.id}`]='百分比必须在 0 至 100 之间';}catch{errors[`metric_${m.id}`]='指标数值格式无效';}}
+    for(const value of [m.used?.value,m.total,m.totalObservation?.value])if(value!==null&&value!==undefined){try{compareMetricDecimal(value,'0');}catch{errors[`metric_${m.id}`]='指标数值格式无效';}}
   }
+  for(const b of s.balances??[])if(b.amount.value!==null){try{compareMetricDecimal(b.amount.value,'0');}catch{errors[`balance_${b.id}`]='余额数值格式无效';}}
   for(const key of ['startDate','renewalDate','paidThrough','trialEnd'] as const){const value=s[key]?.value; if(value && !dateValid(value))errors[key]='请填写 1900—2200 年间的有效日期';}
   for(const key of ['paidThrough','trialEnd','renewalDate'] as const){if(s.startDate?.value&&s[key]?.value&&s[key]!.value!<s.startDate.value)errors[key]='日期不能早于开始日';}
   if(s.timezone){try{new Intl.DateTimeFormat('zh-CN',{timeZone:s.timezone});}catch{errors.timezone='时区无效';}}

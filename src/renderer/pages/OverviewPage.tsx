@@ -32,6 +32,7 @@ import { FormSelect } from '../components/form-controls';
 import { LUCIDE_ICON_SM } from '../lib/utils';
 import { DND_POINTER_ACTIVATION_CONSTRAINT } from '../lib/motion';
 import './overview.css';
+import { isAutomatic } from '../lib/entitlements';
 
 type FilterKind = 'all' | 'upcoming' | 'low' | 'attention' | 'manual';
 type SortKind = 'custom' | 'renewal' | 'brand';
@@ -70,7 +71,19 @@ function buildCardGroups(subscriptions: Subscription[]): CardGroup[] {
       groups.push(entry);
     }
   }
+  for (const group of groups) {
+    group.accounts.sort((a, b) => (a.connectionId ?? a.id).localeCompare(b.connectionId ?? b.id) || a.id.localeCompare(b.id));
+    group.primary = group.accounts[0];
+  }
   return groups;
+}
+
+function automaticDates(sub: Subscription): string[] {
+  const e = sub.entitlements;
+  return [e?.membershipExpiresAt, e?.billingPeriodEnd, e?.nextBillingStart].flatMap(field => {
+    if (field?.availability !== 'known' || !field.value) return [];
+    return [field.value.precision === 'day' ? field.value.value : dateInZone(field.value.value, sub.timezone)];
+  }).sort();
 }
 
 export function OverviewPage({
@@ -131,14 +144,14 @@ export function OverviewPage({
     if (sort === 'renewal') {
       list.sort((a, b) => {
         const da =
-          a.renewalDate.value ||
+          (isAutomatic(a) ? automaticDates(a)[0] : a.renewalDate.value ||
           a.paidThrough.value ||
-          a.trialEnd.value ||
+          a.trialEnd.value) ||
           '9999-12-31';
         const db =
-          b.renewalDate.value ||
+          (isAutomatic(b) ? automaticDates(b)[0] : b.renewalDate.value ||
           b.paidThrough.value ||
-          b.trialEnd.value ||
+          b.trialEnd.value) ||
           '9999-12-31';
         return da.localeCompare(db) || a.product.localeCompare(b.product);
       });
@@ -159,13 +172,13 @@ export function OverviewPage({
 
     for (const s of activeSubscriptions) {
       const today = dateInZone(snapshot.now, s.timezone);
-      const rDays = s.renewalDate.value
+      const rDays = !isAutomatic(s) && s.renewalDate.value
         ? daysBetween(today, s.renewalDate.value)
         : null;
-      const pDays = s.paidThrough.value
+      const pDays = !isAutomatic(s) && s.paidThrough.value
         ? daysBetween(today, s.paidThrough.value)
         : null;
-      const tDays = s.trialEnd.value
+      const tDays = !isAutomatic(s) && s.trialEnd.value
         ? daysBetween(today, s.trialEnd.value)
         : null;
 
@@ -285,9 +298,9 @@ export function OverviewPage({
 
       // Priority 5a: 人工锁定字段与模拟探测差异
       if (
-        s.renewalDate.proposed !== undefined ||
+        !isAutomatic(s) && (s.renewalDate.proposed !== undefined ||
         s.price.proposed !== undefined ||
-        s.plan.proposed !== undefined
+        s.plan.proposed !== undefined)
       ) {
         items.push({
           id: `proposed-${s.id}`,
@@ -323,11 +336,11 @@ export function OverviewPage({
             c.state === 'rate_limited' || c.state === 'partial'
               ? 'warning'
               : 'danger',
-          badge: '连接需处理',
-          title: `${c.provider} · ${connectionStateMeta(c.state).label}`,
+          badge: '账号需处理',
+          title: `${activeSubscriptions.find(s => s.connectionId === c.id)?.product ?? '账号'} · ${connectionStateMeta(c.state).label}`,
           detail:
             c.error?.message || '连接异常，已保留上次数据。',
-          primaryLabel: c.error?.action || '前往连接恢复',
+          primaryLabel: c.state === 'auth' ? '重新登录' : '查看账号',
           onPrimary: () => onConnection(c.id),
         });
       }
@@ -363,7 +376,7 @@ export function OverviewPage({
     // Priority 6: 日期待补充
     for (const s of activeSubscriptions) {
       if (
-        s.kind !== 'wallet' &&
+        !isAutomatic(s) && s.kind !== 'wallet' &&
         s.cycle !== 'none' &&
         !s.renewalDate.value &&
         !s.paidThrough.value &&
@@ -410,6 +423,7 @@ export function OverviewPage({
       : null;
 
     if (f === 'upcoming') {
+      if (isAutomatic(s)) return automaticDates(s).some(date => { const days = daysBetween(today, date); return days >= 0 && days <= 7; });
       return (
         (rDays !== null && rDays <= 7 && s.autoRenew !== 'off') ||
         (pDays !== null && pDays >= 0 && pDays <= 7) ||
@@ -420,7 +434,7 @@ export function OverviewPage({
       return isLow(s, snapshot.now, snapshot.preferences);
     }
     if (f === 'manual') {
-      return s.kind === 'manual' || !s.connectionId;
+      return !isAutomatic(s);
     }
     if (f === 'attention') {
       const conn = s.connectionId
@@ -436,17 +450,17 @@ export function OverviewPage({
           'rate_limited',
           'partial',
         ].includes(conn.state);
-      const hasProposed =
+      const hasProposed = !isAutomatic(s) && (
         s.renewalDate.proposed !== undefined ||
         s.price.proposed !== undefined ||
-        s.plan.proposed !== undefined;
+        s.plan.proposed !== undefined);
       const missingDate =
-        s.kind !== 'wallet' &&
+        !isAutomatic(s) && s.kind !== 'wallet' &&
         s.cycle !== 'none' &&
         !s.renewalDate.value &&
         !s.paidThrough.value &&
         !s.trialEnd.value;
-      const pastDue = rDays !== null && rDays <= 0 && s.autoRenew !== 'off';
+      const pastDue = !isAutomatic(s) && rDays !== null && rDays <= 0 && s.autoRenew !== 'off';
       return Boolean(
         connIssue ||
           hasProposed ||
@@ -772,7 +786,7 @@ export function OverviewPage({
             {(
               [
                 { id: 'all', label: `全部 (${filterCounts.all})` },
-                { id: 'upcoming', label: `近期续费 (${filterCounts.upcoming})` },
+                { id: 'upcoming', label: `近期日期 (${filterCounts.upcoming})` },
                 { id: 'low', label: `低额度 (${filterCounts.low})` },
                 { id: 'attention', label: `需处理 (${filterCounts.attention})` },
                 { id: 'manual', label: `手动记录 (${filterCounts.manual})` },
@@ -801,7 +815,7 @@ export function OverviewPage({
                 onChange={(e) => setSort(e.target.value as SortKind)}
               >
                 <option value="custom">自定义顺序</option>
-                <option value="renewal">按下次续费/到期日</option>
+                <option value="renewal">按权益/订阅日期</option>
                 <option value="brand">按品牌与产品名称</option>
               </FormSelect>
             </label>

@@ -1,3 +1,4 @@
+import { SERVICE_ACCESS, EXISTING_LOGIN_SERVICES } from './service-access';
 export type Availability = 'known' | 'unfetched' | 'unsupported' | 'na' | 'denied' | 'unlimited';
 export type DataOrigin =
   | 'demo'
@@ -15,6 +16,29 @@ export type Field<T> = {
   dataOrigin: DataOrigin;
   locked?: boolean;
   proposed?: T;
+  evidence?: EvidenceKind;
+  providerAt?: string | null;
+};
+export type EvidenceKind = 'reported' | 'derived' | 'configured' | 'cached';
+/** Civil dates carry no invented time or timezone; instants require an offset. */
+export type EntitlementDate = { precision: 'day'; value: string } | { precision: 'instant'; value: string };
+export type Entitlements = {
+  membershipExpiresAt?: Field<EntitlementDate>;
+  billingPeriodEnd?: Field<EntitlementDate>;
+  nextBillingStart?: Field<EntitlementDate>;
+  autoRenew?: Field<boolean>;
+  listPrice?: Field<string>;
+  listPriceCurrency?: string;
+};
+export type Balance = {
+  id: string;
+  label: string;
+  scope: 'account' | 'key';
+  kind: 'total' | 'cash' | 'grant' | 'credit' | 'budget' | 'usage';
+  currency: string;
+  amount: Field<string>;
+  expiresAt?: Field<EntitlementDate>;
+  poolId?: string;
 };
 export type Cycle = 'monthly' | 'yearly' | 'days' | 'once' | 'irregular' | 'none';
 export type Lifecycle = 'active' | 'trial' | 'ending' | 'expired' | 'cancelled' | 'pending' | 'archived';
@@ -26,6 +50,16 @@ export type Metric = {
   total: string | null;
   resetAt: string | null;
   staleAfterMinutes: number;
+  used?: Field<string>;
+  totalObservation?: Field<string>;
+  resetObservation?: Field<EntitlementDate>;
+  windowStart?: Field<EntitlementDate>;
+  windowEnd?: Field<EntitlementDate>;
+  windowMinutes?: number;
+  scope?: 'account' | 'key' | 'organization' | 'model' | 'seat';
+  models?: string[];
+  poolId?: string;
+  evidence?: EvidenceKind;
 };
 export type Subscription = {
   id: string;
@@ -53,6 +87,11 @@ export type Subscription = {
   quotaPoolId: string | null;
   possibleSharedWallet: boolean;
   metrics: Metric[];
+  entitlements?: Entitlements;
+  balances?: Balance[];
+  management?: 'automatic' | 'manual';
+  /** Authentication lifetime only; never a membership/calendar event. */
+  credentialExpiresAt?: Field<EntitlementDate>;
   connectionId: string | null;
   website: string;
   reminder: 'none' | 'local' | 'external';
@@ -112,6 +151,8 @@ export type CalendarEvent = {
   kind: EventKind;
   date: string;
   instant?: string;
+  precision?: 'day' | 'instant';
+  dateSemantic?: 'membership_expiry' | 'quota_reset' | 'billing_renewal' | 'start' | 'trial';
   timezone: string;
   expected: boolean;
   source: string;
@@ -217,7 +258,7 @@ export type Probe = {
 };
 export type AdapterSupportTier = 'official_auto' | 'official_next' | 'experimental' | 'manual';
 export type AdapterCatalogEntry = {
-  adapterId: 'codex-local' | 'claude-local' | 'copilot-local' | 'deepseek-balance' | 'kimi-platform-cn' | 'openrouter-key';
+  adapterId: string;
   provider: string;
   brand: string;
   region: string;
@@ -282,6 +323,16 @@ export type AppClient = SubCalClient & {
 };
 
 export const OFFICIAL_ADAPTER_CATALOG: readonly AdapterCatalogEntry[] = [
+  ...[...SERVICE_ACCESS, ...EXISTING_LOGIN_SERVICES].map(service => ({
+    adapterId: service.id, provider: service.name, brand: service.name, region: '按账号来源隔离',
+    authMode: service.mode === 'api_key' ? 'api_key' as const : 'local_client' as const,
+    supportTier: 'official_auto' as const, verification: 'pending' as const, version: '1.0.0',
+    endpointSummary: '仅查询已核对的供应商权益接口，不执行模型或签到', minIntervalSeconds: 300,
+    defaultForegroundSeconds: 600, defaultBackgroundSeconds: 1800,
+    fields: ['供应商实际提供的套餐、额度窗口或余额'], unsupported: ['未返回的会员日期保持未知'],
+    permissions: '只读取权益，不调用模型、签到、领取或购买。',
+    credentialLocation: '系统加密保存；外部登录只读跟随，不接管原客户端刷新。',
+  })),
   {
     adapterId: 'codex-local',
     provider: 'Codex',

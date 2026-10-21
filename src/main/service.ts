@@ -10,7 +10,11 @@ import { Scheduler, type CollectorPort } from './scheduler';
 import type { AdapterManifest, CollectOutput } from './adapters/types';
 import { AdapterError } from './adapters/types';
 import { AccountAccess, AccountAccessError, type AccountCredential } from './account-access';
+import { remoteOrigin } from './adapters/remote-account-adapter';
+import { tencentTeamCredential } from './tencent-account-teams';
+import { SERVICE_ACCESS } from '../shared/service-access';
 import { hashKeySubject } from './adapters/http-adapters';
+import { isAutomatic, mergeBalances, mergeEntitlements, mergeObservation, writableSubscriptionPatch } from '../shared/entitlements';
 
 export class BusinessError extends Error { constructor(public code:string,message:string) { super(message); } }
 function fail(code:string,message:string):never {throw new BusinessError(code,message);}
@@ -25,7 +29,7 @@ export class SubCalService {
   private credentialTimer?:ReturnType<typeof setInterval>;
   private reconciling=false;
   private closed=false;
-  constructor(readonly db:SubCalDatabase, readonly vault:CredentialVault, collector:CollectorPort, manifests:readonly AdapterManifest[], private now:()=>number=Date.now, readonly accountAccess=new AccountAccess()) {
+  constructor(readonly db:SubCalDatabase, readonly vault:CredentialVault, private readonly collector:CollectorPort, manifests:readonly AdapterManifest[], private now:()=>number=Date.now, readonly accountAccess=new AccountAccess()) {
     const authenticatedCollector:CollectorPort={
       collect:async(provider,input)=>{
         let secret:string|null;
@@ -54,6 +58,7 @@ export class SubCalService {
   private async prepareCredential(id:string,generation:number,secret:string|null) {
     if(!secret?.startsWith('{'))return secret;
     let parsed:any;try{parsed=JSON.parse(secret);}catch{throw new AdapterError('AUTH_REQUIRED','请重新登录');}
+    if(parsed.management==='static')return secret;
     const original=this.connection(id),credential=this.credential(id,secret);
     const next=parsed.management==='external'?await this.accountAccess.refreshExternal(credential):await this.accountAccess.refresh(credential);
     if(this.closed)throw new AdapterError('CANCELLED','应用已退出');
@@ -98,7 +103,7 @@ export class SubCalService {
   snapshot():Snapshot { return {revision:this.db.getSpaceRevision(),now:new Date(this.now()).toISOString(),scenario:'empty_first_run',subscriptions:this.db.listSubscriptions(),connections:this.db.listConnections(ref=>this.vault.getMask(ref)),targets:this.db.listCalendarTargets(),offline:false,preferences:this.db.getPreferences(),storageError:this.db.getStorageError()}; }
   private subscription(id:string) { return this.db.getSubscription(id)??fail('NOT_FOUND','订阅不存在'); }
   private connection(id:string) { return this.db.getConnectionRow(id)??fail('NOT_FOUND','连接不存在'); }
-  private save(sub:Subscription) { const validated=subscriptionSchema.parse(sub); this.db.upsertSubscription(validated);this.db.bumpSpaceRevision(); }
+  private save(sub:Subscription) { if(sub.connectionId)sub.management='automatic';const validated=subscriptionSchema.parse(sub); this.db.upsertSubscription(validated);this.db.bumpSpaceRevision(); }
   private history(sub:Subscription,text:string) { sub.revision++;sub.history.push({at:new Date(this.now()).toISOString(),text,dataOrigin:'manual'}); }
   async handle(raw:unknown):Promise<IpcResponseEnvelope> {
     let requestId=typeof (raw as any)?.requestId==='string'?(raw as any).requestId:'';
@@ -143,10 +148,43 @@ export class SubCalService {
       if(result.status!=='complete'||!result.credential)return {status:result.status};
       return {status:'complete',...this.addCredential(result.credential)};
     }
+    if(p.providerId==='remote-magpie'&&!p.candidateId){
+      let input:any;try{input=JSON.parse(p.secret);}catch{fail('AUTH_REQUIRED','请填写远端地址与访问 Key');}
+      const origin=remoteOrigin(input.origin),key=typeof input.apiKey==='string'?input.apiKey.trim():'';
+      if(!key||/[\r\n]/.test(key))fail('AUTH_REQUIRED','远端访问 Key 无效');
+      const subject=hashKeySubject('remote-magpie',origin+'\0'+key),alias=`远端 Magpie (${new URL(origin).hostname})`;
+      return this.addCredential({providerId:'remote-magpie',subject,alias,secret:JSON.stringify({origin,approvedOrigin:origin,accessToken:key,subject,alias,source:'remote-magpie',management:'static'})});
+    }
+    if(p.providerId==='relay-wallet'&&!p.candidateId){
+      const { approveRelayCredential } = await import('./adapters/relay-account-adapter');
+      return this.addCredential(approveRelayCredential(p.secret));
+    }
+    const cloud=SERVICE_ACCESS.find(s=>s.id===p.providerId&&s.cloudRegion);
+    if(cloud&&!p.candidateId){
+      let values:any;try{values=JSON.parse(p.secret);}catch{fail('AUTH_REQUIRED','请填写云平台访问凭据');}
+      const ak=typeof values.accessKeyId==='string'?values.accessKeyId.trim():'',sk=typeof values.secretAccessKey==='string'?values.secretAccessKey.trim():'',teamId=typeof values.teamId==='string'?values.teamId.trim():'';
+      if(!ak||!sk||/[\r\n]/.test(ak+sk+teamId))fail('AUTH_REQUIRED','访问凭据格式无效');
+      const subject=hashKeySubject(cloud.id,ak+'\0'+teamId),alias=cloud.name+' 账号';
+      return this.addAccountCredential({providerId:cloud.id,subject,alias,organization:teamId,secret:JSON.stringify({accessKeyId:ak,secretAccessKey:sk,teamId,region:cloud.cloudRegion,source:cloud.id,subject,alias,management:'static'})});
+    }
     const credential=p.candidateId?await this.accountAccess.resolve(p.candidateId):{
       providerId:p.providerId,subject:hashKeySubject(p.providerId,p.secret),alias:'API Key',secret:p.secret,
     };
-    return this.addCredential(credential);
+    return this.addAccountCredential(credential);
+  }
+  private async addAccountCredential(credential: AccountCredential) {
+    if (!credential.providerId.startsWith('tencent-token-plan-')) return this.addCredential(credential);
+    let value: Record<string, unknown>; try { value = JSON.parse(credential.secret); } catch { return this.addCredential(credential); }
+    if (value.teamId || value.TeamId) return this.addCredential(credential);
+    const result = await this.collector.collect(credential.providerId, { connectionId: `team-discovery-${randomUUID()}`, generation: 1, reason: 'probe', secret: credential.secret, expectedSubject: credential.subject });
+    if (this.closed) fail('CANCELLED', '应用已退出');
+    if (result.partialFailures.some(f=>f.field.startsWith('list:'))) fail('PARTIAL', '团队列表未完整读取，请稍后重试');
+    const teams = result.discoveredOrganizations ?? [];
+    if (!teams.length) fail('PERMISSION_DENIED', '当前地区未发现可读取的企业套餐团队');
+    return this.vault.withRollback(()=>this.db.writeTransaction(()=>{
+      const added = teams.map(team=>this.addCredential(tencentTeamCredential(credential, team)));
+      return added[0];
+    }));
   }
   private addCredential(credential:AccountCredential) {
     if(this.closed)fail('CANCELLED','应用已退出');
@@ -160,7 +198,7 @@ export class SubCalService {
       this.scheduler.cancel(id);
       const saved=this.vault.saveSecret(id,credential.secret,c.credentialRef);
       this.db.updateConnection(id,{credentialRef:saved.credentialRef,generation:c.generation+1,state:'ready',accountSubject:credential.subject,accountAlias:credential.alias,accountOrg:credential.organization,error:null});
-      if(!sub){sub=this.emptySubscription(id);sub.account=credential.alias;sub.organization=credential.organization??'个人';this.save(sub);}
+      if(!sub){sub=this.emptySubscription(id);sub.management='automatic';sub.account=credential.alias;sub.organization=credential.organization??'个人';this.save(sub);}
       this.scheduler.enqueue(id);
       this.db.rawPrepare('UPDATE collection_jobs SET consecutive_schema_errors=0 WHERE connection_id=?').run(id);
       return {subscriptionId:sub.id,connectionId:id};
@@ -177,13 +215,7 @@ export class SubCalService {
       case 'subscriptions.update': {
         const sub=this.subscription(p.id);if(req.expectedRevision!==sub.revision)fail('REVISION_CONFLICT','资料已更新，请重新打开后编辑');
         if(p.patch.connectionId&&p.patch.connectionId!==sub.connectionId)fail('BIND_REQUIRED','请通过探测流程绑定连接');
-        const patch={...p.patch};
-        if(sub.connectionId) {
-          // The form may round-trip old values. Only billing/user presentation fields are writable.
-          for(const name of ['metrics','plan','account','organization','region','quotaPoolId','connectionId','product','brand','kind'] as const)delete patch[name];
-          for(const name of ['price','renewalDate','startDate','paidThrough','trialEnd'] as const)
-            if(sub[name].value!==null&&['official_api','local_client'].includes(sub[name].dataOrigin))delete patch[name];
-        }
+        const patch=writableSubscriptionPatch(sub,p.patch);
         const next={...sub,...patch};this.history(next,'更新订阅资料');this.save(next);return;
       }
       case 'subscriptions.archive': {
@@ -208,6 +240,7 @@ export class SubCalService {
       case 'preferences.set':this.db.savePreferences(preferencesSchema.parse({...this.db.getPreferences(),...p.patch}));this.db.bumpSpaceRevision();return;
       case 'subscriptions.resolveField': {
         const sub=this.subscription(p.id),field=sub[p.field as 'plan'];
+        if(isAutomatic(sub)&&p.field==='price')fail('AUTOMATIC_FIELD','实际支付请直接编辑，供应商标价不能覆盖支付金额');
         const proposal=this.db.getSetting<Field<string>|null>(`proposal:${sub.id}:${p.field}`,null);
         if(p.accept&&proposal)sub[p.field as 'plan']={...proposal,locked:false};else delete field.proposed;
         this.db.setSetting(`proposal:${sub.id}:${p.field}`,null);this.history(sub,p.accept?'接受自动来源':'保留锁定字段');this.save(sub);return;
@@ -258,7 +291,7 @@ export class SubCalService {
       }
       case 'collections.diagnose':return JSON.stringify({schemaVersion:1,storageError:Boolean(this.db.getStorageError()),notifications:this.db.getSetting('notificationStatus','unknown'),connections:this.db.listConnections().map(c=>({adapter:c.adapterId,state:c.state,generation:c.generation,version:c.version,verification:c.verification,lastAttempt:c.lastAttempt,lastSuccess:c.lastSuccess,errorCode:c.error?.code??null}))},null,2);
       case 'calendars.events':return projectEvents(this.db.listSubscriptions().filter(s=>s.lifecycle!=='archived'),new Date(this.now()).toISOString(),p.includeReset);
-      case 'data.export':return JSON.stringify({schemaVersion:1,format:'subcal-backup',exportedAt:new Date(this.now()).toISOString(),subscriptions:this.db.listSubscriptions(),preferences:this.db.getPreferences()},null,2);
+      case 'data.export':return JSON.stringify({schemaVersion:2,format:'subcal-backup',exportedAt:new Date(this.now()).toISOString(),subscriptions:this.db.listSubscriptions(),preferences:this.db.getPreferences()},null,2);
       case 'data.importPreview': {
         const imported=this.parseImport(p.text),current=this.db.listSubscriptions(),id=randomUUID();
         const old=new Set(current.map(s=>s.id)),next=new Set(imported.subscriptions.map(s=>s.id));
@@ -271,7 +304,7 @@ export class SubCalService {
         const imported=this.parseImport(p.text);
         for(const c of this.db.listConnections())this.disconnect(c.id,false);
         for(const s of this.db.listSubscriptions())this.db.deleteSubscription(s.id);
-        for(const sub of imported.subscriptions){sub.connectionId=null;this.save(sub);}
+        for(const sub of imported.subscriptions){if(sub.connectionId)sub.management='automatic';sub.connectionId=null;this.save(sub);}
         this.db.savePreferences(imported.preferences);this.db.setSetting(`import:${p.id}`,null);return;
       }
       default:return fail('NOT_IMPLEMENTED','外部日历同步待接入；当前不会写入外部日历');
@@ -281,7 +314,7 @@ export class SubCalService {
     if(Buffer.byteLength(text,'utf8')>2*1024*1024)fail('INVALID_IMPORT','导入文件不能超过 2MB');
     let raw:any;try{raw=JSON.parse(text);}catch{fail('INVALID_IMPORT','不是有效 JSON 文件');}
     const source=raw?.format==='subcal-backup'?raw:raw?.spaces?.[raw.active]??raw?.space??raw;
-    if(raw?.schemaVersion!==1||!Array.isArray(source?.subscriptions)||source.subscriptions.length>10000)fail('INVALID_IMPORT','备份格式或版本不支持');
+    if(![1,2].includes(raw?.schemaVersion)||!Array.isArray(source?.subscriptions)||source.subscriptions.length>10000)fail('INVALID_IMPORT','备份格式或版本不支持');
     const subscriptions:Subscription[]=source.subscriptions.map((s:unknown)=>subscriptionSchema.parse(s));
     if(new Set(subscriptions.map(s=>s.id)).size!==subscriptions.length)fail('INVALID_IMPORT','备份中订阅 ID 重复');
     return {subscriptions,preferences:preferencesSchema.parse({...DEFAULT_PRODUCTION_PREFERENCES,...raw.preferences})};
@@ -301,27 +334,50 @@ export class SubCalService {
     this.db.setSetting(`probe:${probe.id}`,{probe,output,subscriptionId:auth.subscriptionId,expires:this.now()+600000} satisfies ProbeRecord);return probe;
   }
   private emptySubscription(id:string):Subscription {
-    const m=this.scheduler.manifest(id),unknown=():Field<string>=>({value:null,availability:'unfetched',source:'尚未填写',observedAt:null,dataOrigin:'manual'});
+    const m=this.scheduler.manifest(id),unknown=():Field<string>=>({value:null,availability:'unfetched',source:'来源尚未提供',observedAt:null,dataOrigin:'manual'});
     return {id:randomUUID(),revision:1,product:m.product,brand:m.brand,kind:m.authMode==='api_key'?'wallet':'window',account:'',region:m.region,organization:'个人',plan:unknown(),price:unknown(),currency:m.id==='kimi-platform-cn'?'CNY':'USD',cycle:m.authMode==='api_key'?'none':'irregular',intervalDays:30,anchorDate:null,timezone:this.db.getPreferences().timezone,startDate:unknown(),renewalDate:unknown(),paidThrough:unknown(),trialEnd:unknown(),lifecycle:'active',autoRenew:'unknown',billingGroupId:null,quotaPoolId:null,possibleSharedWallet:false,metrics:[],connectionId:id,website:'',reminder:'local',pinned:false,notes:'',history:[]};
   }
   applyCollection(id:string,result:CollectOutput) {
     for(const sub of this.db.listSubscriptions().filter(s=>s.connectionId===id)) {
-      sub.quotaPoolId=result.poolId;sub.account=result.account.alias;
+      sub.management='automatic';sub.quotaPoolId=result.poolId||sub.quotaPoolId;sub.account=result.account.alias;
+      const successfulEntitlements=result.partialFailures.some(f=>f.field==='entitlements')?{}:{...result.entitlements};
+      for(const key of Object.keys(successfulEntitlements))if(result.partialFailures.some(f=>f.field===key||f.field===`entitlements.${key}`))delete (successfulEntitlements as Record<string,unknown>)[key];
+      sub.entitlements=mergeEntitlements(sub.entitlements,successfulEntitlements);
+      sub.credentialExpiresAt=mergeObservation(sub.credentialExpiresAt,result.credentialExpiresAt);
+      sub.balances=mergeBalances(sub.balances,result.partialFailures.some(f=>f.field==='balances')?[]:result.balances?.filter(b=>!result.partialFailures.some(f=>f.field===b.id||f.field===`balances.${b.id}`)));
       for(const observation of result.fields) {
-        const field:Field<string>={value:observation.value,availability:observation.availability,source:observation.source,observedAt:observation.observedAt,dataOrigin:observation.dataOrigin};
+        const {field:fieldName,...value}=observation;
+        const field:Field<string>={...value,evidence:observation.evidence??'reported'};
         if(result.partialFailures.some(f=>f.field===observation.field))continue;
+        // A provider price is a list price, never the user's actual payment.
+        if(fieldName==='price'){sub.entitlements=mergeEntitlements(sub.entitlements,{listPrice:field});continue;}
         const old=sub[observation.field];if(old.observedAt&&old.observedAt>observation.observedAt)continue;
+        if(mergeObservation(old,field)===old)continue;
         if(old.locked&&old.value!==field.value) { old.proposed=field.value??undefined;this.db.setSetting(`proposal:${sub.id}:${observation.field}`,field); }else sub[observation.field]={...field,locked:old.locked};
       }
       for(const m of result.metrics) {
         if(result.partialFailures.some(f=>f.field===m.id)||['unfetched','denied'].includes(m.availability))continue;
-        const old=sub.metrics.find(x=>x.id===m.id);if(old?.remaining.observedAt&&old.remaining.observedAt>m.observedAt)continue;
-        const metric={id:m.id,label:m.label,unit:m.unit,total:m.total,resetAt:m.resetAt,staleAfterMinutes:m.staleAfterMinutes,remaining:{value:m.remaining,availability:m.availability,source:m.source,observedAt:m.observedAt,dataOrigin:m.dataOrigin}};
-        if(old)sub.metrics[sub.metrics.indexOf(old)]=metric;else sub.metrics.push(metric);
+        const existing=sub.metrics.find(x=>x.id===m.id);
+        const old=existing?.unit===m.unit?existing:undefined;
+        if(old?.remaining.observedAt&&Date.parse(old.remaining.observedAt)>Date.parse(m.observedAt))continue;
+        const observed:Field<string>={value:m.remaining,availability:m.availability,source:m.source,observedAt:m.observedAt,dataOrigin:m.dataOrigin,evidence:m.evidence??'reported'};
+        const remaining=mergeObservation(old?.remaining,observed)!;
+        const metric={...old,id:m.id,label:m.label,unit:m.unit,total:m.total??old?.total??null,resetAt:m.resetAt??old?.resetAt??null,staleAfterMinutes:m.staleAfterMinutes,remaining,
+          used:mergeObservation(old?.used,m.used===undefined?undefined:{...observed,value:m.used}),totalObservation:mergeObservation(old?.totalObservation,m.totalObservation),resetObservation:mergeObservation(old?.resetObservation,m.resetObservation),windowStart:mergeObservation(old?.windowStart,m.windowStart),windowEnd:mergeObservation(old?.windowEnd,m.windowEnd),
+          windowMinutes:m.windowMinutes??old?.windowMinutes,scope:m.scope??old?.scope,models:m.models??old?.models,poolId:m.poolId??old?.poolId,evidence:m.evidence??old?.evidence??'reported'};
+        for(const key of ['remaining','used','totalObservation','resetObservation','windowStart','windowEnd','windowMinutes','scope','models','poolId','total','resetAt'] as const) {
+          if(result.partialFailures.some(f=>f.field===`${m.id}.${key}`||f.field===`metrics.${m.id}.${key}`)) {
+            if(old?.[key]!==undefined)(metric as Record<string,unknown>)[key]=old[key];
+            else if(key==='total'||key==='resetAt')metric[key]=null;
+            else if(key!=='remaining')delete (metric as Record<string,unknown>)[key];
+            else metric.remaining={...observed,value:null,availability:'unfetched',observedAt:null};
+          }
+        }
+        if(existing)sub.metrics[sub.metrics.indexOf(existing)]=metric;else sub.metrics.push(metric);
       }
       sub.revision++;this.save(sub);
     }
-    for(const m of result.metrics)if(!result.partialFailures.some(f=>f.field===m.id))this.db.recordMetricObservation({poolId:result.poolId,unit:m.unit,meterKey:m.id,remaining:m.remaining,total:m.total,resetAtMs:m.resetAt?.includes('T')?Date.parse(m.resetAt):null,observedAtMs:Date.parse(m.observedAt),source:m.source,availability:m.availability});
+    for(const m of result.metrics)if(!result.partialFailures.some(f=>f.field===m.id||f.field.startsWith(`${m.id}.`)||f.field.startsWith(`metrics.${m.id}.`))&&!['unfetched','denied'].includes(m.availability))this.db.recordMetricObservation({poolId:m.poolId??result.poolId,unit:m.unit,meterKey:m.id,remaining:m.remaining,total:m.total,resetAtMs:m.resetAt?.includes('T')?Date.parse(m.resetAt):null,observedAtMs:Date.parse(m.observedAt),source:m.source,availability:m.availability,used:m.used,observation:m});
   }
   close() {this.closed=true;if(this.credentialTimer)clearInterval(this.credentialTimer);this.scheduler.close();this.db.close();}
 }

@@ -32,8 +32,8 @@ export class NotificationService {
       const threshold=m.unit==='%'?'20':prefs.walletThresholds[m.unit];if(threshold===undefined)continue;
       try {if(compareMetricDecimal(m.remaining.value,threshold)>0)continue;}catch{continue;}
       // No reset means a persistent threshold episode, never one notification per sample.
-      const window=m.resetAt??'no-known-reset';
-      notices.push({key:`low:${sub.quotaPoolId??sub.id}:${m.id}:${window}:${threshold}`,rule:'low',entity:`${sub.id}:${m.id}`,window,body:`${sub.product} · ${m.label} 剩余 ${m.remaining.value}${m.unit}`});
+      const window=(m.resetObservation?.availability==='known'?m.resetObservation.value?.value:undefined)??m.resetAt??'no-known-reset';
+      notices.push({key:`low:${m.poolId??sub.quotaPoolId??sub.id}:${m.id}:${window}:${threshold}`,rule:'low',entity:`${sub.id}:${m.id}`,window,body:`${sub.product} · ${m.label} 剩余 ${m.remaining.value}${m.unit}`});
     }
     const pending=notices.filter(n=>!this.db.rawPrepare('SELECT id FROM notification_deliveries WHERE dedupe_key=?').get(n.key));
     if(!pending.length)return;

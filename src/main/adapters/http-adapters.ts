@@ -114,8 +114,7 @@ function keyFingerprint(secret: string): string {
 
 export function hashKeySubject(providerId: string, secret: string): string {
   const prefix = ({ 'deepseek-balance': 'deepseek', 'kimi-platform-cn': 'kimi-cn', 'openrouter-key': 'openrouter', 'openrouter-credits': 'openrouter' } as Record<string, string>)[providerId];
-  if (!prefix) throw new AdapterError('UNSUPPORTED', '不支持的 API Key 服务');
-  return `${prefix}:${keyFingerprint(secret)}`;
+  return `${prefix ?? providerId}:${keyFingerprint(secret)}`;
 }
 
 export async function executeOfficialGet(

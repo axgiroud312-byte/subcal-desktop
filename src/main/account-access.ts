@@ -10,20 +10,30 @@
  * No source files, keychain entries or external databases are ever written here.
  */
 import { createHash, randomUUID } from 'node:crypto';
-import { readFile, realpath, stat } from 'node:fs/promises';
+import { readFile, readdir, realpath, stat } from 'node:fs/promises';
 import { homedir, userInfo } from 'node:os';
 import { join, resolve as absolute } from 'node:path';
 import { execFile } from 'node:child_process';
 import { hashKeySubject } from './adapters/http-adapters';
+import { readServiceSource, serviceSourceLocators } from './service-account-sources';
+import { copilotHost } from '../shared/copilot-host';
+import { desktopSourceLocators, readDesktopSource, DesktopSourceError, type DesktopSourceLocator } from './desktop-account-sources';
+import { OFFICIAL_ADAPTER_CATALOG } from '../shared/types';
+import { tencentTeamCredential } from './tencent-account-teams';
 
 export interface AccountCredential { providerId: string; subject: string; alias: string; organization?: string; secret: string; source?: string }
 export interface DiscoveredAccount { id: string; providerId: string; alias: string; source: string; organization?: string }
-export type AccountSource = 'codex' | 'claude' | 'copilot-editor' | 'copilot-cli' | 'copilot-device';
-export interface CredentialLocator { kind: 'codex' | 'claude' | 'editor' | 'cli' | 'api'; path: string; entry?: string; format?: string }
+export type AccountSource = string;
+export interface CredentialLocator { kind: 'codex' | 'claude' | 'editor' | 'cli' | 'api' | 'service'; path: string; entry?: string; format?: string }
 export interface CredentialEnvelope {
   accessToken: string; refreshToken?: string; expiresAt?: number; accountId?: string;
+  /** Membership claim only; never populated from the access token expiry. */
+  membershipExpiresAt?: string;
+  plan?: string;
+  host?: string;
   subject: string; alias: string; source: AccountSource; management: 'external' | 'managed';
   locator?: CredentialLocator; generation?: number;
+  tencentBaseSubject?: string; teamId?: string;
 }
 export class AccountAccessError extends Error {
   constructor(public readonly code: 'SOURCE_UNREADABLE' | 'ACCOUNT_MISMATCH' | 'AUTH_REQUIRED' | 'UNSUPPORTED' | 'NETWORK' | 'SCHEMA_CHANGED' | 'STALE_GENERATION', message: string) { super(message); this.name = 'AccountAccessError'; }
@@ -157,12 +167,14 @@ exit 44`;
   private codex(raw: Obj, locator?: CredentialLocator): AccountCredential | null {
     if (raw.auth_mode && raw.auth_mode !== 'chatgpt') return null;
     const t = obj(raw.tokens), access = str(t.access_token); if (!access) return null;
-    const claims = { ...jwt(access), ...jwt(str(t.id_token)) }, auth = obj(claims['https://api.openai.com/auth']);
+    const accessClaims = jwt(access), idClaims = jwt(str(t.id_token));
+    const claims = { ...accessClaims, ...idClaims }, auth = { ...obj(accessClaims['https://api.openai.com/auth']), ...obj(idClaims['https://api.openai.com/auth']) };
     const accountId = str(t.account_id) || str(auth.chatgpt_account_id), user = str(auth.chatgpt_user_id) || str(claims.sub);
     if (!accountId || !user) return fail('SCHEMA_CHANGED', 'Codex 凭据缺少稳定账号标识，不能安全绑定');
     const email = str(claims.email) || str(obj(claims['https://api.openai.com/profile']).email);
     return this.pack('codex-local', 'codex', access, `${accountId}:${user}`, email ? `Codex (${mask(email)})` : 'Codex 账号', {
       accountId, refreshToken: str(t.refresh_token) || undefined, expiresAt: typeof jwt(access).exp === 'number' ? Number(jwt(access).exp) * 1000 : undefined, locator,
+      membershipExpiresAt: str(obj(jwt(str(t.id_token))['https://api.openai.com/auth']).chatgpt_subscription_active_until) || undefined,
     });
   }
   private async readCodex(locator: CredentialLocator): Promise<AccountCredential | null> {
@@ -187,8 +199,9 @@ exit 44`;
   }
   private async readClaude(locator: CredentialLocator): Promise<AccountCredential | null> {
     let raw: string | null = null;
+    const custom = absolute(locator.path) !== absolute(join(this.home, '.claude'));
     if (this.platform === 'darwin') {
-      const service = this.env.CLAUDE_CONFIG_DIR ? `Claude Code-credentials-${hash(locator.path.normalize('NFC')).slice(0, 8)}` : 'Claude Code-credentials';
+      const service = custom ? `Claude Code-credentials-${hash(locator.path.normalize('NFC')).slice(0, 8)}` : 'Claude Code-credentials';
       let user = this.env.USER; if (!user) { try { user = userInfo().username; } catch { user = ''; } }
       raw = await this.system(service, /^[a-zA-Z0-9._-]+$/.test(user) ? user : 'claude-code-user');
     }
@@ -197,7 +210,7 @@ exit 44`;
     const root = json(raw), t = obj(root.claudeAiOauth ?? root['claude.ai_oauth']), token = str(t.accessToken); if (!token) return null;
     // The profile file can lag a logout/login. Never attach its identity to a new
     // opaque token without verifying that token's read-only OAuth profile first.
-    const profilePath = this.env.CLAUDE_CONFIG_DIR ? join(locator.path, '.claude.json') : join(this.home, '.claude.json');
+    const profilePath = custom ? join(locator.path, '.claude.json') : join(this.home, '.claude.json');
     const profileText = await this.text(profilePath), local = profileText ? obj(json(profileText).oauthAccount) : {};
     let identity = this.claudeIdentities.get(hash(token));
     if (!identity) {
@@ -212,26 +225,24 @@ exit 44`;
       this.claudeIdentities.set(hash(token), identity);
     }
     if ((str(local.accountUuid) && local.accountUuid !== identity.accountId) || (str(local.organizationUuid) && local.organizationUuid !== identity.organization)) return fail('ACCOUNT_MISMATCH', 'Claude 配置身份与令牌身份不一致，请等待官方客户端完成登录');
-    return this.pack('claude-local', 'claude', token, `${identity.accountId}:${identity.organization}`, identity.email ? `Claude (${mask(identity.email)})` : 'Claude Code 账号', { accountId: identity.accountId, refreshToken: str(t.refreshToken) || undefined, expiresAt: typeof t.expiresAt === 'number' ? t.expiresAt : undefined, locator }, identity.organization);
+    return this.pack('claude-local', 'claude', token, `${identity.accountId}:${identity.organization}`, identity.email ? `Claude (${mask(identity.email)})` : 'Claude Code 账号', { accountId: identity.accountId, refreshToken: str(t.refreshToken) || undefined, expiresAt: typeof t.expiresAt === 'number' ? t.expiresAt : undefined, plan: str(t.subscriptionType) || undefined, locator }, identity.organization);
   }
   private async readEditor(locator: CredentialLocator): Promise<AccountCredential | null> {
     const text = await this.text(locator.path); if (text === null) return null;
     const item = obj(jsonc(text)[locator.entry!]), token = str(item.oauth_token), user = str(item.user);
     if (!token) return null;
-    const host = locator.entry!.split(':')[0].toLowerCase();
-    if (host !== 'github.com') return fail('UNSUPPORTED', '此 Copilot 企业主机尚未适配，未将凭据发送到 github.com');
-    return this.pack('copilot-local', 'copilot-editor', token, user ? `${host}:${user.toLowerCase()}` : `opaque:${hash(token)}`, user ? `Copilot (${mask(user)})` : 'Copilot 编辑器账号', { locator });
+    let host: string; try { host = copilotHost(locator.entry!.split(':')[0]); } catch { return fail('UNSUPPORTED', '此 Copilot 主机尚未适配，未向其他主机发送凭据'); }
+    return this.pack('copilot-local', 'copilot-editor', token, user ? `${host}:${user.toLowerCase()}` : `${host}:opaque:${hash(token)}`, user ? `Copilot (${mask(user)}${host !== 'github.com' ? ` · ${host}` : ''})` : 'Copilot 编辑器账号', { locator, host });
   }
   private async readCli(locator: CredentialLocator): Promise<AccountCredential | null> {
     const text = await this.text(locator.path); if (text === null) return null;
     const cfg = jsonc(text), users = [cfg.lastLoggedInUser, ...(Array.isArray(cfg.loggedInUsers) ? cfg.loggedInUsers : [])].map(obj);
     const user = users.find(u => `${str(u.host).replace(/\/$/, '')}:${str(u.login)}` === locator.entry);
     if (!user) return null;
-    const host = str(user.host).replace(/\/$/, '');
-    if (host !== 'https://github.com') return fail('UNSUPPORTED', '此 Copilot CLI 企业主机尚未适配');
+    let host: string; try { host = copilotHost(str(user.host)); } catch { return fail('UNSUPPORTED', '此 Copilot CLI 主机尚未适配'); }
     const token = str(obj(cfg.copilotTokens)[locator.entry!]) || await this.system('copilot-cli', locator.entry!);
     if (!token) return null;
-    return this.pack('copilot-local', 'copilot-cli', token, `github.com:${str(user.login).toLowerCase()}`, `Copilot CLI (${mask(str(user.login))})`, { locator });
+    return this.pack('copilot-local', 'copilot-cli', token, `${host}:${str(user.login).toLowerCase()}`, `Copilot CLI (${mask(str(user.login))}${host !== 'github.com' ? ` · ${host}` : ''})`, { locator, host });
   }
   private providerFor(base: string): string | undefined {
     try { const u = new URL(base); if (u.protocol !== 'https:' || u.username || u.password || (u.port && u.port !== '443')) return undefined;
@@ -296,8 +307,16 @@ exit 44`;
       case 'editor': return this.readEditor(locator);
       case 'cli': return this.readCli(locator);
       case 'api': return (await this.apiEntries(locator)).get(locator.entry!) ?? null;
+      case 'service': return this.readService(locator);
       default: return fail('AUTH_REQUIRED', '凭据来源定位无效');
     }
+  }
+  private async readService(locator:CredentialLocator):Promise<AccountCredential|null>{
+    try{
+      return ['kiro-cli','kiro-ide','workbuddy-desktop','trae-desktop','desktop-opencode'].includes(locator.format??'')
+        ? await readDesktopSource(locator as DesktopSourceLocator,{home:this.home,env:this.env,platform:this.platform})
+        : await readServiceSource(locator);
+    }catch(e){if(e instanceof DesktopSourceError)throw new AccountAccessError(e.code,e.message);throw new AccountAccessError('SOURCE_UNREADABLE',e instanceof Error?e.message:'无法读取已有登录');}
   }
   async discover(): Promise<{ accounts: DiscoveredAccount[]; warnings: string[] }> {
     const accounts: DiscoveredAccount[] = [], warnings: string[] = [];
@@ -305,13 +324,24 @@ exit 44`;
     const add = (c: AccountCredential, locator: CredentialLocator) => {
       const id = hash(`${JSON.stringify(locator)}:${c.subject}`);
       this.candidates.set(id, { locator, subject: c.subject, providerId: c.providerId });
-      const names:Record<string,string>={codex:'Codex 本机登录',claude:'Claude Code 本机登录','copilot-editor':'Copilot 编辑器登录','copilot-cli':'Copilot CLI 登录',opencode:'OpenCode 配置','claude-settings':'Claude Code 供应商配置','codex-config':'Codex 供应商配置','cc-switch':'CC Switch 配置',alma:'Alma 配置'};
+      const names:Record<string,string>={codex:'Codex 本机登录',claude:'Claude Code 本机登录',cursor:'Cursor 本机登录',devin:'Devin 本机登录','opencode-go':'OpenCode 已有凭据','copilot-editor':'Copilot 编辑器登录','copilot-cli':'Copilot CLI 登录',opencode:'OpenCode 配置','claude-settings':'Claude Code 供应商配置','codex-config':'Codex 供应商配置','cc-switch':'CC Switch 配置',alma:'Alma 配置'};
       accounts.push({ id, providerId: c.providerId, alias: c.alias, source: names[c.source??'']??'供应商配置', organization: c.organization });
     };
     const attempt = async (label: string, fn: () => Promise<void>) => { try { await fn(); } catch (e) { warnings.push(`${label}：${e instanceof AccountAccessError ? e.message : '读取失败，未输出原始错误'}`); } };
     for (const locator of [{ kind: 'codex', path: codex }, { kind: 'claude', path: claude }] as CredentialLocator[]) {
       await attempt(locator.kind, async () => { const c = await this.readLocator(locator); if (c) add(c, locator); });
     }
+    const claudeDirs = new Set([absolute(join(this.home, '.claude'))]);
+    // Existing isolated Magpie accounts are read where the original client
+    // maintains them; SubCal never creates directories or transfers refreshes.
+    const savedRoot = join(this.env.XDG_CONFIG_HOME || join(this.home, '.config'), 'magpie', 'claude-accounts');
+    await attempt('Claude Code 多账号', async () => {
+      let entries; try { entries = await readdir(savedRoot, { withFileTypes: true }); } catch (e) { if (missing(e)) return; throw e; }
+      for (const entry of entries.slice(0, 128)) if (entry.isDirectory() && /^[a-f0-9]{16}$/.test(entry.name)) claudeDirs.add(join(savedRoot, entry.name));
+    });
+    for (const path of claudeDirs) if (absolute(path) !== claude) await attempt('Claude Code 已有账号', async () => {
+      const locator: CredentialLocator = { kind: 'claude', path }; const c = await this.readClaude(locator); if (c) add(c, locator);
+    });
     const configDirs = new Set([this.env.XDG_CONFIG_HOME || join(this.home, '.config')]);
     if (this.platform === 'win32') configDirs.add(this.env.LOCALAPPDATA || join(this.home, 'AppData', 'Local'));
     for (const dir of configDirs) for (const name of ['apps.json', 'hosts.json']) {
@@ -340,6 +370,9 @@ exit 44`;
       const locator: CredentialLocator = { kind: 'api', ...source };
       for (const [entry, c] of await this.apiEntries(locator)) add(c, { ...locator, entry });
     });
+    for (const locator of [...serviceSourceLocators(this.home, this.env, this.platform),...desktopSourceLocators({home:this.home,env:this.env,platform:this.platform})]) await attempt(locator.format ?? '账号', async () => {
+      const c = await this.readService(locator); if (c&&OFFICIAL_ADAPTER_CATALOG.some(a=>a.adapterId===c.providerId)) add(c, locator);
+    });
     return { accounts, warnings };
   }
   async resolve(candidateId: string): Promise<AccountCredential> {
@@ -355,7 +388,13 @@ exit 44`;
     if (e.management !== 'external' || !e.locator) return fail('AUTH_REQUIRED', '外部凭据缺少来源定位');
     const fresh = await this.readLocator(e.locator);
     if (!fresh) return fail('AUTH_REQUIRED', '原来源凭据已删除或退出登录');
-    if (fresh.subject !== credential.subject || fresh.providerId !== credential.providerId || fresh.source !== e.source) return fail('ACCOUNT_MISMATCH', '来源账号已切换；已停止更新原绑定，未覆写新账号');
+    const originalSubject = credential.providerId.startsWith('tencent-token-plan-') && e.tencentBaseSubject ? e.tencentBaseSubject : credential.subject;
+    if (fresh.subject !== originalSubject || fresh.providerId !== credential.providerId || fresh.source !== e.source) return fail('ACCOUNT_MISMATCH', '来源账号已切换；已停止更新原绑定，未覆写新账号');
+    if (e.tencentBaseSubject && credential.providerId.startsWith('tencent-token-plan-')) {
+      const bound = tencentTeamCredential(fresh, { id: e.teamId ?? '', name: credential.alias });
+      if (bound.subject !== credential.subject) return fail('ACCOUNT_MISMATCH', '团队绑定已变化');
+      return bound;
+    }
     return fresh;
   }
   private async request(url: string, body?: Obj, bearer?: string, form = false, extraHeaders: Record<string, string> = {}): Promise<{ status: number; data: Obj }> {

@@ -1,4 +1,4 @@
-import type { Availability, ConnectionState } from '../../shared/types';
+import type { Availability, ConnectionState, Balance, Entitlements, Metric, EvidenceKind } from '../../shared/types';
 
 export type AdapterErrorCode =
   | 'AUTH_REQUIRED'
@@ -29,7 +29,7 @@ export class AdapterError extends Error {
 }
 
 export interface AdapterManifest {
-  id: 'codex-local' | 'copilot-local' | 'claude-local' | 'deepseek-balance' | 'kimi-platform-cn' | 'openrouter-key' | 'openrouter-credits';
+  id: string;
   version: string;
   brand: string;
   product: string;
@@ -62,6 +62,15 @@ export interface NormalizedMetricObservation {
   source: string;
   dataOrigin: 'official_api' | 'local_client';
   staleAfterMinutes: number;
+  windowStart?: Metric['windowStart'];
+  windowEnd?: Metric['windowEnd'];
+  resetObservation?: Metric['resetObservation'];
+  totalObservation?: Metric['totalObservation'];
+  windowMinutes?: number;
+  scope?: Metric['scope'];
+  models?: string[];
+  poolId?: string;
+  evidence?: EvidenceKind;
 }
 
 export interface NormalizedFieldObservation {
@@ -71,6 +80,8 @@ export interface NormalizedFieldObservation {
   source: string;
   observedAt: string;
   dataOrigin: 'official_api' | 'local_client';
+  evidence?: EvidenceKind;
+  providerAt?: string | null;
 }
 
 export interface CollectInput {
@@ -84,6 +95,8 @@ export interface CollectInput {
 }
 
 export interface CollectOutput {
+  /** Organizations reported by the provider, independent of quota availability. */
+  discoveredOrganizations?: { id: string; name: string }[];
   account: {
     subject: string;
     alias: string;
@@ -99,6 +112,9 @@ export interface CollectOutput {
   providerAt?: string | null;
   suggestedNextAt?: string | null;
   runtimeVersion?: string;
+  entitlements?: Entitlements;
+  balances?: Balance[];
+  credentialExpiresAt?: import('../../shared/types').Field<import('../../shared/types').EntitlementDate>;
 }
 
 export interface RecoveryDescriptor {

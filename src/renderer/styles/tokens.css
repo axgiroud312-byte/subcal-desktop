@@ -98,12 +98,14 @@
   /* Layout & Component Dimensions */
   --page-padding: 1.5rem;          /* 24px */
   --page-padding-compact: 1rem;    /* 16px */
-  --card-padding: 0.875rem;        /* 14px（自 16px 校正：用户反馈呼吸感过重，对齐 Magpie 10-12px 的方向，保留可读余量） */
+  --card-padding: 0.75rem;        /* 12px：权益卡片密度，保留 SubCal 可读字号 */
   --card-padding-compact: 0.75rem; /* 12px */
-  --card-gap: 0.625rem;            /* 10px（自 12px 校正，Magpie 为 7px） */
+  --card-gap: 0.5rem;              /* 8px：沿用间距刻度，Magpie 参考为 7px */
   --card-gap-compact: 0.5rem;      /* 8px */
-  --card-min-width: 18.75rem;      /* 300px */
+  --card-min-width: 16.25rem;      /* 260px：与固定版权益网格最小列宽一致 */
   --card-min-width-compact: 16.25rem; /* 260px */
+  --card-radius: 0.625rem;         /* 10px：仅卡片，不改弹窗与控件圆角 */
+  --card-section-gap: var(--space-2);
 
   --control-height-sm: 2rem;       /* Compact padding, same 32px hit target */
   --control-height: 2rem;          /* 32px - 常规控件高度 */

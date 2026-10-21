@@ -154,6 +154,7 @@ export const metricObservationsTable = sqliteTable('metric_observations', {
   observedAt: integer('observed_at'),
   source: text('source').notNull(),
   availability: text('availability').notNull(),
+  observationJson: text('observation_json'),
 });
 
 export const collectionJobsTable = sqliteTable(
