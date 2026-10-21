@@ -6,7 +6,7 @@
 
 用户进一步明确允许直接复用 Magpie / CC Switch 代码。当前执行任务为 [BE-012](../issues/BE-012.md)，接替 BE-011。按固定源码版本移植凭据发现、OAuth、刷新协调和权益解析，保留 MIT 声明；Go/Rust 逻辑适配当前 TypeScript 架构，不再独立发明账号接入流程。
 
-Codex/Copilot 取得有效凭据后直接请求对应权益端点，不把 App Server/SDK 运行时作为唯一前置。Claude 主路径采用 CC Switch 的本地 OAuth 凭据与用量端点，Magpie CLI /usage 只作明确的兼容后备。API 服务优先导入已支持配置中的 Key。用户加入后自动查询，无第二次读取/确认操作。
+Codex/Copilot 取得有效凭据后直接请求对应权益端点，不把 App Server/SDK 运行时作为唯一前置。Claude 支持只读发现本地 OAuth，主动登录则由应用后台编排官方 CLI、打开授权页；权益使用直接用量端点。API 服务优先导入已支持配置中的 Key。用户加入后自动查询，无第二次读取/确认操作。主动登录必须从应用按钮发起，不能用“先在终端/原客户端登录”替代，完整约定见 [全服务规格](full-service-entitlements.md)。
 
 ## 目标与用户流程
 

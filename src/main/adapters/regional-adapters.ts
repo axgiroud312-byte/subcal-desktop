@@ -69,7 +69,7 @@ function manifest(id: string, product: string, host: string, path: string): Adap
  * required to prevent importing an unbound credential into a different site.
  * accountId is a caller-verified identity; otherwise token replacement requires re-probe. */
 export interface RegionalCredential {
-  provider: string; region: string; accessToken?: string; cookie?: string;
+  provider: string; region: string; accessToken?: string; cookie?: string; cookiesByPath?: Record<string, string>;
   accountId?: string; profileArn?: string; tokenType?: 'API_KEY' | 'EXTERNAL_IDP';
   groupId?: string; tokenKind?: 'device' | 'job' | 'coding-key' | 'session';
   subject?: string; alias?: string; rawKey?: boolean;
@@ -252,12 +252,19 @@ export class MiniMaxPlanAdapter extends RegionalAdapter {
   }
 }
 
+/** Direct login persists endpoint-specific cookie headers so Path=/api cookies
+ * survive and a detail-only cookie is never sent to the usage endpoint. */
+function mimoCookie(c: RegionalCredential, path: string): string {
+  const scoped = obj(c.cookiesByPath);
+  const value = c.cookiesByPath !== undefined ? scoped[path] : c.cookie;
+  if (typeof value !== 'string' || !value || /[\r\n]/.test(value)) throw new AdapterError('AUTH_REQUIRED', '缺少此 MiMo 查询路径的有效会话 cookie');
+  return value;
+}
 export class MimoAppAdapter extends RegionalAdapter {
   readonly manifest: AdapterManifest;
   constructor(region: 'SGP' | 'RU' | 'IN' = 'SGP', fetchFn?: HttpFetchFn) { super(fetchFn); this.manifest = manifest(`mimo-app-${region.toLowerCase()}`, 'MiMo App', `mimo-server-${region.toLowerCase()}.xiaomimimo.com`, '/api/user/xiaomi/subscription/self'); }
   protected async query(c: RegionalCredential, input: CollectInput) {
-    if (!c.cookie) throw new AdapterError('AUTH_REQUIRED', 'MiMo App 需要该地区 session cookie，不接受平台 API Key 或小米 passToken');
-    const results = await Promise.allSettled(['/api/user/xiaomi/subscription/self', '/api/user/usage'].map(p => this.get(p, c, input, { Authorization: '', Cookie: c.cookie!, 'X-Client-Version': '26.929.292248', 'User-Agent': 'miNative PC/Normal Windows_NT/10.0.26100 SDKV/1.0.0 DEVT/PC DEVS/Windows APP/miaccount_desktop APPV/0.1.0' })));
+    const results = await Promise.allSettled(['/api/user/xiaomi/subscription/self', '/api/user/usage'].map(async p => this.get(p, c, input, { Authorization: '', Cookie: mimoCookie(c, p), 'X-Client-Version': '26.929.292248', 'User-Agent': 'miNative PC/Normal Windows_NT/10.0.26100 SDKV/1.0.0 DEVT/PC DEVS/Windows APP/miaccount_desktop APPV/0.1.0' })));
     if (results.every(r => r.status === 'rejected')) throw (results[0] as PromiseRejectedResult).reason;
     return { self: results[0].status === 'fulfilled' ? results[0].value : undefined, usage: results[1].status === 'fulfilled' ? results[1].value : undefined, failures: results.flatMap((r, i) => r.status === 'rejected' ? [i ? 'usage' : 'self'] : []) };
   }
@@ -283,8 +290,7 @@ export class MimoAppAdapter extends RegionalAdapter {
 export class MimoTokenPlanAdapter extends RegionalAdapter {
   readonly manifest = manifest('mimo-token-plan', 'MiMo Token Plan', 'platform.xiaomimimo.com', '/api/v1/tokenPlan/detail');
   protected async query(c: RegionalCredential, input: CollectInput) {
-    if (!c.cookie) throw new AdapterError('AUTH_REQUIRED', 'MiMo Token Plan 需要平台 session cookie，不接受 App cookie 或 tp- Key');
-    const results = await Promise.allSettled(['/api/v1/tokenPlan/detail', '/api/v1/tokenPlan/usage'].map(p => this.get(p, c, input, { Authorization: '', Cookie: c.cookie! })));
+    const results = await Promise.allSettled(['/api/v1/tokenPlan/detail', '/api/v1/tokenPlan/usage'].map(async p => this.get(p, c, input, { Authorization: '', Cookie: mimoCookie(c, p) })));
     if (results.every(r => r.status === 'rejected')) throw (results[0] as PromiseRejectedResult).reason;
     return { detail: results[0].status === 'fulfilled' ? results[0].value : undefined, usage: results[1].status === 'fulfilled' ? results[1].value : undefined, failures: results.flatMap((r, i) => r.status === 'rejected' ? [i ? 'usage' : 'detail'] : []) };
   }

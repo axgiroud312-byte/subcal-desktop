@@ -20,6 +20,8 @@ import { copilotHost } from '../shared/copilot-host';
 import { desktopSourceLocators, readDesktopSource, DesktopSourceError, type DesktopSourceLocator } from './desktop-account-sources';
 import { OFFICIAL_ADAPTER_CATALOG } from '../shared/types';
 import { tencentTeamCredential } from './tencent-account-teams';
+import { BrowserLoginManager, type LoginFactory, type LoginTicket } from './login/manager';
+import { createBrowserLogin } from './login';
 
 export interface AccountCredential { providerId: string; subject: string; alias: string; organization?: string; secret: string; source?: string }
 export interface DiscoveredAccount { id: string; providerId: string; alias: string; source: string; organization?: string }
@@ -73,6 +75,8 @@ const CODEX_CLIENT = 'app_EMoamEEZ73f0CkXaXp7hrann';
 const GITHUB_CLIENT = 'Iv1.b507a08c87ecfe98';
 type Login = { id: string; providerId: string; device: string; userCode: string; verificationUri: string; intervalSeconds: number; expiresAt: number; nextPoll: number; epoch: number; result?: AccountCredential; exchange?: Obj };
 export interface AccountAccessOptions {
+  loginFactory?: LoginFactory;
+  openWindow?: import('./login/types').LoginOptions['openWindow'];
   home?: string; env?: NodeJS.ProcessEnv; platform?: NodeJS.Platform; now?: () => number; fetch?: typeof fetch;
   /** Returns null only for positively absent entries; denied/unavailable MUST throw. */
   readSystemSecret?: (service: string, account: string) => Promise<string | null>;
@@ -81,6 +85,7 @@ export interface AccountAccessOptions {
 export class AccountAccess {
   private readonly home: string; private readonly env: NodeJS.ProcessEnv; private readonly platform: NodeJS.Platform;
   private readonly now: () => number; private readonly http: typeof fetch;
+  private readonly browserLogins: BrowserLoginManager;
   private readonly candidates = new Map<string, { locator: CredentialLocator; subject: string; providerId: string }>();
   private readonly logins = new Map<string, Login>();
   private readonly loginEpoch = new Map<string, number>();
@@ -91,6 +96,7 @@ export class AccountAccess {
   constructor(private readonly options: AccountAccessOptions = {}) {
     this.home = options.home ?? homedir(); this.env = options.env ?? process.env; this.platform = options.platform ?? process.platform;
     this.now = options.now ?? Date.now; this.http = options.fetch ?? fetch;
+    this.browserLogins = new BrowserLoginManager(options.loginFactory ?? createBrowserLogin, { fetch:this.http, now:this.now, openWindow:options.openWindow });
   }
   private async text(path: string): Promise<string | null> {
     try { if ((await stat(path)).size > 8 * 1024 * 1024) fail('SOURCE_UNREADABLE', '凭据配置过大，未读取'); return await readFile(path, 'utf8'); }
@@ -412,8 +418,8 @@ exit 44`;
     if (response.status < 200 || response.status >= 300 || response.data.error) return fail(response.status === 401 || response.status === 403 ? 'AUTH_REQUIRED' : 'NETWORK', `授权服务拒绝请求（HTTP ${response.status}）`);
     return response.data;
   }
-  async startLogin(providerId: string): Promise<{ id: string; userCode: string; verificationUri: string; intervalSeconds: number; expiresAt: number }> {
-    if (!['codex-local', 'copilot-local'].includes(providerId)) return fail('UNSUPPORTED', '此供应商尚不支持设备码授权');
+  async startLogin(providerId: string): Promise<LoginTicket> {
+    if (!['codex-local', 'copilot-local'].includes(providerId)) return this.browserLogins.start(providerId);
     // New login invalidates an older outstanding login even if its network response arrives later.
     const epoch = (this.loginEpoch.get(providerId) ?? 0) + 1; this.loginEpoch.set(providerId, epoch);
     for (const [id, l] of this.logins) if (l.providerId === providerId || l.expiresAt <= this.now()) this.logins.delete(id);
@@ -429,9 +435,15 @@ exit 44`;
     return { id, userCode, verificationUri, intervalSeconds, expiresAt };
   }
   pollLogin(id: string): Promise<{ status: 'pending' | 'complete' | 'expired'; credential?: AccountCredential }> {
+    if(this.browserLogins.has(id))return this.browserLogins.poll(id);
     const active = this.polls.get(id); if (active) return active;
     const run = this.poll(id).finally(() => { if (this.polls.get(id) === run) this.polls.delete(id); }); this.polls.set(id, run); return run;
   }
+  cancelLogin(id: string) { this.browserLogins.cancel(id); this.logins.delete(id); }
+  isLoginUrl(url: string) { return this.browserLogins.ownsUrl(url); }
+  openLoginUrl(url: string) { return this.browserLogins.openUrl(url); }
+  submitLogin(id: string, code: string) { return this.browserLogins.submit(id,code); }
+  close() { this.browserLogins.close(); this.logins.clear(); this.loginEpoch.clear(); this.managed.clear(); }
   private async poll(id: string): Promise<{ status: 'pending' | 'complete' | 'expired'; credential?: AccountCredential }> {
     const l = this.logins.get(id);
     if (!l || l.expiresAt <= this.now() || this.loginEpoch.get(l.providerId) !== l.epoch) { this.logins.delete(id); return { status: 'expired' }; }

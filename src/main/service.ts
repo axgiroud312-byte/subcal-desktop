@@ -58,7 +58,11 @@ export class SubCalService {
   private async prepareCredential(id:string,generation:number,secret:string|null) {
     if(!secret?.startsWith('{'))return secret;
     let parsed:any;try{parsed=JSON.parse(secret);}catch{throw new AdapterError('AUTH_REQUIRED','请重新登录');}
-    if(parsed.management==='static')return secret;
+    if(parsed.management==='static'){
+      const expires=typeof parsed.expiresAt==='number'?parsed.expiresAt:typeof parsed.expiresAt==='string'?Date.parse(parsed.expiresAt):NaN;
+      if(Number.isFinite(expires)&&expires>0&&expires<=this.now())throw new AdapterError('AUTH_REQUIRED','登录已过期，请在应用中重新登录');
+      return secret;
+    }
     const original=this.connection(id),credential=this.credential(id,secret);
     const next=parsed.management==='external'?await this.accountAccess.refreshExternal(credential):await this.accountAccess.refresh(credential);
     if(this.closed)throw new AdapterError('CANCELLED','应用已退出');
@@ -143,6 +147,8 @@ export class SubCalService {
   private async handleAccount(method:string,p:any):Promise<unknown> {
     if(method==='accounts.discover')return this.accountAccess.discover();
     if(method==='accounts.loginStart')return this.accountAccess.startLogin(p.providerId);
+    if(method==='accounts.loginCancel') { this.accountAccess.cancelLogin(p.id); return; }
+    if(method==='accounts.loginSubmit') { await this.accountAccess.submitLogin(p.id,p.code); return; }
     if(method==='accounts.loginPoll') {
       const result=await this.accountAccess.pollLogin(p.id);
       if(result.status!=='complete'||!result.credential)return {status:result.status};
@@ -379,5 +385,5 @@ export class SubCalService {
     }
     for(const m of result.metrics)if(!result.partialFailures.some(f=>f.field===m.id||f.field.startsWith(`${m.id}.`)||f.field.startsWith(`metrics.${m.id}.`))&&!['unfetched','denied'].includes(m.availability))this.db.recordMetricObservation({poolId:m.poolId??result.poolId,unit:m.unit,meterKey:m.id,remaining:m.remaining,total:m.total,resetAtMs:m.resetAt?.includes('T')?Date.parse(m.resetAt):null,observedAtMs:Date.parse(m.observedAt),source:m.source,availability:m.availability,used:m.used,observation:m});
   }
-  close() {this.closed=true;if(this.credentialTimer)clearInterval(this.credentialTimer);this.scheduler.close();this.db.close();}
+  close() {this.closed=true;if(this.credentialTimer)clearInterval(this.credentialTimer);this.accountAccess.close();this.scheduler.close();this.db.close();}
 }

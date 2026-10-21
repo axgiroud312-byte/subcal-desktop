@@ -45,7 +45,7 @@ const endpoints = {
 };
 export interface ZCodeCredential {
   site: 'bigmodel' | 'zai'; base?: string; key?: string; token?: string; org?: string; project?: string;
-  jwt?: string; device?: string; accountId?: string; subject?: string; alias?: string;
+  jwt?: string; device?: string; accountId?: string; subject?: string; alias?: string; identitySubject?: string;
 }
 /** Accepts the original OpenCode OAuth refresh JSON, never consumes it as a
  * refresh token. Main-process envelope may add source/accessToken/subject/alias. */
@@ -55,7 +55,7 @@ export function parseZCodeCredential(secret: string | null | undefined, id: stri
   if (![id, 'zcode'].includes(str(r.source ?? r.provider))) throw new AdapterError('AUTH_REQUIRED', 'ZCode 凭据来源不匹配');
   if (r.provider !== undefined && r.provider !== id) throw new AdapterError('AUTH_REQUIRED', 'ZCode 凭据目标不匹配');
   const s = { ...saved, ...r };
-  const c = { ...s, key: str(s.key) || (saved.jwt ? '' : str(r.accessToken ?? r.access)), accountId: str(r.accountId), subject: str(r.subject), alias: str(r.alias) } as unknown as ZCodeCredential;
+  const c = { ...s, key: str(s.key) || (s.jwt || s.token ? '' : str(r.accessToken ?? r.access)), accountId: str(r.accountId), subject: str(r.subject), alias: str(r.alias) } as unknown as ZCodeCredential;
   if (!['bigmodel', 'zai'].includes(c.site)) throw new AdapterError('AUTH_REQUIRED', 'ZCode 缺少明确 site，不猜地区');
   const isTeam = id !== 'zcode-gift', expectedSite = id === 'zcode-team-cn' ? 'bigmodel' : 'zai';
   if (isTeam && c.site !== expectedSite) throw new AdapterError('AUTH_REQUIRED', '团队地区与凭据 site 不匹配');
@@ -66,7 +66,7 @@ export function parseZCodeCredential(secret: string | null | undefined, id: stri
     if (!isTeam) allowed.push('zcode.z.ai');
     if (u.protocol !== 'https:' || !allowed.includes(u.hostname) || u.username || u.password || u.port && u.port !== '443') throw new AdapterError('AUTH_REQUIRED', 'ZCode base 与地区不匹配');
   }
-  for (const k of ['key', 'token', 'org', 'project', 'jwt', 'device', 'accountId', 'subject', 'alias'] as const) if (c[k] !== undefined && (typeof c[k] !== 'string' || /[\r\n]/.test(c[k]!))) throw new AdapterError('AUTH_REQUIRED', 'ZCode 凭据字段无效');
+  for (const k of ['key', 'token', 'org', 'project', 'jwt', 'device', 'accountId', 'subject', 'alias', 'identitySubject'] as const) if (c[k] !== undefined && (typeof c[k] !== 'string' || /[\r\n]/.test(c[k]!))) throw new AdapterError('AUTH_REQUIRED', 'ZCode 凭据字段无效');
   if (isTeam && (!str(c.org) || !str(c.project) || !str(c.key) && !str(c.token))) throw new AdapterError('AUTH_REQUIRED', '团队查询需要 org/project 及已存在的席位 key 或业务 token');
   if (!isTeam && (!str(c.jwt) || !str(c.device))) throw new AdapterError('AUTH_REQUIRED', '赠送查询需要原状态 jwt/device，不能把 Coding Key 当 JWT');
   if (!isTeam) {
@@ -75,6 +75,11 @@ export function parseZCodeCredential(secret: string | null | undefined, id: stri
     if (typeof exp === 'number' && Number.isFinite(exp) && exp <= Date.now() / 1000) throw new AdapterError('AUTH_REQUIRED', 'ZCode JWT 已过期，请在原客户端重新登录');
   }
   return c;
+}
+/** Shared by direct login and collection. Keep the identity seed separate from
+ * the final site/project-bound subject so repeated collection is idempotent. */
+export function zcodeAccountSubject(c: ZCodeCredential, id: string): string {
+  return `${id}:${hash(JSON.stringify([c.site, c.identitySubject || c.subject || c.accountId || c.key || c.jwt || c.token, c.org ?? '', c.project ?? '']))}`;
 }
 function manifest(id: string, host: string): AdapterManifest {
   return { ...OPENROUTER_KEY_MANIFEST, id, brand: 'ZCode', product: id === 'zcode-gift' ? 'ZCode 赠送权益' : 'ZCode 团队席位', region: host, authMode: 'local_client', allowedHosts: [host], officialSourceUrl: `https://${host}${id === 'zcode-gift' ? endpoints.balance : endpoints.quota}`, supportedFields: id === 'zcode-gift' ? ['赠送分桶与失效日期', '待领取预览（非已拥有额度）'] : ['团队额度与订阅（席位）', '可用重置券及失效日期'], unsupportedFields: ['新浏览器登录', '自动创建或发现 Key', '刷新凭据', '自动领取或消费重置券'], permissions: '只读固定 quota/subscription/reset-list/balance/preview GET，不调用其他路径。', termsCheckedAt: '2026-10-21' };
@@ -89,7 +94,7 @@ abstract class ZCodeAdapter implements ProviderAdapter {
     if (input.signal?.aborted) throw new AdapterError('CANCELLED', '查询已取消');
     const c = parseZCodeCredential(input.secret, this.manifest.id);
     // Include org/project even when the main process supplies a shared account subject.
-    const subject = `${this.manifest.id}:${hash(JSON.stringify([c.site, c.subject || c.accountId || c.key || c.jwt || c.token, c.org ?? '', c.project ?? '']))}`;
+    const subject = zcodeAccountSubject(c, this.manifest.id);
     if (input.expectedSubject && input.reason !== 'probe' && subject !== input.expectedSubject) throw new AdapterError('ACCOUNT_MISMATCH', 'ZCode 账号、组织或项目已改变');
     const requests = this.requests(c);
     const results = await Promise.allSettled(requests.map(async r => {

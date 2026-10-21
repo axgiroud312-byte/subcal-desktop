@@ -13,6 +13,8 @@ export const ALLOWED_IPC_METHODS = [
   'accounts.add',
   'accounts.loginStart',
   'accounts.loginPoll',
+  'accounts.loginCancel',
+  'accounts.loginSubmit',
   'subscriptions.snapshot',
   'subscriptions.create',
   'subscriptions.update',

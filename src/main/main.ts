@@ -35,6 +35,7 @@ import { Collector } from './collector';
 import { manifests } from './adapters';
 import { NotificationService } from './notifications';
 import { AccountAccess } from './account-access';
+import { openLoginWindow } from './login/window';
 
 /** 渲染层动作通道（主 → 渲染），合同见 src/shared/bridge.ts。 */
 const ACTION_CHANNEL = 'subcal:action';
@@ -206,7 +207,10 @@ function registerIpc(): void {
   ipcMain.handle('subcal:invoke',(event,request:unknown)=>{assertMainWindowSender(event);return service.handle(request);});
   ipcMain.handle('subcal:open-external', async (event, rawUrl: unknown) => {
     assertMainWindowSender(event);
-    const url = assertOfficialHttpsUrl(rawUrl);
+    if(typeof rawUrl==='string' && await service.accountAccess.openLoginUrl(rawUrl))return;
+    // An exact, still-active main-process login URL may be a loopback captcha
+    // page. Arbitrary renderer links continue through the official HTTPS rule.
+    const url = typeof rawUrl==='string' && service.accountAccess.isLoginUrl(rawUrl) ? rawUrl : assertOfficialHttpsUrl(rawUrl);
     await shell.openExternal(url);
   });
 
@@ -290,7 +294,7 @@ void app.whenReady().then(async () => {
   prefsFile = path.join(app.getPath('userData'), 'preview-shell.json');
   prefs = await loadShellPrefs(prefsFile);
   const db=new SubCalDatabase(app.getPath('userData'));
-  service=new SubCalService(db,new CredentialVault(app.getPath('userData'),safeStorage),new Collector(url=>session.defaultSession.resolveProxy(url)),manifests,Date.now,new AccountAccess({fetch:net.fetch.bind(net) as typeof fetch}));
+  service=new SubCalService(db,new CredentialVault(app.getPath('userData'),safeStorage),new Collector(url=>session.defaultSession.resolveProxy(url)),manifests,Date.now,new AccountAccess({fetch:net.fetch.bind(net) as typeof fetch,openWindow:openLoginWindow}));
   prefs.closeToTray=db.getPreferences().closeToTray;
   notifications=new NotificationService(db,{available:()=>Notification.isSupported(),show:(title,body)=>{new Notification({title,body}).show();}});
   service.subscribe(()=>{mainWindow?.webContents.send('subcal:state-changed');prefs.closeToTray=db.getPreferences().closeToTray;});

@@ -278,7 +278,9 @@ export type AdapterCatalogEntry = {
 export interface SubCalClient {
   discoverAccounts?(): Promise<{accounts:{id:string;providerId:string;alias:string;source:string;organization?:string}[];warnings:string[]}>;
   addAccount?(input:{candidateId?:string;providerId?:string;secret?:string}):Promise<{subscriptionId:string;connectionId:string}>;
-  startAccountLogin?(providerId:string):Promise<{id:string;userCode:string;verificationUri:string;intervalSeconds:number;expiresAt:number}>;
+  startAccountLogin?(providerId:string):Promise<{id:string;userCode:string;verificationUri:string;intervalSeconds:number;expiresAt:number;instructions?:string;requiresCode?:boolean}>;
+  cancelAccountLogin?(id:string):Promise<void>;
+  submitAccountLogin?(id:string,code:string):Promise<void>;
   pollAccountLogin?(id:string):Promise<{status:'pending'|'complete'|'expired';subscriptionId?:string;connectionId?:string}>;
   snapshot(): Promise<Snapshot>;
   subscribe(listener: () => void): () => void;

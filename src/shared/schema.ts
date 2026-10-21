@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { ALLOWED_IPC_METHODS } from './bridge';
 import { dateValid, validateSubscription } from './rules';
 import { SERVICE_ACCESS } from './service-access';
+import { canStartAccountLogin } from './login-providers';
 
 const id = z.string().min(1).max(200);
 const text = z.string().max(10000);
@@ -29,8 +30,10 @@ const backend = z.enum(['google','eventkit','icloud-caldav']);
 export const paramSchemas = {
   'accounts.discover':z.object({}).strict(),
   'accounts.add':z.object({candidateId:id.optional(),providerId:id.refine(v=>['deepseek-balance','kimi-platform-cn','openrouter-key',...SERVICE_ACCESS.filter(s=>s.mode==='api_key').map(s=>s.id)].includes(v),'此服务尚不支持填写 Key').optional(),secret:z.string().trim().min(4).max(4096).optional()}).strict().refine(p=>Boolean(p.candidateId)!==Boolean(p.providerId&&p.secret),'请选择账号或填写 Key'),
-  'accounts.loginStart':z.object({providerId:z.enum(['codex-local','copilot-local'])}).strict(),
+  'accounts.loginStart':z.object({providerId:id.refine(canStartAccountLogin,'此服务尚未提供应用内登录')}).strict(),
   'accounts.loginPoll':z.object({id}).strict(),
+  'accounts.loginCancel':z.object({id}).strict(),
+  'accounts.loginSubmit':z.object({id,code:z.string().trim().min(1).max(8192)}).strict(),
   'subscriptions.snapshot':z.object({}).strict(),
   'subscriptions.create':z.object({ input:subscriptionInputSchema }).strict(),
   'subscriptions.update':z.object({ id, patch:subscriptionInputSchema.partial() }).strict(),

@@ -209,9 +209,11 @@ export class IpcSubCalClient implements SubCalClient {
     return this.call('accounts.add', input, { mutate: true });
   }
 
-  startAccountLogin(providerId: string): Promise<{ id: string; userCode: string; verificationUri: string; intervalSeconds: number; expiresAt: number }> {
+  startAccountLogin(providerId: string): Promise<{ id: string; userCode: string; verificationUri: string; intervalSeconds: number; expiresAt: number; instructions?:string; requiresCode?:boolean }> {
     return this.call('accounts.loginStart', { providerId });
   }
+  cancelAccountLogin(id:string):Promise<void> { return this.call('accounts.loginCancel',{id}); }
+  submitAccountLogin(id:string,code:string):Promise<void> { return this.call('accounts.loginSubmit',{id,code}); }
 
   async pollAccountLogin(id: string): Promise<{ status: 'pending' | 'complete' | 'expired'; subscriptionId?: string; connectionId?: string }> {
     const result = await this.call<{ status: 'pending' | 'complete' | 'expired'; subscriptionId?: string; connectionId?: string }>('accounts.loginPoll', { id });

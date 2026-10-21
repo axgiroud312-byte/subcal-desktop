@@ -13,9 +13,9 @@
 | #11、#13、#14 | Cursor/Grok Bot、OpenCode Go、Devin；`priority-adapters.test.ts` | 无真实账号；Zen/Zen Free 明确无可读钱包，不注册虚假余额服务 |
 | #12 | Grok Build；`extended-adapters.test.ts` | 真实查询通过；完整生命周期待验证，与 Grok Bot/xAI 钱包分开 |
 | #15、#32、#36 | Google、StepFun、远端缓存；`control-adapters.test.ts`、`upstream-regressions.test.ts` | 已有凭据来源/显式远端站点路径；真实账号待验证，缓存保留原观察时间 |
-| #16、#17、#23、#24、#26、#28、#30 | Kimi Code/Work、Factory、Cline、Command Code、Zed、Open Design、AutoClaw；`extended-adapters.test.ts` | 部分仅导入已有客户端登录；独立网页登录与真实账号未完成 |
+| #16、#17、#23、#24、#26、#28、#30 | Kimi Code/Work、Factory、Cline、Command Code、Zed、Open Design、AutoClaw；`extended-adapters.test.ts` | 除 Kimi 外已接入主动登录协议；各项真实账号授权仍待验证 |
 | #18、#19、#20、#25、#29 | Kiro、GLM/ZCode、Qoder、MiMo、小浣熊；`regional-adapters.test.ts`、`zcode-adapter.test.ts` | 地区/组织隔离按协议测试；真实账号及未覆盖登录来源仍待验证 |
-| #21、#22、#27 | WorkBuddy、MiniMax、Trae；`desktop-service-adapters.test.ts`、`desktop-account-sources.test.ts` | 已有登录导入；macOS/Linux、受保护存储和完整独立授权仍待实机验证 |
+| #21、#22、#27 | WorkBuddy、MiniMax、Trae；`desktop-service-adapters.test.ts`、`desktop-account-sources.test.ts` | 已有登录导入及主动登录协议；真实授权、macOS/Linux、受保护存储仍待实机验证 |
 | #31、#33 | CodeArts、火山、腾讯签名只读控制面；`signed-adapters.test.ts` | 合成签名与分页检查；真实权限、临时凭据、团队枚举待真实账号验证 |
 | #34 | 固定钱包、Ollama、通用面板协议；`wallet-adapters.test.ts`、`relay-account.test.ts` | 真实账号待验证；SiliconFlow 退休接口明确报不支持，不伪造余额 |
 | #37 | 权益日期、多窗口、模型共享池、余额分项、仅实际支付可编辑；`renderer-entitlements.test.ts` | 真实 Electron 卡片与支付编辑见 `handoff/`；数值历史未暴露给 Renderer，曲线尚未实现 |
@@ -23,7 +23,26 @@
 
 上述表的协议检查使用合成凭据或固定公开样例。查询成功也不代表已验证授权、续期、失效重登、多组织切换、休眠恢复的全部生命周期。
 
-## 接手续做
+## 应用主动登录纠正（2026-10-21）
+
+用户明确拒绝“自己在终端登录”。本轮将登录入口改为：应用按钮 → 官方授权 → 自动保存账号/建卡/排队查询；已有账号发现保留为快捷入口。
+
+最终自动检查：`npm run typecheck` 通过；固定源码目录核对开启后自动测试 **296/296 通过，0 跳过**。新增主进程注册的登录服务/地区 ID 共 35 项，另保留原 Codex/Copilot 设备授权。真实 Electron 登录交互检查 3 项通过，供应商响应为合成值；没有新增真实账号授权完成记录。
+
+按用户要求删除 Google OAuth 硬编码配置，并从待推送提交历史移除。Google 两项登录需要部署端提供自己的 OAuth 应用配置，默认未配置时明确提示暂不可用；测试使用虚构配置。其他登录路径不受影响。
+
+- 新增 `src/main/login/`：主进程会话管理、真实 PKCE/device/loopback 协议、隔离官方 CLI 编排；支持取消、过期、重复轮询幂等、切换服务丢弃旧授权。Renderer 不接收令牌。
+- Cursor、Devin、Factory 见 [优先服务协议](priority-login.md)；Kiro/Qoder/WorkBuddy/MiniMax/Trae/CodeArts 见 [地区协议](desktop-login.md)。
+- Claude/Grok 由应用后台调用已安装官方组件，不让用户操作终端；缺组件时提示安装，详见 [CLI 登录](cli-login.md)。本机已核对二者实际可执行文件及 `login --help`，尚未用真实账号完成本轮授权。
+- Cline、OpenDesign、CommandCode、Raccoon、ZCode、MiMo、AutoClaw、Zed 见 [服务协议](service-login.md)。Zed 使用本次 RSA 私钥绑定回调，AutoClaw 国内提供应用生成的手机号/验证码页面。
+- Gemini CLI/Antigravity 使用 Google PKCE/state，仅查询已有项目；StepFun 国内/国际通过隔离官方窗口登录，主进程自动确认会话，不要求书签或复制令牌。详见 [内置服务协议](builtin-login.md)。
+- 修复登录与权益衔接：ZCode 身份不再二次哈希，业务 token 不误作席位 Key；MiMo 按实际权益接口 cookie 路径保存；Qoder 保存设备令牌有效期；静态凭据过期提示重登。
+- `browser-login-integration.test.ts` 覆盖真实 IPC、加密保存、自动建卡、自动排队、重复轮询、取消与导出不含秘密，凭据为合成值。
+- `scripts/login-desktop-check.mjs` 使用真实 Electron 窗口和 IPC，拦截供应商网络/浏览器打开；报告与截图在 `login-ui/`。这是桌面交互及隔离窗口检查，不是真实账号授权完成。
+
+仍需供应商真实账号逐一完成授权与权益读取，不能把协议测试通过当成全部服务已线上打通。未实现主动登录的入口明确显示尚未完成；历史曲线等原有缺口不由本次登录修复覆盖。
+
+## 前次接手续做（ec6bbef）
 
 最终检查：`npm run typecheck` 通过；设置 `SUBCAL_MAGPIE_SOURCE` / `SUBCAL_PLUGINS_SOURCE` 指向固定源码后执行 `npm test`，**243/243 通过、0 跳过**。真实 Electron 基础回归 **6/6 通过**，报告见 `backend-regression/desktop-report.json`，包括中转站协议表单与腾讯团队 ID 可选入口。`handoff/real-desktop-report.json` 覆盖全部 62 个应用服务入口：Codex/Grok Build 实际查询成功，其余 60 个没有本机可用真实凭据，仍待验证。
 
@@ -42,8 +61,8 @@
 
 ## 使用与未完成项
 
-双击根目录 `启动 SubCal.cmd`，或 `npm run dev`。新增订阅选择已发现账号，或按服务提供必要凭据；自动字段不要求手填。只读登录来源的服务需先在原客户端登录。
+双击根目录 `启动 SubCal.cmd`，或 `npm run dev`。新增订阅选择服务，点击“登录”并在打开的页面授权；完成后自动建卡并查询。已有账号也可直接加入，API 服务保留 Key 入口；自动字段不要求手填。
 
-缺少真实凭据的服务保持待验证；独立网页登录、部分受保护客户端来源、历史曲线、无现成权益接口的后续管理端适配仍有工作。固定版上游的全部服务已纳入研究目录，但不能据此称“所有服务均可自动登录并读到权益”。没有合并 PR 或关闭总目标。
+缺少真实凭据的服务保持待验证；尚未支持的主动登录、部分受保护客户端来源、历史曲线、无现成权益接口的后续管理端适配仍有工作。固定版上游的全部服务已纳入研究目录，但不能据此称“所有服务均可自动登录并读到权益”。没有合并 PR 或关闭总目标。
 
 验证使用独立临时资料库，成功后脚本清理该资料库，不改变原客户端登录；主工作区及先前源码研究目录保留。没有创建本次临时工作树。

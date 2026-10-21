@@ -9,9 +9,10 @@ import { Field, FieldLabel } from './ui/field';
 import { PROVIDERS } from '../service/account-providers';
 import { SERVICE_ACCESS } from '../../shared/service-access';
 import { FormSelect } from './form-controls';
+import { canStartAccountLogin } from '../../shared/login-providers';
 
 type Candidate = { id: string; providerId: string; alias: string; source: string; organization?: string };
-type Login = { id: string; userCode: string; verificationUri: string; intervalSeconds: number; expiresAt: number };
+type Login = { id: string; userCode: string; verificationUri: string; intervalSeconds: number; expiresAt: number; instructions?: string; requiresCode?: boolean };
 
 export function AddSubscription({ client, notify, initialProvider, onAdded, onManual, onClose }: {
   client: SubCalClient; notify: Notify; initialProvider?: string;
@@ -32,6 +33,8 @@ export function AddSubscription({ client, notify, initialProvider, onAdded, onMa
   const [relayUserId, setRelayUserId] = useState('');
   const [busy, setBusy] = useState(false);
   const [login, setLogin] = useState<Login | null>(null);
+  const [loginCode, setLoginCode] = useState('');
+  const activeLogin = useRef<string | null>(null);
   const [added, setAdded] = useState<Set<string>>(new Set());
   const alive = useRef(true);
   const discoveringRef = useRef(false);
@@ -41,8 +44,14 @@ export function AddSubscription({ client, notify, initialProvider, onAdded, onMa
   callbacks.current = { onAdded, onClose, notify };
   const selected = PROVIDERS.find(p => p.id === providerId);
   const cloud=SERVICE_ACCESS.find(p=>p.id===providerId)?.cloudRegion;
+  const supportsLogin = canStartAccountLogin(providerId);
+  const cancelLogin = () => {
+    const id = activeLogin.current; activeLogin.current = null;
+    if(id)void client.cancelAccountLogin?.(id).catch(()=>{});
+    setLogin(null);setLoginCode('');
+  };
 
-  useEffect(() => { alive.current = true; return () => { alive.current = false; generation.current++; }; }, []);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; generation.current++; const id=activeLogin.current;activeLogin.current=null;if(id)void client.cancelAccountLogin?.(id).catch(()=>{}); }; }, [client]);
   const discover = useCallback(async () => {
     if (discoveringRef.current) return;
     discoveringRef.current = true;
@@ -69,19 +78,19 @@ export function AddSubscription({ client, notify, initialProvider, onAdded, onMa
     let timer: number;
     const poll = async () => {
       try {
-        if (Date.now() >= login.expiresAt) throw new Error('登录码已过期，请重新登录。');
+        if (Date.now() >= login.expiresAt) throw new Error('登录已过期，请重新登录。');
         if (!client.pollAccountLogin) throw new Error('登录服务不可用，请重新打开桌面应用。');
         const result = await client.pollAccountLogin(login.id);
         if (cancelled) return;
-        if (result.status === 'expired') throw new Error('登录码已过期，请重新登录。');
+        if (result.status === 'expired') throw new Error('登录已过期或取消，请重新登录。');
         if (result.status === 'complete') {
           if (!result.subscriptionId || !result.connectionId) throw new Error('登录已完成，但尚未返回订阅，请重新发现账号后加入。');
-          setLogin(null); callbacks.current.notify('账号已加入，订阅卡片已生成');
+          cancelLogin(); callbacks.current.notify('账号已加入，订阅卡片已生成');
           callbacks.current.onAdded(result.subscriptionId, result.connectionId); callbacks.current.onClose();
           return;
         }
         timer = window.setTimeout(poll, Math.max(1, login.intervalSeconds) * 1000);
-      } catch (e) { if (!cancelled) { setError((e as Error).message); setLogin(null); } }
+      } catch (e) { if (!cancelled) { setError((e as Error).message); cancelLogin(); } }
     };
     timer = window.setTimeout(poll, Math.max(1, login.intervalSeconds) * 1000);
     return () => { cancelled = true; window.clearTimeout(timer); };
@@ -109,7 +118,10 @@ export function AddSubscription({ client, notify, initialProvider, onAdded, onMa
     try {
       if (!client.startAccountLogin) throw new Error('请在桌面应用中登录真实账号。');
       const result = await client.startAccountLogin(providerId);
-      if (alive.current && request === generation.current) setLogin(result);
+      if (alive.current && request === generation.current) {
+        activeLogin.current=result.id;setLogin(result);setLoginCode('');
+        if(window.subcal?.openExternal)await window.subcal.openExternal(result.verificationUri);
+      } else { await client.cancelAccountLogin?.(result.id); }
     } catch (e) { if (alive.current && request === generation.current) setError((e as Error).message); }
     finally { actionRef.current = false; if (alive.current) setBusy(false); }
   };
@@ -133,7 +145,8 @@ export function AddSubscription({ client, notify, initialProvider, onAdded, onMa
       </section>)}
       {warnings.map((warning, i) => <p className="muted" key={i}>{warning}</p>)}
       <h3>添加其他账号</h3>
-      <Field><FieldLabel htmlFor="account-service">选择服务</FieldLabel><FormSelect id="account-service" value={providerId} disabled={busy} onChange={e => { generation.current++; setProviderId(e.target.value); setSecret(''); setLogin(null); setError(''); }}><option value="">请选择服务</option>{PROVIDERS.map(provider=><option value={provider.id} key={provider.id}>{provider.name}</option>)}</FormSelect></Field>
+      <Field><FieldLabel htmlFor="account-service">选择服务</FieldLabel><FormSelect id="account-service" value={providerId} disabled={busy} onChange={e => { generation.current++; cancelLogin();setProviderId(e.target.value); setSecret('');setError(''); }}><option value="">请选择服务</option>{PROVIDERS.map(provider=><option value={provider.id} key={provider.id}>{provider.name}</option>)}</FormSelect></Field>
+      {supportsLogin && !login && <Button disabled={busy || !client.startAccountLogin} onClick={() => void startLogin()}><ExternalLink />{busy ? '正在打开登录…' : `登录 ${selected?.name}`}</Button>}
       {selected?.mode === 'api_key' && <form className="stack" onSubmit={e => { e.preventDefault(); if (secret.trim()) void add({ providerId, secret: cloud?JSON.stringify({accessKeyId,secretAccessKey:secret,teamId}):providerId==='relay-wallet'?JSON.stringify({origin:remoteUrl.trim(),apiKey:secret.trim(),template:relayTemplate,userId:relayUserId}):providerId==='remote-magpie'?JSON.stringify({origin:remoteUrl.trim(),apiKey:secret.trim()}):secret.trim() }); }}>
         {cloud&&<><Field><FieldLabel htmlFor="cloud-access-id">AccessKeyId / SecretId</FieldLabel><Input id="cloud-access-id" required autoComplete="off" value={accessKeyId} onChange={e=>setAccessKeyId(e.target.value)}/></Field>{providerId.startsWith('tencent-')&&<Field><FieldLabel htmlFor="cloud-team">团队 ID（可选）</FieldLabel><Input id="cloud-team" value={teamId} onChange={e=>setTeamId(e.target.value)} placeholder="留空自动识别团队，分别建卡" /></Field>}</>}
         {(providerId==='remote-magpie'||providerId==='relay-wallet') && <Field><FieldLabel htmlFor="remote-url">确认远端 HTTPS 站点</FieldLabel><Input id="remote-url" type="url" required value={remoteUrl} onChange={e=>setRemoteUrl(e.target.value)} placeholder="https://panel.example.com" /></Field>}
@@ -142,9 +155,8 @@ export function AddSubscription({ client, notify, initialProvider, onAdded, onMa
         <Field><FieldLabel htmlFor="account-key">{cloud?'SecretAccessKey / SecretKey':`${selected.name} API Key`}</FieldLabel><Input id="account-key" type="password" autoComplete="off" spellCheck={false} disabled={busy} value={secret} onChange={e => setSecret(e.target.value)} /></Field>
         <Button type="submit" disabled={busy || !secret.trim()}>{busy ? '正在加入…' : '加入'}</Button>
       </form>}
-      {selected?.mode === 'device' && !login && <Button disabled={busy || !client.startAccountLogin} onClick={() => void startLogin()}>{busy ? '正在准备登录…' : `登录 ${selected.name}`}</Button>}
-      {selected?.mode === 'external' && <section className="panel stack"><strong>在 {selected.name} 中登录</strong><p>{SERVICE_ACCESS.find(p=>p.id===providerId)?.instruction ?? (providerId === 'claude-local' ? <>打开终端，运行 <code>claude</code>，输入 <code>/login</code>，按提示在浏览器完成登录。</> : '在原客户端或 OpenCode / Magpie 中完成登录，返回选择已有账号。此服务的独立网页登录尚未接入。')}</p><p className="muted">选择已发现账号即可加入；没有发现时不会生成虚假的权益。</p></section>}
-      {login && <section className="panel stack"><p>打开登录页面，输入以下登录码：</p><strong className="text-xl select-all" aria-label="登录码">{login.userCode}</strong><Button onClick={() => void openLogin()}><ExternalLink />打开登录页面</Button><p className="muted" role="status">正在等待登录，完成后会自动加入订阅。</p><Button variant="ghost" onClick={() => setLogin(null)}>取消等待</Button></section>}
+      {selected?.mode === 'external' && !supportsLogin && <section className="panel stack"><strong>{selected.name} 登录接入尚未完成</strong><p>当前仅能加入上方已发现账号，尚不能在本应用发起此服务的登录。</p></section>}
+      {login && <section className="panel stack"><p>{login.userCode ? '在打开的授权页面输入以下登录码：' : '请在打开的浏览器页面完成登录。'}</p>{login.userCode && <strong className="text-xl select-all" aria-label="登录码">{login.userCode}</strong>}{login.instructions&&<p className="muted">{login.instructions}</p>}<Button onClick={() => void openLogin()}><ExternalLink />重新打开登录页面</Button>{login.requiresCode&&<form className="stack" onSubmit={async e=>{e.preventDefault();try{if(!client.submitAccountLogin)throw new Error('此客户端不支持提交授权码');await client.submitAccountLogin(login.id,loginCode.trim());setLoginCode('');}catch(error){setError((error as Error).message);}}}><Field><FieldLabel htmlFor="login-code">授权页面返回的验证码或回调地址</FieldLabel><Input id="login-code" autoComplete="off" value={loginCode} onChange={e=>setLoginCode(e.target.value)} /></Field><Button type="submit" disabled={!loginCode.trim()}>完成授权</Button></form>}<p className="muted" role="status">正在等待授权，完成后自动保存账号、建卡并读取权益。</p><Button variant="ghost" onClick={cancelLogin}>取消登录</Button></section>}
       {error && <p role="alert" className="danger-text">{error}</p>}
       {onManual && <Button variant="ghost" disabled={busy} onClick={onManual}><Plus />手动记录其他订阅</Button>}
     </div>
